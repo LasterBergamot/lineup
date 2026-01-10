@@ -187,37 +187,7 @@ For production, use a WSGI server instead of Flask's built-in development server
 
 ## Running Tests
 
-### Run All Tests
-
-```bash
-poetry run pytest
-```
-
-### Run Tests with Verbose Output
-
-```bash
-poetry run pytest -v
-```
-
-### Run Tests with Coverage Report
-
-```bash
-poetry run pytest --cov=app --cov-report=html
-```
-
-This generates an HTML coverage report in the `htmlcov/` directory. Open `htmlcov/index.html` in your browser to view it.
-
-### Run Specific Test File
-
-```bash
-poetry run pytest tests/test_health.py
-```
-
-### Run Tests Matching a Pattern
-
-```bash
-poetry run pytest -k health
-```
+For detailed information about running tests, test structure, and testing best practices, see [`tests/README.md`](tests/README.md).
 
 ## Code Quality Tools
 

@@ -23,7 +23,7 @@ def create_app(config_name="development"):
     if config_name == "production" and not app.config.get("SECRET_KEY"):
         raise ValueError("SECRET_KEY environment variable must be set in production")
 
-    """Initialize CORS with environment-aware configuration."""
+    # Initialize CORS with environment-aware configuration
     cors_origins = app.config.get("CORS_ORIGINS")
 
     if config_name == "production":

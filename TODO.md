@@ -19,11 +19,11 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [x] Set up black formatter with configuration
   - [x] Configure coverage.py for code coverage reporting
 
-- [ ] **Phase 1.4**: Set up testing framework (pytest with testing pyramid structure)
-  - [ ] Configure pytest with `pytest.ini` or `pyproject.toml`
-  - [ ] Set up test directory structure (unit, integration, e2e)
-  - [ ] Create initial test examples
-  - [ ] Configure test coverage reporting
+- [x] **Phase 1.4**: Set up testing framework (pytest with testing pyramid structure)
+  - [x] Configure pytest with `pytest.ini` or `pyproject.toml`
+  - [x] Set up test directory structure (unit, integration, e2e)
+  - [x] Create initial test examples
+  - [x] Configure test coverage reporting
 
 - [ ] **Phase 1.5**: Configure containerization (Docker/podman)
   - [ ] Create Dockerfile for the application
@@ -137,6 +137,18 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [ ] Create infrastructure code (VPC, RDS, ECS/Lambda, etc.)
   - [ ] Configure cost-optimized resources (consider spot instances, reserved capacity)
   - [ ] Set up environment variables and secrets management
+  - [ ] **Set up comprehensive cost management and protection** (prevent unexpected charges)
+    - [ ] Configure AWS Budgets with automatic actions (shutdown resources when budget exceeded)
+    - [ ] Set up AWS Cost Anomaly Detection for unusual spending patterns
+    - [ ] Create billing alarms in CloudWatch (multiple thresholds: 50%, 80%, 100% of budget)
+    - [ ] Implement automatic resource shutdown via Lambda functions triggered by budget alerts
+    - [ ] Set up EventBridge rules to automatically stop/terminate non-essential resources on budget threshold
+    - [ ] Configure resource tagging strategy for cost tracking and automated shutdowns
+    - [ ] Create Lambda function to automatically stop EC2 instances, RDS databases, and other resources when budget exceeded
+    - [ ] Set up spending limits where possible (note: AWS doesn't have hard spending limits, but budgets with actions can simulate this)
+    - [ ] Configure automatic shutdown of development/staging environments during off-hours (if applicable)
+    - [ ] Document cost management strategy and emergency shutdown procedures
+    - [ ] Test automatic shutdown mechanisms in a safe environment before production
 
 - [ ] **Phase 4.2**: Configure GitHub Actions for CI/CD pipeline
   - [ ] Create CI workflow (lint, test, build)
