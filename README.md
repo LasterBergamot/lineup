@@ -8,7 +8,30 @@ This project provides a REST API for creating lineups for sports teams (initiall
 
 ## Project Status
 
-This project is in early development. See `TODO.md` for the current development roadmap.
+This project is in early development. Currently completing **Phase 1: Project Foundation & Setup**.
+
+See `TODO.md` for the complete development roadmap and progress.
+
+## Quick Start
+
+Get the API running in under 5 minutes:
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/lineup.git
+cd lineup
+
+# Install dependencies
+poetry config virtualenvs.in-project true
+poetry install
+
+# Run the application
+poetry run python run.py
+```
+
+Visit `http://localhost:5000/api/v1/health` to verify the API is running.
+
+For detailed instructions, see the [Getting Started Guide](docs/getting_started.rst).
 
 ## Tech Stack
 
@@ -16,8 +39,9 @@ This project is in early development. See `TODO.md` for the current development 
 - **Framework**: Flask
 - **Dependency Management**: Poetry
 - **Testing**: pytest
-- **Code Quality**: flake8, black, coverage
+- **Code Quality**: flake8, black, coverage, mypy
 - **Containerization**: Docker
+- **Documentation**: Sphinx with Read the Docs theme
 
 ## Docker
 
@@ -428,9 +452,58 @@ The project uses `.gitkeep` files to preserve empty directories in Git. Git does
 
 You can safely ignore these files - they're just placeholders. If you add actual files to these directories, the `.gitkeep` files become unnecessary but harmless.
 
+## Documentation
+
+The project uses Sphinx for comprehensive documentation.
+
+For detailed documentation maintenance instructions, see **[docs/README.md](docs/README.md)**.
+
+### Building Documentation
+
+**Build HTML documentation:**
+
+```bash
+cd docs
+poetry run sphinx-build -b html . _build
+```
+
+Or using the provided scripts:
+
+**On Windows:**
+```bash
+cd docs
+.\make.bat html
+```
+
+**On Linux/macOS:**
+```bash
+cd docs
+make html
+```
+
+**View documentation:**
+
+Open `docs/_build/index.html` in your browser after building.
+
+### Documentation Structure
+
+The documentation includes:
+
+- **Getting Started Guide** - Installation and setup instructions
+- **API Reference** - Complete API endpoint documentation
+- **Development Guide** - Coding standards, testing, and workflow
+- **Deployment Guide** - Cloud deployment instructions (planned for Phase 4)
+- **Contributing Guide** - How to contribute to the project
+
+### Online Documentation
+
+> **Note:** Online documentation hosting (Read the Docs) will be set up in Phase 6.
+
 ## Development
 
 See `initial-instructions.md` for project requirements and `TODO.md` for development tasks.
+
+For detailed development guidelines, see the [Development Guide](docs/development.rst) in the documentation.
 
 ## License
 
