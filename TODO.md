@@ -14,11 +14,10 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [x] Initialize Flask application
   - [x] Set up basic project configuration files
 
-- [ ] **Phase 1.3**: Configure code quality tools
-  - [ ] Set up flake8 with configuration file
-  - [ ] Set up black formatter with configuration
-  - [ ] Configure coverage.py for code coverage reporting
-  - [ ] Add pre-commit hooks (optional but recommended)
+- [x] **Phase 1.3**: Configure code quality tools
+  - [x] Set up flake8 with configuration file
+  - [x] Set up black formatter with configuration
+  - [x] Configure coverage.py for code coverage reporting
 
 - [ ] **Phase 1.4**: Set up testing framework (pytest with testing pyramid structure)
   - [ ] Configure pytest with `pytest.ini` or `pyproject.toml`
@@ -146,25 +145,32 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [ ] Configure automated testing on PRs
   - [ ] Add deployment approvals
 
-- [ ] **Phase 4.3**: Set up GitHub Packages as artifact repository
+- [ ] **Phase 4.3**: Set up code quality checks in builds (local and CI)
+  - [ ] Create scripts for running checks locally (check.sh, check.ps1)
+  - [ ] Integrate code quality checks into CI workflow (Black, Flake8, MyPy)
+  - [ ] Configure checks to run on every build (local and CI)
+  - [ ] Ensure checks block builds/merges if they fail
+  - [ ] Document how to run checks locally
+
+- [ ] **Phase 4.4**: Set up GitHub Packages as artifact repository
   - [ ] Configure GitHub Packages for Docker images
   - [ ] Set up package publishing in CI/CD
   - [ ] Configure package access and permissions
 
-- [ ] **Phase 4.4**: Create Docker images and container orchestration
+- [ ] **Phase 4.5**: Create Docker images and container orchestration
   - [ ] Optimize Dockerfile for production
   - [ ] Set up multi-stage builds
   - [ ] Configure container orchestration (ECS, EKS, or similar)
   - [ ] Set up health checks and monitoring
 
-- [ ] **Phase 4.5**: Configure deployment pipeline
+- [ ] **Phase 4.6**: Configure deployment pipeline
   - [ ] Set up staging environment
   - [ ] Set up production environment
   - [ ] Configure blue-green or rolling deployments
   - [ ] Set up rollback procedures
   - [ ] Document deployment process
 
-- [ ] **Phase 4.6**: Set up monitoring and logging
+- [ ] **Phase 4.7**: Set up monitoring and logging
   - [ ] Configure CloudWatch or similar monitoring
   - [ ] Set up application logging
   - [ ] Create dashboards for key metrics

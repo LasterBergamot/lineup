@@ -44,12 +44,13 @@ extend-exclude = '''
 '''
 
 [tool.coverage.run]
-source = ["lineup"]
+source = ["app", "config"]
 omit = [
     "*/tests/*",
     "*/test_*",
     "*/__pycache__/*",
     "*/migrations/*",
+    "*/__init__.py",
 ]
 
 [tool.coverage.report]
@@ -69,7 +70,8 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "--cov=lineup",
+    "--cov=app",
+    "--cov=config",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",

@@ -12,8 +12,4 @@ def health_check():
     Returns:
         JSON response with status information
     """
-    return jsonify({
-        "status": "healthy",
-        "service": "lineup-api",
-        "version": "0.1.0"
-    }), 200
+    return jsonify({"status": "healthy", "service": "lineup-api", "version": "0.1.0"}), 200
