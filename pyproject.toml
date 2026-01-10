@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "API for creating and managing sports team lineups with PDF export functionality"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "lineup"}]
+packages = [{include = "app"}, {include = "config"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

@@ -18,6 +18,7 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [x] Set up flake8 with configuration file
   - [x] Set up black formatter with configuration
   - [x] Configure coverage.py for code coverage reporting
+  - [x] Set up mypy for type checking
 
 - [x] **Phase 1.4**: Set up testing framework (pytest with testing pyramid structure)
   - [x] Configure pytest with `pytest.ini` or `pyproject.toml`
