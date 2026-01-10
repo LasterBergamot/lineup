@@ -27,7 +27,7 @@ ENV/
 env/
 
 # Poetry
-poetry.lock
+# Note: poetry.lock IS committed for reproducible builds (especially Docker)
 
 # IDE
 .vscode/

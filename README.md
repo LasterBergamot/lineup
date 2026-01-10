@@ -17,6 +17,61 @@ This project is in early development. See `TODO.md` for the current development 
 - **Dependency Management**: Poetry
 - **Testing**: pytest
 - **Code Quality**: flake8, black, coverage
+- **Containerization**: Docker
+
+## Docker
+
+The project includes Docker configuration for containerized development and deployment.
+
+### Dockerfile
+
+The Dockerfile uses a multi-stage build to create optimized container images:
+
+| Build Target | Description |
+|-------------|-------------|
+| `development` | Includes dev dependencies, enables hot-reload |
+| `production` | Minimal image with only runtime dependencies |
+
+**Build commands:**
+```bash
+# Development image
+docker build --target development -t lineup:dev .
+
+# Production image
+docker build --target production -t lineup:prod .
+```
+
+### Docker Compose (Local Development)
+
+Docker Compose sets up the complete development environment including the Flask API, PostgreSQL database, and pgAdmin.
+
+**Usage:**
+```bash
+docker-compose up              # Start all services
+docker-compose up -d           # Start in background
+docker-compose up --build      # Rebuild and start
+docker-compose down            # Stop all services
+docker-compose down -v         # Stop and remove volumes
+docker-compose logs -f api     # Follow API logs
+```
+
+**Services:**
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| API | http://localhost:5000 | Flask API application |
+| Health | http://localhost:5000/api/v1/health | Health check endpoint |
+| Database | localhost:5432 | PostgreSQL database |
+| pgAdmin | http://localhost:5050 | Database administration tool |
+
+**Database credentials (development only):**
+- User: `lineup`
+- Password: `lineup_dev`
+- Database: `lineup_db`
+
+**pgAdmin credentials:**
+- Email: `admin@lineup.local`
+- Password: `admin`
 
 ## Setup
 

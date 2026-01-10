@@ -34,7 +34,7 @@ Other details are mentioned below.
 - Dependency management: Poetry or something else
 - Code reviews: Cursor Bugbot
 - Testing: pytest, some automated test tools for every level of the testing pyramid
-- Containerization: Docker or podman
+- Containerization: Docker
 
 ## Key Points
 - very few (around 5) users in the beginning, but keep potential scalability in mind for later
