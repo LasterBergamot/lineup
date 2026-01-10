@@ -37,11 +37,8 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [x] Configure Sphinx for API documentation
   - [x] Create initial documentation pages
 
-- [ ] **Phase 1.7**: Set up GitHub repository structure
-  - [ ] Create GitHub Issues templates
-  - [ ] Set up GitHub Projects board
-  - [ ] Initialize GitHub Wiki structure
-  - [ ] Create CONTRIBUTING.md (if applicable)
+- [x] **Phase 1.7**: Set up GitHub repository structure
+  - [x] Create GitHub Issues templates
 
 ## Phase 2: Core API Development (Water Polo - Hungarian Leagues)
 
@@ -128,6 +125,10 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [ ] Test database constraints and relationships
   - [ ] Test migration scripts
   - [ ] Test data integrity
+
+- [ ] **Phase 3.7**: Set up additional GitHub repository features
+  - [ ] Set up GitHub Projects board
+  - [ ] Initialize GitHub Wiki structure
 
 ## Phase 4: Cloud Deployment & CI/CD
 
