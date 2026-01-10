@@ -9,10 +9,10 @@ This TODO list is organized into phases based on the long-term plan outlined in 
   - [x] Set up virtual environment
   - [x] Define initial dependencies (Flask, pytest, etc.)
 
-- [ ] **Phase 1.2**: Set up project structure (Flask API skeleton)
-  - [ ] Create directory structure (app/, tests/, docs/, etc.)
-  - [ ] Initialize Flask application
-  - [ ] Set up basic project configuration files
+- [x] **Phase 1.2**: Set up project structure (Flask API skeleton)
+  - [x] Create directory structure (app/, tests/, docs/, etc.)
+  - [x] Initialize Flask application
+  - [x] Set up basic project configuration files
 
 - [ ] **Phase 1.3**: Configure code quality tools
   - [ ] Set up flake8 with configuration file
