@@ -6,7 +6,7 @@ from lineup.document.document_manager import (
     align_cell_vertically,
     align_cell_horizontally,
 )
-from lineup.water_polo.water_polo_start_list_dto import WaterPoloStartListDTO
+from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
 FILE_NAME = "resources/rajtlista.docx"
 RESULT_FILE_NAME = "resources/modified_rajtlista.docx"
@@ -29,7 +29,7 @@ ROW_LAST = 14
 logging.basicConfig(level=logging.INFO)
 
 
-class WaterPoloStartListCreator:
+class WaterPoloLineupCreator:
     def __init__(self):
         try:
             self.manager = DocumentManager(FILE_NAME)
@@ -37,7 +37,7 @@ class WaterPoloStartListCreator:
             logging.error(f"File not found: {FILE_NAME}")
             raise
 
-    def create_document(self, dto: WaterPoloStartListDTO):
+    def create_document(self, dto: WaterPoloLineupDTO):
         try:
             self.manager.setup_style()
             self.manager.remove_non_space_tab_stops()
@@ -47,6 +47,17 @@ class WaterPoloStartListCreator:
             logging.info(f"Document saved as {RESULT_FILE_NAME}")
         except Exception as e:
             logging.error(f"Error creating document: {e}")
+            raise
+
+    def create_document_bytes(self, dto: WaterPoloLineupDTO) -> bytes:
+        try:
+            self.manager.setup_style()
+            self.manager.remove_non_space_tab_stops()
+            self.__update_paragraphs(dto)
+            self.__update_player_table(dto)
+            return self.manager.to_bytes()
+        except Exception as e:
+            logging.error(f"Error creating document bytes: {e}")
             raise
 
     def __update_paragraphs(self, dto):

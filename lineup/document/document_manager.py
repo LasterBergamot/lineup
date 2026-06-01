@@ -1,3 +1,5 @@
+import io
+
 from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 
@@ -89,3 +91,9 @@ class DocumentManager:
 
     def save(self, filename):
         self.doc.save(filename)
+
+    def to_bytes(self) -> bytes:
+        buffer = io.BytesIO()
+        self.doc.save(buffer)
+        buffer.seek(0)
+        return buffer.read()

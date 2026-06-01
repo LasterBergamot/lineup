@@ -7,7 +7,7 @@ class Player:
 
 
 @dataclass
-class WaterPoloStartListDTO:
+class WaterPoloLineupDTO:
     match: str
     division: str
     team_name: str
@@ -20,7 +20,7 @@ class WaterPoloStartListDTO:
     ball_thrower: str
     players: List[Player] = field(default_factory=list)
 
-    class WaterPoloStartListDTOBuilder:
+    class WaterPoloLineupDTOBuilder:
         def __init__(self):
             self.match: Optional[str] = None
             self.division: Optional[str] = None
@@ -36,79 +36,75 @@ class WaterPoloStartListDTO:
 
         def set_match(
             self, match: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.match = match
             return self
 
         def set_division(
             self, division: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.division = division
             return self
 
         def set_team_name(
             self, team_name: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.team_name = team_name
             return self
 
-        def set_cap(
-            self, cap: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        def set_cap(self, cap: str) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.cap = cap
             return self
 
-        def set_date(
-            self, date: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        def set_date(self, date: str) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.date = date
             return self
 
         def set_coach(
             self, coach: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.coach = coach
             return self
 
         def set_doctor(
             self, doctor: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.doctor = doctor
             return self
 
         def set_assistant_coach(
             self, assistant_coach: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.assistant_coach = assistant_coach
             return self
 
         def set_team_leader(
             self, team_leader: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.team_leader = team_leader
             return self
 
         def set_ball_thrower(
             self, ball_thrower: str
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.ball_thrower = ball_thrower
             return self
 
         def set_players(
             self, players: List[Player]
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.players = players
             return self
 
         def add_player(
             self, player: Player
-        ) -> "WaterPoloStartListDTO.WaterPoloStartListDTOBuilder":
+        ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             if not isinstance(player, Player):
                 raise ValueError("player must be an instance of Player")
             self.players.append(player)
             return self
 
-        def build(self) -> "WaterPoloStartListDTO":
+        def build(self) -> "WaterPoloLineupDTO":
             if not all(
                 [
                     self.match,
@@ -124,7 +120,7 @@ class WaterPoloStartListDTO:
                 ]
             ):
                 raise ValueError("All fields must be set")
-            return WaterPoloStartListDTO(
+            return WaterPoloLineupDTO(
                 match=self.match,
                 division=self.division,
                 team_name=self.team_name,
@@ -152,26 +148,24 @@ class WaterPoloStartListDTO:
 
             def set_cap_number(
                 self, cap_number: int
-            ) -> "WaterPoloStartListDTO.Player.PlayerBuilder":
+            ) -> "WaterPoloLineupDTO.Player.PlayerBuilder":
                 self.cap_number = cap_number
                 return self
 
-            def set_name(
-                self, name: str
-            ) -> "WaterPoloStartListDTO.Player.PlayerBuilder":
+            def set_name(self, name: str) -> "WaterPoloLineupDTO.Player.PlayerBuilder":
                 self.name = name
                 return self
 
             def set_nssz_number(
                 self, nssz_number: str
-            ) -> "WaterPoloStartListDTO.Player.PlayerBuilder":
+            ) -> "WaterPoloLineupDTO.Player.PlayerBuilder":
                 self.nssz_number = nssz_number
                 return self
 
-            def build(self) -> "WaterPoloStartListDTO.Player":
+            def build(self) -> "WaterPoloLineupDTO.Player":
                 if not all([self.cap_number, self.name, self.nssz_number]):
                     raise ValueError("All fields must be set")
-                return WaterPoloStartListDTO.Player(
+                return WaterPoloLineupDTO.Player(
                     cap_number=self.cap_number,
                     name=self.name,
                     nssz_number=self.nssz_number,
