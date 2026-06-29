@@ -33,6 +33,3 @@ class LineupRequest(BaseModel):
         return players
 
 
-class LineupResponse(BaseModel):
-    document: str
-    filename: str

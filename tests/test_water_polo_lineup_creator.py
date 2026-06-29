@@ -122,3 +122,16 @@ def test_create_document_raises_on_error():
     ):
         with pytest.raises(RuntimeError):
             creator.create_document(dto)
+
+
+def test_create_pdf_bytes_returns_pdf():
+    from unittest.mock import patch
+
+    dto = _make_dto([_make_player(i) for i in range(1, 16)])
+    fake_pdf = b"%PDF-1.4 fake"
+    with patch(
+        "lineup.water_polo.water_polo_lineup_creator.PdfConverter.convert",
+        return_value=fake_pdf,
+    ):
+        result = WaterPoloLineupCreator().create_pdf_bytes(dto)
+    assert result == fake_pdf
