@@ -16,3 +16,11 @@ tasks:
   format:
     desc: Format the codebase
     cmd: uv run ruff format .
+
+  serve:
+    desc: Start the API server
+    cmd: uv run uvicorn app:app --reload
+
+  test:
+    desc: Run tests with coverage (>=80%)
+    cmd: uv run pytest --cov=lineup --cov-report=term-missing

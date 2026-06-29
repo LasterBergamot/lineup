@@ -6,9 +6,20 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "python-docx>=1.2.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>=0.15.15",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "httpx2>=0.28.0",
 ]
+
+[tool.coverage.run]
+source = ["lineup"]
+
+[tool.coverage.report]
+fail_under = 80
