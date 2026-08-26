@@ -34,7 +34,9 @@ The output document is written to `resources/modified_rajtlista.docx`.
 
 ## API
 
-The API runs inside a container so that LibreOffice is available for PDF conversion.
+The API runs inside a container so that LibreOffice is available for PDF conversion. The
+image also bundles the libre, metric-compatible fonts (Carlito for Calibri, etc.) that the
+template relies on, so the generated PDF matches the source `.docx` layout.
 
 ```bash
 task build
@@ -97,6 +99,7 @@ Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"
 | `task run`     | Run the CLI application             |
 | `task serve`   | Start the API server locally        |
 | `task test`    | Run tests with coverage (100%)      |
+| `task test-e2e`| Build+run the container and verify real PDF conversion fidelity |
 | `task lint`    | Lint the codebase with ruff         |
 | `task format`  | Format the codebase with ruff       |
 | `task build`   | Build the container image                    |
@@ -112,6 +115,9 @@ lineup/
 ├── app.py                           # FastAPI application entry point
 ├── Dockerfile                       # Container image definition
 ├── compose.yml                      # Podman Compose configuration
+├── docker/
+│   └── fontconfig/
+│       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
 ├── resources/
 │   └── rajtlista.docx               # Input document template
 ├── lineup/
@@ -126,11 +132,13 @@ lineup/
 │       └── water_polo_lineup_dto.py      # Data model and builders
 ├── tests/
 │   ├── resources/
-│   │   └── expected_rajtlista.docx  # Test fixture
+│   │   ├── expected_rajtlista.docx  # Test fixture
+│   │   └── expected-rajtlista.pdf   # Reference render for the e2e fidelity test
 │   ├── conftest.py                  # Shared fixtures
 │   ├── test_api.py                  # API endpoint tests
 │   ├── test_document_manager.py     # DocumentManager unit tests
 │   ├── test_pdf_converter.py        # PdfConverter unit tests
+│   ├── test_pdf_conversion_e2e.py   # Real-conversion fidelity tests (container)
 │   ├── test_water_polo_lineup_creator.py  # Creator unit tests
 │   └── test_water_polo_lineup_dto.py      # DTO and builder unit tests
 └── Taskfile.yml

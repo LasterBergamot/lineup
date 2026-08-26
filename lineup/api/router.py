@@ -12,7 +12,9 @@ from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 router = APIRouter(prefix="/lineups", tags=["lineups"])
 logger = logging.getLogger(__name__)
 
-DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+DOCX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
 
 
 class FileFormat(str, Enum):
@@ -23,7 +25,10 @@ class FileFormat(str, Enum):
 @router.post("", status_code=200)
 def create_lineup(
     request: LineupRequest,
-    file_format: Annotated[FileFormat, Query(alias="format", description="Output format of the generated file")] = FileFormat.PDF,
+    file_format: Annotated[
+        FileFormat,
+        Query(alias="format", description="Output format of the generated file"),
+    ] = FileFormat.PDF,
 ) -> Response:
     players = [
         WaterPoloLineupDTO.Player.PlayerBuilder()
