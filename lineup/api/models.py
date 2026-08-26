@@ -31,5 +31,3 @@ class LineupRequest(BaseModel):
         if len(cap_numbers) != len(set(cap_numbers)):
             raise ValueError("Player cap numbers must be unique")
         return players
-
-

@@ -10,11 +10,12 @@ This project uses [Claude Code](https://claude.ai/code) as an AI coding assistan
 
 ## Prerequisites
 
+- **Operating System:** Any Linux distribution, preferably **Arch Linux**. On Windows, [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows) can be used.
 - [Python 3.x](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — dependency manager
 - [Task](https://taskfile.dev/installation/) — task runner
-- [Podman Desktop](https://podman-desktop.io/) — container engine (required for PDF conversion via LibreOffice)
-- [podman-compose](https://github.com/containers/podman-compose) — Compose support for Podman (`uv tool install podman-compose`)
+- [Docker Engine](https://docs.docker.com/engine/) & [Docker Compose](https://docs.docker.com/compose/) — container engine and compose (required for PDF conversion via LibreOffice)
+- [lazydocker](https://github.com/jesseduffield/lazydocker) — terminal UI for Docker containers (recommended for container management)
 
 ## Installation
 
@@ -34,14 +35,16 @@ The output document is written to `resources/modified_rajtlista.docx`.
 
 ## API
 
-The API runs inside a container so that LibreOffice is available for PDF conversion.
+The API runs inside a container so that LibreOffice is available for PDF conversion. The
+image also bundles the libre, metric-compatible fonts (Carlito for Calibri, etc.) that the
+template relies on, so the generated PDF matches the source `.docx` layout.
 
 ```bash
 task build
 task up
 ```
 
-Starts the API server at `http://127.0.0.1:8000`. Interactive docs are available at `http://127.0.0.1:8000/docs`.
+Starts the API server at `http://127.0.0.1:8000`. Interactive docs are available at `http://127.0.0.1:8000/docs`. You can monitor and manage containers using [lazydocker](https://github.com/jesseduffield/lazydocker).
 
 ### `POST /lineups`
 
@@ -49,9 +52,9 @@ Generates a lineup document from the provided data.
 
 **Query parameters:**
 
-| Parameter | Values         | Default | Description                        |
-|-----------|----------------|---------|------------------------------------|
-| `format`  | `pdf`, `docx`  | `pdf`   | Output format of the generated file |
+| Parameter | Values        | Default | Description                         |
+|-----------|---------------|---------|-------------------------------------|
+| `format`  | `pdf`, `docx` | `pdf`   | Output format of the generated file |
 
 **Request body:**
 
@@ -91,18 +94,19 @@ Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"
 
 ## Available tasks
 
-| Task           | Description                         |
-|----------------|-------------------------------------|
-| `task install` | Install dependencies via `uv sync`  |
-| `task run`     | Run the CLI application             |
-| `task serve`   | Start the API server locally        |
-| `task test`    | Run tests with coverage (100%)      |
-| `task lint`    | Lint the codebase with ruff         |
-| `task format`  | Format the codebase with ruff       |
-| `task build`   | Build the container image                    |
-| `task rebuild` | Force a fresh container image build (no cache) |
-| `task up`      | Start the API in a container (detached)      |
-| `task down`    | Stop the container                           |
+| Task            | Description                                                     |
+|-----------------|-----------------------------------------------------------------|
+| `task install`  | Install dependencies via `uv sync`                              |
+| `task run`      | Run the CLI application                                         |
+| `task serve`    | Start the API server locally                                    |
+| `task test`     | Run tests with coverage (100%)                                  |
+| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity |
+| `task lint`     | Lint the codebase with ruff                                     |
+| `task format`   | Format the codebase with ruff                                   |
+| `task build`    | Build the container image                                       |
+| `task rebuild`  | Force a fresh container image build (no cache)                  |
+| `task up`       | Start the API in a container (detached)                         |
+| `task down`     | Stop the container                                              |
 
 ## Project structure
 
@@ -111,7 +115,10 @@ lineup/
 ├── main.py                          # CLI entry point
 ├── app.py                           # FastAPI application entry point
 ├── Dockerfile                       # Container image definition
-├── compose.yml                      # Podman Compose configuration
+├── compose.yml                      # Docker Compose configuration
+├── docker/
+│   └── fontconfig/
+│       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
 ├── resources/
 │   └── rajtlista.docx               # Input document template
 ├── lineup/
@@ -126,11 +133,13 @@ lineup/
 │       └── water_polo_lineup_dto.py      # Data model and builders
 ├── tests/
 │   ├── resources/
-│   │   └── expected_rajtlista.docx  # Test fixture
+│   │   ├── expected_rajtlista.docx  # Test fixture
+│   │   └── expected-rajtlista.pdf   # Reference render for the e2e fidelity test
 │   ├── conftest.py                  # Shared fixtures
 │   ├── test_api.py                  # API endpoint tests
 │   ├── test_document_manager.py     # DocumentManager unit tests
 │   ├── test_pdf_converter.py        # PdfConverter unit tests
+│   ├── test_pdf_conversion_e2e.py   # Real-conversion fidelity tests (container)
 │   ├── test_water_polo_lineup_creator.py  # Creator unit tests
 │   └── test_water_polo_lineup_dto.py      # DTO and builder unit tests
 └── Taskfile.yml
