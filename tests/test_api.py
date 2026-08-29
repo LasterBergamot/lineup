@@ -1,32 +1,42 @@
-import base64
 import copy
+
+import pytest
+from unittest.mock import patch
+
+FAKE_PDF = b"%PDF-1.4 fake"
+
+
+@pytest.fixture(autouse=True)
+def mock_pdf_converter():
+    with patch(
+        "lineup.document.pdf_converter.PdfConverter.convert",
+        return_value=FAKE_PDF,
+    ):
+        yield
 
 
 def test_create_lineup_success(client, valid_payload):
     response = client.post("/lineups", json=valid_payload)
     assert response.status_code == 200
-    body = response.json()
-    assert "document" in body
-    assert "filename" in body
+    assert response.headers["content-type"] == "application/pdf"
+    assert "content-disposition" in response.headers
 
 
 def test_create_lineup_document_is_non_empty(client, valid_payload):
     response = client.post("/lineups", json=valid_payload)
-    body = response.json()
-    assert len(body["document"]) > 0
+    assert len(response.content) > 0
 
 
-def test_create_lineup_document_is_valid_docx(client, valid_payload):
+def test_create_lineup_document_is_valid_pdf(client, valid_payload):
     response = client.post("/lineups", json=valid_payload)
-    doc_bytes = base64.b64decode(response.json()["document"])
-    assert doc_bytes[:2] == b"PK"
+    assert response.content[:4] == b"%PDF"
 
 
 def test_create_lineup_filename_contains_team_and_date(client, valid_payload):
     response = client.post("/lineups", json=valid_payload)
-    filename = response.json()["filename"]
-    assert valid_payload["team_name"] in filename
-    assert valid_payload["date"] in filename
+    content_disposition = response.headers["content-disposition"]
+    assert valid_payload["team_name"] in content_disposition
+    assert valid_payload["date"] in content_disposition
 
 
 def test_create_lineup_invalid_cap(client, valid_payload):
@@ -87,9 +97,27 @@ def test_create_lineup_single_player(client, valid_payload):
     assert response.status_code == 200
 
 
-def test_create_lineup_template_not_found_returns_500(client, valid_payload):
-    from unittest.mock import patch
+def test_create_lineup_docx_format_returns_docx(client, valid_payload):
+    response = client.post("/lineups?format=docx", json=valid_payload)
+    assert response.status_code == 200
+    assert "wordprocessingml" in response.headers["content-type"]
+    assert "content-disposition" in response.headers
 
+
+def test_create_lineup_docx_format_is_valid_docx(client, valid_payload):
+    response = client.post("/lineups?format=docx", json=valid_payload)
+    assert response.content[:2] == b"PK"
+
+
+def test_create_lineup_docx_filename_contains_team_and_date(client, valid_payload):
+    response = client.post("/lineups?format=docx", json=valid_payload)
+    content_disposition = response.headers["content-disposition"]
+    assert valid_payload["team_name"] in content_disposition
+    assert valid_payload["date"] in content_disposition
+    assert content_disposition.endswith('.docx"')
+
+
+def test_create_lineup_template_not_found_returns_500(client, valid_payload):
     with patch(
         "lineup.api.router.WaterPoloLineupCreator", side_effect=FileNotFoundError
     ):
@@ -99,8 +127,6 @@ def test_create_lineup_template_not_found_returns_500(client, valid_payload):
 
 
 def test_create_lineup_unexpected_error_returns_500(client, valid_payload):
-    from unittest.mock import patch
-
     with patch(
         "lineup.api.router.WaterPoloLineupCreator", side_effect=RuntimeError("forced")
     ):

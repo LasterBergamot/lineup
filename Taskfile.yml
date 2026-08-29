@@ -22,5 +22,29 @@ tasks:
     cmd: uv run uvicorn app:app --reload
 
   test:
-    desc: Run tests with coverage (>=80%)
+    desc: Run tests with coverage (100%; e2e tests excluded via pyproject addopts)
     cmd: uv run pytest --cov=lineup --cov-report=term-missing
+
+  test-e2e:
+    desc: Build+run the container and validate real PDF conversion fidelity
+    cmds:
+      - podman build -t lineup .
+      - podman compose up -d
+      - defer: podman compose down
+      - uv run pytest -m e2e tests/test_pdf_conversion_e2e.py -v
+
+  build:
+    desc: Build the container image
+    cmd: podman build -t lineup .
+
+  rebuild:
+    desc: Force a fresh container image build (no cache)
+    cmd: podman build --no-cache -t lineup .
+
+  up:
+    desc: Start the API in a container (detached)
+    cmd: podman compose up -d
+
+  down:
+    desc: Stop the container
+    cmd: podman compose down

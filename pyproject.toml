@@ -16,10 +16,19 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=6.0.0",
     "httpx2>=0.28.0",
+    "pdfplumber>=0.11.0",
+]
+
+[tool.pytest.ini_options]
+# e2e tests need the running containerized API (real LibreOffice); exclude them by default
+# so `task test` stays hermetic. `task test-e2e` re-selects them with `-m e2e`.
+addopts = "-m 'not e2e'"
+markers = [
+    "e2e: end-to-end test requiring the running containerized API (deselected by default)",
 ]
 
 [tool.coverage.run]
 source = ["lineup"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 100

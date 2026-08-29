@@ -1,20 +1,35 @@
-from __future__ import annotations
-
-import base64
 import logging
+from enum import Enum
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 
-from lineup.api.models import LineupRequest, LineupResponse
+from lineup.api.models import LineupRequest
 from lineup.water_polo.water_polo_lineup_creator import WaterPoloLineupCreator
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
 router = APIRouter(prefix="/lineups", tags=["lineups"])
 logger = logging.getLogger(__name__)
 
+DOCX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
 
-@router.post("", response_model=LineupResponse, status_code=200)
-def create_lineup(request: LineupRequest) -> LineupResponse:
+
+class FileFormat(str, Enum):
+    PDF = "pdf"
+    DOCX = "docx"
+
+
+@router.post("", status_code=200)
+def create_lineup(
+    request: LineupRequest,
+    file_format: Annotated[
+        FileFormat,
+        Query(alias="format", description="Output format of the generated file"),
+    ] = FileFormat.PDF,
+) -> Response:
     players = [
         WaterPoloLineupDTO.Player.PlayerBuilder()
         .set_cap_number(p.cap_number)
@@ -39,14 +54,23 @@ def create_lineup(request: LineupRequest) -> LineupResponse:
         .build()
     )
     try:
-        doc_bytes = WaterPoloLineupCreator().create_document_bytes(dto)
+        creator = WaterPoloLineupCreator()
+        if file_format == FileFormat.PDF:
+            content = creator.create_pdf_bytes(dto)
+            media_type = "application/pdf"
+            filename = f"rajtlista_{request.team_name}_{request.date}.pdf"
+        else:
+            content = creator.create_document_bytes(dto)
+            media_type = DOCX_MEDIA_TYPE
+            filename = f"rajtlista_{request.team_name}_{request.date}.docx"
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="Document template not found")
     except Exception as e:
         logger.error("Document generation failed: %s", e)
         raise HTTPException(status_code=500, detail="Document generation failed")
 
-    return LineupResponse(
-        document=base64.b64encode(doc_bytes).decode("utf-8"),
-        filename=f"rajtlista_{request.team_name}_{request.date}.docx",
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

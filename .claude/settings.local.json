@@ -3,7 +3,9 @@
     "allow": [
       "Bash(python3 *)",
       "Bash(uv run *)",
-      "Bash(uv sync *)"
+      "Bash(uv sync *)",
+      "PowerShell(docker --version 2>&1)",
+      "PowerShell(uv run *)"
     ]
   }
 }
