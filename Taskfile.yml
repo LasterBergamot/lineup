@@ -48,3 +48,15 @@ tasks:
   down:
     desc: Stop the container
     cmd: docker compose down
+
+  migrate:
+    desc: Apply Alembic migrations (upgrade head)
+    cmd: uv run alembic upgrade head
+
+  migrate-new:
+    desc: "Auto-generate a new migration. Usage: task migrate-new -- -m 'description'"
+    cmd: uv run alembic revision --autogenerate {{.CLI_ARGS}}
+
+  migrate-down:
+    desc: Rollback one migration step
+    cmd: uv run alembic downgrade -1
