@@ -6,6 +6,7 @@ from lineup.document.document_manager import (
     align_cell_vertically,
     align_cell_horizontally,
 )
+from lineup.document.pdf_converter import PdfConverter
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
 FILE_NAME = "resources/rajtlista.docx"
@@ -59,6 +60,10 @@ class WaterPoloLineupCreator:
         except Exception as e:
             logging.error(f"Error creating document bytes: {e}")
             raise
+
+    def create_pdf_bytes(self, dto: WaterPoloLineupDTO) -> bytes:
+        docx_bytes = self.create_document_bytes(dto)
+        return PdfConverter().convert(docx_bytes)
 
     def __update_paragraphs(self, dto):
         self.manager.update_paragraph_text(INDEX_MATCH, f"Mérkőzés:\t{dto.match}")
