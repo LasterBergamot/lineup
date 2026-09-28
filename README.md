@@ -8,6 +8,10 @@ The document can be generated via a REST API, which returns the populated file a
 
 This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root contains the project context that Claude Code reads automatically at the start of every session. Use `/update-context` to sync `CLAUDE.md` and `README.md` after making changes.
 
+## Documentation & wiki
+
+The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `main` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
+
 ## Prerequisites
 
 - **Operating System:** Any Linux distribution, preferably **Arch Linux**. On Windows, [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows) can be used.
