@@ -5,7 +5,11 @@
       "Bash(uv run *)",
       "Bash(uv sync *)",
       "PowerShell(docker --version 2>&1)",
-      "PowerShell(uv run *)"
+      "PowerShell(uv run *)",
+      "Bash(bash -n ~/.claude/statusline-command.sh)",
+      "Bash(bash ~/.claude/statusline-command.sh)",
+      "Read(//home/toroka/**)",
+      "Read(//usr/share/**)"
     ]
   }
 }
