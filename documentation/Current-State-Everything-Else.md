@@ -66,6 +66,17 @@ This looked like a real ~90%-coverage shortfall across every DB-touching module 
 traced to this missing config — worth remembering if coverage ever looks impossibly low
 again on async DB code.
 
+## Continuous Integration
+
+Two GitHub Actions workflows (`.github/workflows/`):
+
+- **`ci.yml`** — runs on every PR (and push) against `main`: `task lint`, `ruff format
+  --check .`, `task test` (100% coverage), then `task test-e2e` (builds the image, runs a
+  container, verifies real PDF conversion fidelity).
+- **`wiki-sync.yml`** — on push to `main` touching `documentation/**`: mirrors this folder
+  into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
+  colons but `documentation/`'s filenames don't, for filesystem portability).
+
 ## Conventions (OpenAPI / FastAPI)
 
 - Do not use `from __future__ import annotations` in router files — it breaks FastAPI's
