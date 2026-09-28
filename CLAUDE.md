@@ -5,6 +5,7 @@
 - Read this file at the start of every session before doing anything.
 - After completing any task: update this file if architecture, conventions, tasks, or modules changed.
 - After any user-facing change: update `README.md` (API changes, new tasks, new prerequisites, structure changes).
+- After any change that affects current-state or roadmap facts (architecture, API surface, data model, dev workflow, planned work): update the relevant file(s) under `documentation/` to match — it's mirrored into the GitHub wiki by CI, so it needs to stay current the same way `README.md` does.
 - For any new code: write tests. For changed code: update existing tests. Coverage must stay at 100%.
 
 ---

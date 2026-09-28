@@ -8,14 +8,34 @@ The document can be generated via a REST API, which returns the populated file a
 
 This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root contains the project context that Claude Code reads automatically at the start of every session. Use `/update-context` to sync `CLAUDE.md` and `README.md` after making changes.
 
+## Documentation & wiki
+
+The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `main` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
+
+## Continuous Integration
+
+Two GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
+
+- **`.github/workflows/ci.yml`** — on every PR (and push) against `main`: lints (`ruff check`), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container and runs the real PDF-conversion e2e test.
+- **`.github/workflows/wiki-sync.yml`** — on push to `main` that touches `documentation/**`: mirrors those files into the GitHub wiki.
+
+If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
+
 ## Prerequisites
+
+Required to install and run the project:
 
 - **Operating System:** Any Linux distribution, preferably **Arch Linux**. On Windows, [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows) can be used.
 - [Python 3.x](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — dependency manager
 - [Task](https://taskfile.dev/installation/) — task runner
 - [Docker Engine](https://docs.docker.com/engine/) & [Docker Compose](https://docs.docker.com/compose/) — container engine and compose (required for PDF conversion via LibreOffice)
+
+Optional, quality-of-life tools:
+
 - [lazydocker](https://github.com/jesseduffield/lazydocker) — terminal UI for Docker containers (recommended for container management)
+- [GitHub CLI (`gh`)](https://cli.github.com/) — not required for anything in this repo to work (the CI/wiki-sync workflows run entirely on GitHub's servers regardless), but useful for creating PRs and watching Actions runs (`gh pr create`, `gh pr checks`, `gh run watch`) from the terminal instead of the browser
+- [`yamllint`](https://yamllint.readthedocs.io/) & [`actionlint`](https://github.com/rhysd/actionlint) — only needed if you're modifying `.github/workflows/*.yml`; validate the YAML and GitHub Actions semantics locally before pushing (config: `.yamllint`)
 
 ## Installation
 
