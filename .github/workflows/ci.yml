@@ -62,7 +62,7 @@ jobs:
         run: task test-e2e
 
       - name: Scan image for vulnerabilities (Trivy, human-readable)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "lineup:latest"
           format: table
@@ -71,7 +71,7 @@ jobs:
           exit-code: "0"
 
       - name: Scan image for vulnerabilities (Trivy, SARIF)
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: "lineup:latest"
           format: sarif
