@@ -70,12 +70,44 @@ again on async DB code.
 
 Two GitHub Actions workflows (`.github/workflows/`):
 
-- **`ci.yml`** — runs on every PR (and push) against `main`: `task lint`, `ruff format
-  --check .`, `task test` (100% coverage), then `task test-e2e` (builds the image, runs a
-  container, verifies real PDF conversion fidelity).
+- **`ci.yml`** — runs on every PR (and push) against `main`: `task lint` (`ruff check .`,
+  including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
+  coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
+  conversion fidelity), then scans the built image for vulnerabilities with Trivy.
 - **`wiki-sync.yml`** — on push to `main` touching `documentation/**`: mirrors this folder
   into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
   colons but `documentation/`'s filenames don't, for filesystem portability).
+
+### Security & observability tooling
+
+- **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
+  ecosystem (`pyproject.toml`/`uv.lock`) and the `github-actions` ecosystem (the two workflow
+  files). Security-alert PRs are governed separately by the repo's "Dependabot security
+  updates" setting (a GitHub repo setting, not a file in this repo).
+- **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
+  repo level — no code/config here, just a setting.
+- **Static analysis (SAST)**: `ruff`'s `S` rule category (flake8-bandit) is enabled via
+  `[tool.ruff.lint] extend-select = ["S"]` in `pyproject.toml`. `tests/**` gets `S101`
+  (`assert`) and `S310` (`urlopen` scheme check against a fixed local constant in the e2e
+  test) ignored via `per-file-ignores`, since both are expected patterns in test code, not
+  risks. `lineup/document/pdf_converter.py` gets `S603`/`S607` (subprocess call / partial
+  executable path) ignored the same way — its `subprocess.run([...])` call uses a literal
+  executable name and an argv list with no `shell=True` and no user-controlled input, so
+  neither warning reflects a real risk there.
+- **Container image scanning**: `aquasecurity/trivy-action` scans the built `lineup:latest`
+  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). Both the
+  table-format and SARIF-format runs are pinned to `exit-code: "0"` — this is deliberately
+  **report-only**, never failing the build, because the LibreOffice + apt package surface has
+  more CVEs than a plain slim-Python image can realistically stay ahead of. SARIF results are
+  uploaded to the repo's Security → Code scanning tab via `github/codeql-action/upload-sarif`
+  for persistent, filterable tracking.
+- **Error monitoring**: `sentry-sdk[fastapi]` is initialized in `app.py` at import time,
+  gated on the `SENTRY_DSN` environment variable (`os.getenv`, no default — unset means
+  disabled). `traces_sample_rate=0.0` — errors only, no performance tracing, matching the
+  Sentry free "Developer" tier. Unset in local dev, CI, and tests, so no network call is ever
+  attempted by default; see `tests/test_app.py` for the (mocked) coverage of both branches.
+- **Logging**: no dedicated logging tooling yet — see [[Roadmap: Everything Else]] for the
+  deferred plan (this project has no live deployment to point a log viewer at today).
 
 ## Conventions (OpenAPI / FastAPI)
 

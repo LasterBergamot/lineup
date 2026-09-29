@@ -45,7 +45,7 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 
 | File | Responsibility |
 |------|---------------|
-| `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers all 4 routers |
+| `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers all 4 routers; initializes Sentry at import time if `SENTRY_DSN` is set (errors only, `traces_sample_rate=0.0`) |
 | `main.py` | CLI entry point |
 | `lineup/api/models.py` | Pydantic request models (`LineupRequest`, `PlayerRequest`) |
 | `lineup/api/router.py` | `POST /lineups` endpoint; `FileFormat` enum for the `format` query param |
@@ -71,6 +71,7 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 - `.dockerignore` keeps the build context lean and, notably, excludes `tests/` (plus `.venv/`, `.claude/`, `.coverage`) — so the image ships without tests. That's why the e2e suite runs from the host against the running container, not inside the image.
 - `compose.yml`: single `api` service using the pre-built `lineup` image (not `build: .`)
 - `task build` / `task rebuild` builds the image; `task up` / `task down` starts/stops it; containers can be monitored using `lazydocker`
+- CI's `e2e` job scans the built `lineup:latest` image with `aquasecurity/trivy-action` (severity `CRITICAL,HIGH`) after `task test-e2e` runs — report-only (`exit-code: "0"`, never fails the build), since the LibreOffice + apt package surface has more CVEs than can realistically be kept at zero. Results go to the job log (table format) and the repo's Security → Code scanning tab (SARIF upload via `github/codeql-action/upload-sarif`).
 
 ---
 
@@ -92,9 +93,18 @@ task migrate-new -- -m "description"  # autogenerate a new migration
 task migrate-down  # rollback one migration step
 ```
 
+`SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
+
 ---
 
 ## Conventions
+
+### Security (ruff `S` / flake8-bandit)
+
+- `[tool.ruff.lint] extend-select = ["S"]` in `pyproject.toml` enables flake8-bandit checks as part of `task lint`.
+- `per-file-ignores` suppresses `S101` (`assert`) and `S310` (`urlopen` scheme check) for `tests/**` — both are expected patterns in test code (pytest's `assert` idiom; `S310` flags a fixed local `BASE_URL` constant, never user input), not real risks.
+- `per-file-ignores` also suppresses `S603`/`S607` (subprocess call / partial executable path) for `lineup/document/pdf_converter.py` specifically — its one `subprocess.run([...])` call uses a literal `"libreoffice"` executable and an argv list with no `shell=True`, and every other argument is either a fixed flag or built from a `tempfile.TemporaryDirectory()` the process created itself, so neither warning reflects a real vulnerability there. Don't remove this ignore to "fix" the warning without addressing why it was added — re-read this note first.
+- If a *new* `S`-rule violation appears anywhere outside these two ignored spots, treat it as a real finding: fix the underlying code rather than reflexively adding another ignore.
 
 ### Tests
 
@@ -106,6 +116,7 @@ task migrate-down  # rollback one migration step
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite DB per test, with `get_session` and `get_current_user_id` dependency-overridden (`get_current_user_id` always yields `None`, matching pre-Auth production behavior).
 - The `owner_id`/`user_id`-scoped filtering branches in `teams/players/saved_lineups` repositories can't be reached through the API yet (since `get_current_user_id()` always returns `None`) — they're tested directly against the `db_session` fixture instead, calling repository functions with real non-`None` IDs.
 - `[tool.coverage.run]` in `pyproject.toml` sets `concurrency = ["greenlet", "thread"]` — required for accurate coverage of any code that calls SQLAlchemy's async ORM. Don't remove it; without it, coverage under-reports on lines following an `await session.commit()`/`.refresh()`/etc. even though they actually ran.
+- `tests/test_app.py` covers both branches of `app.py`'s Sentry init (`SENTRY_DSN` set/unset) by mocking `sentry_sdk.init` and `importlib.reload`-ing the `app` module under each env state. Safe to reload freely: `tests/conftest.py` imports `app` once at collection time and keeps its own reference, so a later reload elsewhere doesn't retroactively affect the `client`/`async_client` fixtures. Note `[tool.coverage.run] source = ["lineup"]` doesn't include `app.py`, so this file's coverage isn't actually gated by `fail_under = 100` — the tests exist for correctness, not the coverage requirement.
 
 ### OpenAPI / FastAPI
 
@@ -177,6 +188,7 @@ lineup/
     │   └── expected-rajtlista.pdf     # reference render for the e2e fidelity test
     ├── conftest.py
     ├── test_api.py
+    ├── test_app.py
     ├── test_document_manager.py
     ├── test_pdf_converter.py
     ├── test_pdf_conversion_e2e.py     # e2e: real conversion vs the running container

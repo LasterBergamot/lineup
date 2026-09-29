@@ -16,10 +16,19 @@ The `documentation/` folder is the source of truth for the project's [GitHub wik
 
 Two GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
 
-- **`.github/workflows/ci.yml`** — on every PR (and push) against `main`: lints (`ruff check`), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container and runs the real PDF-conversion e2e test.
+- **`.github/workflows/ci.yml`** — on every PR (and push) against `main`: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
 - **`.github/workflows/wiki-sync.yml`** — on push to `main` that touches `documentation/**`: mirrors those files into the GitHub wiki.
 
 If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
+
+### Security tooling
+
+- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`) and GitHub Actions dependencies; security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
+- **Secret scanning:** GitHub secret scanning + push protection are enabled at the repo level (no code/config in this repo).
+- **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`.
+- **Container scanning:** Trivy scans the built image in CI (report-only, see above).
+- **Error monitoring:** [Sentry](https://sentry.io) (free Developer tier) — set the `SENTRY_DSN` environment variable in the deployment environment to enable it; errors only, no performance tracing. Unset locally, in CI, and in tests, so nothing is ever sent by default.
+- **Logging:** deferred until a real deployment target is chosen — see the "Logging (future)" section of the Roadmap: Everything Else wiki page.
 
 ## Prerequisites
 
@@ -206,6 +215,7 @@ lineup/
 │   │   └── expected-rajtlista.pdf   # Reference render for the e2e fidelity test
 │   ├── conftest.py                  # Shared fixtures
 │   ├── test_api.py                  # API endpoint tests
+│   ├── test_app.py                  # Sentry init unit tests
 │   ├── test_document_manager.py     # DocumentManager unit tests
 │   ├── test_pdf_converter.py        # PdfConverter unit tests
 │   ├── test_pdf_conversion_e2e.py   # Real-conversion fidelity tests (container)
