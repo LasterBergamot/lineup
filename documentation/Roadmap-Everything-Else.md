@@ -27,6 +27,14 @@ specifically so that turning on real multi-tenancy later is a dependency swap
 almost entirely on the auth/Supabase side (see [[Roadmap: Backend]]) and the onboarding UI
 (see [[Roadmap: Frontend]]), not on the persistence layer itself.
 
+## Logging (future)
+
+No live deployment exists yet, so there's nothing to point a log viewer at today. Once a
+host is chosen (Fly.io, Supabase, or otherwise), start with that platform's built-in log
+viewer — free, and sufficient at this traffic level. Only reach for a dedicated log
+aggregator (Axiom, Better Stack, etc.) if/when volume or retention needs outgrow the
+platform's built-in tooling.
+
 ## Team collaboration
 
 Sits at the intersection of backend (`team_members`/`team_invitations` schema + endpoints)

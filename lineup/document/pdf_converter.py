@@ -19,6 +19,8 @@ class PdfConverter:
             # dir even when $HOME is not set.
             profile_uri = (tmpdir_path / "profile").as_uri()
 
+            # S603/S607 (subprocess call, partial executable path) ignored file-wide in
+            # pyproject.toml — fixed executable + argv list, no shell, no user input.
             result = subprocess.run(
                 [
                     "libreoffice",

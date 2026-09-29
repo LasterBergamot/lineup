@@ -1,0 +1,20 @@
+version: 2
+
+updates:
+  # Python dependencies managed by uv (pyproject.toml + uv.lock at repo root).
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  # Keep the two GitHub Actions workflows' pinned action versions current too.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
