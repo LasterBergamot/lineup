@@ -23,6 +23,18 @@ dev = [
     "pytest-asyncio>=0.23",
 ]
 
+[tool.ruff.lint]
+extend-select = ["S"]
+
+[tool.ruff.lint.per-file-ignores]
+# assert is the standard pytest idiom, not a production risk; S310's "unexpected scheme"
+# check is a false positive here — BASE_URL is a fixed local constant, never user input.
+"tests/**/*.py" = ["S101", "S310"]
+# subprocess.run([...]) with a literal executable and no shell=True; the "partial
+# executable path" (S607) and "subprocess call" (S603) warnings don't apply here — see
+# the comment above the call in this file.
+"lineup/document/pdf_converter.py" = ["S603", "S607"]
+
 [tool.pytest.ini_options]
 # e2e tests need the running containerized API (real LibreOffice); exclude them by default
 # so `task test` stays hermetic. `task test-e2e` re-selects them with `-m e2e`.
