@@ -11,7 +11,8 @@ across the backend regardless of which module you're touching.
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server (no PDF support — no LibreOffice locally; DB tables auto-created on startup) |
+| `task serve` | local uvicorn dev server, loads `.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
+| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `.env` selects (Supabase pooler vs. local SQLite) |
 | `task build` / `task rebuild` | build container image (`localhost/lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
@@ -29,8 +30,10 @@ external services.
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
 
 `task up` (Docker Compose) reads `.env` automatically and passes these into the container;
-`task serve` and `task migrate` do not, so load it into the shell first
-(`set -a; source .env; set +a`). Never commit `.env` — it is git-ignored.
+`task serve` sources it too. `task migrate` / `task migrate-new` do not (they target SQLite
+unless `DATABASE_URL` is passed for one run). `task db:postgres` / `task db:sqlite` /
+`task db:status` switch and report which database `.env` selects. Never commit `.env` — it is
+git-ignored.
 
 ## Containerization
 

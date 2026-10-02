@@ -57,11 +57,25 @@ async def test_enable_sqlite_foreign_keys_sets_pragma_on_connect():
         await test_engine.dispose()
 
 
-def test_make_engine_kwargs_uses_nullpool_for_postgres():
+def test_make_engine_kwargs_for_postgres_is_pooler_safe():
     kwargs = engine_module._make_engine_kwargs(
         "postgresql+asyncpg://user:pw@host:6543/db"
     )
-    assert kwargs == {"poolclass": NullPool}
+    assert kwargs["poolclass"] is NullPool
+    assert kwargs["connect_args"] == {
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+        "prepared_statement_name_func": engine_module._unique_statement_name,
+    }
+
+
+def test_unique_statement_name_differs_per_call():
+    first = engine_module._unique_statement_name()
+    second = engine_module._unique_statement_name()
+
+    assert first != second
+    assert first.startswith("__asyncpg_")
+    assert first.endswith("__")
 
 
 def test_make_engine_kwargs_empty_for_sqlite():

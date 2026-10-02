@@ -162,7 +162,7 @@ configuration change.
 | Setup | `DATABASE_URL` | Driver | Notes |
 |---|---|---|---|
 | Local / default | unset (or `sqlite+aiosqlite:///./lineup.db`) | `aiosqlite` | Tables auto-created on startup; tests use in-memory SQLite |
-| Supabase (dev project `lineup-dev`), app runtime | `postgresql+asyncpg://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres?ssl=require&prepared_statement_cache_size=0` | `asyncpg` | Supabase *transaction pooler* |
+| Supabase (dev project `lineup-dev`), app runtime | `postgresql+asyncpg://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres?ssl=require` | `asyncpg` | Supabase *transaction pooler* |
 | Supabase, running Alembic | `postgresql+asyncpg://postgres:<pw>@db.<ref>.supabase.co:5432/postgres?ssl=require` | `asyncpg` | *Direct* connection (IPv6-only); on IPv4-only networks use the session-mode pooler (same host/user as above, port 5432) |
 
 Why the Postgres URL looks the way it does:
@@ -171,24 +171,50 @@ Why the Postgres URL looks the way it does:
   *transaction* mode (port 6543) it hands out a server connection per transaction, which is
   ideal for a web app but cannot run the DDL / advisory-lock operations Alembic needs — so
   migrations use the direct (or session-mode) connection instead.
-- **`prepared_statement_cache_size=0`** — transaction-mode poolers don't support prepared
-  statements, and SQLAlchemy's asyncpg dialect would otherwise use them. (This is SQLAlchemy's
-  own URL knob, not asyncpg's `statement_cache_size`.)
+- **Prepared statements off** — a transaction-mode pooler hands the same server connection to
+  different clients from one transaction to the next, but asyncpg caches prepared statements
+  per connection under auto-generated names. Two clients then collide on a name and the
+  request fails with `DuplicatePreparedStatementError`. So for Postgres URLs
+  `_make_engine_kwargs()` passes `connect_args` that disable asyncpg's own statement cache
+  (`statement_cache_size=0`) and SQLAlchemy's (`prepared_statement_cache_size=0`), and give
+  any statement that is still prepared a unique name (`prepared_statement_name_func`). These
+  live in code, not the URL, because the naming function can't be expressed in a URL; an old
+  URL that still ends in `&prepared_statement_cache_size=0` is harmless.
 - **`ssl=require`** — Supabase enforces TLS.
 - **`NullPool`** — for Postgres URLs `_make_engine_kwargs()` disables SQLAlchemy's own
   connection pool, because the Supabase pooler already pools and stacking a second pool on
   top causes stale/duplicated connections.
+- **Naive UTC timestamps** — the `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so
+  the model defaults produce naive UTC datetimes (`_utcnow()` in `lineup/db/models.py`).
+  SQLite silently drops time zones, so an aware datetime worked there; asyncpg rejects it.
+  Moving to `timestamptz` columns would be a possible future improvement (needs a migration).
 - **`ENV=production`** — `app.py` skips `Base.metadata.create_all` on startup when this is set
   so Alembic is the only thing that touches the schema. Despite the name it means "the schema
   is Alembic-managed", **not** "this is the prod deployment": set it for any real Postgres,
-  dev or prod. (Only a dev Supabase project exists today.)
+  dev or prod — `ENV=production` is the correct value for the dev Supabase project too. (If it
+  were left unset, the app would create the tables itself on first start, without an
+  `alembic_version` record, and the next `task migrate` would fail with "table already
+  exists".)
+- **Why the app uses the pooler, not the direct connection.** Migrations are a separate,
+  manual step (`task migrate`) — the app never runs them at startup — so the direct connection
+  is only needed for that one-off command. The app stays on the transaction pooler because
+  (1) the direct host is IPv6-only and would break the app on IPv4-only networks, (2) with
+  `NullPool` every request opens a fresh connection, which is cheap through the pooler but slow
+  and wasteful directly against Postgres, whose connection slots are limited, and (3) Supabase
+  recommends the pooler for short-lived connections like a request-per-connection web app.
 
 All variables are documented in `.env.example`. Docker Compose loads `.env` automatically and
-passes `DATABASE_URL`/`ENV`/`SENTRY_DSN` into the container; `task serve` and `task migrate`
-do **not** read `.env`, so load it into your shell first (`set -a; source .env; set +a`).
+passes `DATABASE_URL`/`ENV`/`SENTRY_DSN` into the container, and `task serve` sources `.env`
+too. `task migrate` / `task migrate-new` deliberately do **not** read it: they target local
+SQLite unless `DATABASE_URL` is passed for that single run, so a migration can never hit
+Supabase by accident.
 
-**Switching back to local SQLite** is just the reverse: comment out or delete the Postgres
-`DATABASE_URL` (and `ENV`) in `.env` and restart — no code or data migration involved.
+**Switching databases**: `task db:postgres` and `task db:sqlite` flip `.env` between the two
+(uncomment/comment the real pooler `DATABASE_URL`, add/remove `ENV=production`), and
+`task db:status` reports the active one. Restart `task serve` / run `task up` to apply.
+Switching back to SQLite involves no code or data migration — the two databases are simply
+independent. `db:postgres` refuses to run unless `.env` already holds a filled-in pooler URL
+(port 6543, no `<placeholders>`).
 
 ### Changing the schema later (Alembic)
 
@@ -226,7 +252,7 @@ hosting stack.
 - **Another Postgres host** (RDS, Neon, Render, self-hosted…): the cheapest move. `DATABASE_URL`
   is the only coupling point in app code, so point it at the new host and run
   `alembic upgrade head` (or restore a `pg_dump`). Keep `NullPool` and
-  `prepared_statement_cache_size=0` only if the new host also uses a transaction-mode pooler
+  the pooler-safe `connect_args` only if the new host also uses a transaction-mode pooler
   (any PgBouncer-style pooler needs them, not just Supabase); drop them for direct connections.
   The Supabase-flavoured parts arrive later with auth and RLS: `get_current_user_id()` would
   validate Supabase-issued JWTs (one function to swap), while RLS policies are plain Postgres

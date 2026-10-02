@@ -1,4 +1,5 @@
 import os
+import uuid
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import event
@@ -32,12 +33,26 @@ def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
         cursor.close()
 
 
+def _unique_statement_name() -> str:
+    return f"__asyncpg_{uuid.uuid4()}__"
+
+
 def _make_engine_kwargs(database_url: str) -> dict:
     """Postgres (Supabase) sits behind a transaction-mode pooler that already pools
-    connections, so SQLAlchemy must not keep its own pool on top of it."""
+    connections, so SQLAlchemy must not keep its own pool on top of it. The pooler also
+    hands the same server connection to different clients, so asyncpg's prepared
+    statements must be off (both caches) and any it still names must be unique —
+    otherwise requests fail with DuplicatePreparedStatementError."""
     if make_url(database_url).get_backend_name() != "postgresql":
         return {}
-    return {"poolclass": NullPool}
+    return {
+        "poolclass": NullPool,
+        "connect_args": {
+            "statement_cache_size": 0,
+            "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": _unique_statement_name,
+        },
+    }
 
 
 engine = create_async_engine(

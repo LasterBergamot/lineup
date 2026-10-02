@@ -88,17 +88,19 @@ Configuration is through environment variables, all optional. `.env.example` doc
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name |
 | `SENTRY_DSN` | unset | Enables Sentry error reporting. Leave unset locally, in CI and in tests |
 
-`task up` loads `.env` automatically and passes these into the container. `task serve` and `task migrate` do **not** read `.env`; load it into your shell first with `set -a; source .env; set +a`.
+`task up` (Docker Compose) and `task serve` both load `.env` automatically. `task migrate` and `task migrate-new` deliberately do **not**: they target local SQLite unless you pass `DATABASE_URL` for that one run, so a migration never hits Supabase by accident.
+
+**Switching databases:** `task db:postgres` / `task db:sqlite` flip `.env` between the Supabase pooler and local SQLite (it uncomments or comments the pooler `DATABASE_URL` and adds or removes `ENV=production`), and `task db:status` shows which one is active. Restart `task serve` or run `task up` afterwards to apply the change. `db:postgres` needs a filled-in pooler URL (port 6543) already in `.env`; it never invents one.
 
 ### Using the Supabase dev database
 
 The dev environment can run against a hosted Postgres on [Supabase](https://supabase.com) (project `lineup-dev`). This only replaces the database; authentication is not wired up yet.
 
-1. Put the **transaction pooler** URL (port 6543, with `?ssl=require&prepared_statement_cache_size=0`) in `.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `.env.example`.
+1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `.env.example`. `ENV=production` is the right value for the dev database too: it means "Alembic owns the schema", not "this is the prod deployment". The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 .env` keeps other users on your machine from reading it.
 2. Create the tables once with Alembic, using the **direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead): `DATABASE_URL="<direct URL>" task migrate`.
-3. Start the app (`task up`, or `task serve` after loading `.env`).
+3. Start the app (`task up` or `task serve`; both read `.env`).
 
-**Switching back to local SQLite:** comment out (or delete) `DATABASE_URL` and `ENV` in `.env` and restart. Nothing else changes.
+**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `.env` by hand). Nothing else changes; `task db:postgres` switches forward again.
 
 **If the credentials are lost:** the database password can be reset at any time in the Supabase dashboard (Project Settings → Database → *Reset database password*) without losing data; update your `.env`. API keys and the JWT secret are always viewable and rotatable in Project Settings. The only unrecoverable situation is losing access to the Supabase account itself, so keep the account recovery e-mail and 2FA backup codes safe and consider adding a second owner to the organization.
 
@@ -201,7 +203,10 @@ POST /lineups/saved
 |-----------------|-----------------------------------------------------------------|
 | `task install`  | Install dependencies via `uv sync`                              |
 | `task run`      | Run the CLI application                                         |
-| `task serve`    | Start the API server locally (DOCX only; creates tables on startup unless `ENV=production`) |
+| `task serve`    | Start the API server locally (DOCX only; loads `.env`; creates tables on startup unless `ENV=production`) |
+| `task db:status` | Show whether `.env` currently selects SQLite or the Supabase pooler |
+| `task db:postgres` | Switch `.env` to the Supabase pooler (`DATABASE_URL` + `ENV=production`) |
+| `task db:sqlite` | Switch `.env` back to local SQLite                             |
 | `task test`     | Run tests with coverage (100%)                                  |
 | `task test-e2e` | Build+run the container and verify real PDF conversion fidelity |
 | `task lint`     | Lint the codebase with ruff                                     |

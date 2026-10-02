@@ -7,6 +7,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from lineup.db.base import Base
 
 
+def _utcnow() -> datetime:
+    # Columns are TIMESTAMP WITHOUT TIME ZONE, so store naive UTC. SQLite silently drops
+    # tzinfo, but asyncpg rejects an aware datetime for such a column.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class Team(Base):
     __tablename__ = "teams"
 
@@ -16,9 +22,7 @@ class Team(Base):
     owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID, nullable=True)
     # Whether this team is visible to other users in the shared opponent pool
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     # RESTRICT (players.team_id): a team with roster players can't be deleted
     players: Mapped[list["Player"]] = relationship(
@@ -37,9 +41,7 @@ class Player(Base):
     )
     # user_id nullable pre-Auth
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     team: Mapped["Team | None"] = relationship("Team", back_populates="players")
 
@@ -65,9 +67,7 @@ class SavedLineup(Base):
     ball_thrower: Mapped[str | None] = mapped_column(String(200), nullable=True)
     # user_id nullable pre-Auth
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     # Optional soft references for reuse/cloning; nulled out if the source is
     # deleted so a saved lineup is never blocked on or broken by that deletion.

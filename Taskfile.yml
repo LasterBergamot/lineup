@@ -18,8 +18,46 @@ tasks:
     cmd: uv run ruff format .
 
   serve:
-    desc: Start the API server
-    cmd: uv run uvicorn app:app --reload
+    desc: Start the API server (loads .env if present, so it follows task db:sqlite / db:postgres)
+    cmd: |
+      set -a
+      [ -f .env ] && . ./.env
+      set +a
+      uv run uvicorn app:app --reload
+
+  db:status:
+    desc: Show which database the app will use (based on .env)
+    silent: true
+    cmd: |
+      if [ -f .env ] && grep -qE '^DATABASE_URL="postgresql' .env; then
+        host=$(grep -E '^DATABASE_URL="postgresql' .env | sed -E 's|.*@([^/?]*).*|\1|')
+        echo "postgres (Supabase pooler: $host)"
+      else
+        echo "sqlite (local ./lineup.db)"
+      fi
+
+  db:sqlite:
+    desc: Switch .env to local SQLite (comments out the Postgres URL, removes ENV=production)
+    silent: true
+    cmd: |
+      [ -f .env ] || { echo "No .env: already on SQLite (the default)."; exit 0; }
+      sed -E -i 's|^(DATABASE_URL="postgresql\+asyncpg://[^"<>]*:6543/[^"]*")|# \1|; /^ENV=production[[:space:]]*$/d' .env
+      echo "Switched to SQLite. Restart task serve / run task up to apply."
+
+  db:postgres:
+    desc: Switch .env to the Supabase Postgres pooler (uncomments the saved URL, sets ENV=production)
+    silent: true
+    cmd: |
+      [ -f .env ] && grep -qE '^#? ?DATABASE_URL="postgresql\+asyncpg://[^"<>]*:6543/' .env || {
+        echo "No filled-in pooler DATABASE_URL (port 6543) found in .env. Copy .env.example to .env and add your Supabase URL first." >&2
+        exit 1
+      }
+      sed -E -i 's|^# (DATABASE_URL="postgresql\+asyncpg://[^"<>]*:6543/[^"]*")|\1|' .env
+      if ! grep -qE '^ENV=production' .env; then
+        [ -z "$(tail -c1 .env)" ] || echo >> .env
+        echo 'ENV=production' >> .env
+      fi
+      echo "Switched to Postgres. Restart task serve / run task up to apply."
 
   test:
     desc: Run tests with coverage (100%; e2e tests excluded via pyproject addopts)
