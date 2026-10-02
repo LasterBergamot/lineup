@@ -103,9 +103,11 @@ Two GitHub Actions workflows (`.github/workflows/`):
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
   coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
   conversion fidelity), then scans the built image for vulnerabilities with Trivy. The
-  `arduino/setup-task` steps pass `github-token: ${{ secrets.GITHUB_TOKEN }}` so the action's
+  `arduino/setup-task` steps pass `repo-token: ${{ secrets.GITHUB_TOKEN }}` so the action's
   GitHub API lookups are authenticated; without it, shared runners occasionally hit the
-  unauthenticated rate limit and the job fails before any of our code runs.
+  unauthenticated rate limit and the job fails before any of our code runs. The input really is
+  `repo-token`: an unknown input such as `github-token` is ignored with only an
+  "Unexpected input(s)" warning, which is how an earlier version of this fix silently did nothing.
 - **`wiki-sync.yml`** — on push to `main` touching `documentation/**`: mirrors this folder
   into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
   colons but `documentation/`'s filenames don't, for filesystem portability).
