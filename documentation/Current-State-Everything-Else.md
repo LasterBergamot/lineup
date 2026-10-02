@@ -13,7 +13,8 @@ across the backend regardless of which module you're touching.
 | `task lint` / `task format` | `ruff check` / `ruff format` |
 | `task serve` | local uvicorn dev server, loads `.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `.env` selects (Supabase pooler vs. local SQLite) |
-| `task build` / `task rebuild` | build container image (`localhost/lineup`) / force fresh build with `--no-cache` |
+| `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
+| `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
 
@@ -45,9 +46,15 @@ git-ignored.
   `docker/fontconfig/99-calibri-carlito.conf` forces Calibri → Carlito and `fc-cache -f`
   refreshes the cache — without this, LibreOffice substitutes a differently-sized font and
   the tab-stop/table layout drifts in the PDF.
-- `.dockerignore` excludes `tests/` (plus `.venv/`, `.claude/`, `.coverage`) to keep the
-  image lean — the image ships without tests, which is why the e2e suite runs from the host
-  against the running container rather than inside the image.
+- `.dockerignore` matters for **security**, not just size: the Dockerfile does `COPY . .`, so
+  anything not excluded ends up in an image layer. It excludes `.env`/`.env.*` (the Supabase
+  credentials) and `*.db` (local SQLite data), plus tests, docs, `*.md`, caches, `.git`,
+  `.github`, `.claude` and the Compose/Taskfile files. Check it whenever a new secret or
+  local-state file appears in the repo root. The image ships without tests, which is why the
+  e2e suite runs from the host against the running container rather than inside the image.
+- The container starts with `uv run --no-sync uvicorn ...`: dependencies were installed at
+  build time with `uv sync --frozen --no-dev`, and `--no-sync` stops `uv run` from re-syncing
+  (and pulling the dev group) at every start.
 - `compose.yml` uses `image: lineup` (not `build: .`), so `task build`/`task rebuild` is
   always required before `task up`. It also forwards `DATABASE_URL`/`ENV`/`SENTRY_DSN` into
   the container, defaulting to SQLite when `.env` is absent. Full reset: `task down` → `docker rmi lineup` →
@@ -133,6 +140,37 @@ Two GitHub Actions workflows (`.github/workflows/`):
   attempted by default; see `tests/test_app.py` for the (mocked) coverage of both branches.
 - **Logging**: no dedicated logging tooling yet — see [[Roadmap: Everything Else]] for the
   deferred plan (this project has no live deployment to point a log viewer at today).
+
+## Claude Code tooling
+
+The repo ships project skills in `.claude/skills/` for the workflows that repeat. Each one is a
+Markdown playbook Claude follows when a request matches its description. They exist so these
+procedures run the same way every time instead of being reconstructed from memory:
+
+| Skill | Model | Use it to |
+|---|---|---|
+| `repo-audit` | opus | audit the whole repo (code, docs/infra/CI, GitHub state) with three parallel explorers, verify the serious findings, then reconcile them with issues and the board — the process behind epics #40–#46 |
+| `new-issue` | haiku | file or restructure an issue the project's way: Problem/Evidence/Proposal/Acceptance body, `type:`/`area:`/`priority:` labels, milestone, board fields, parent epic, blocked-by links |
+| `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `CLAUDE.md`) |
+| `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
+| `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
+| `update-documentation` | — | sync `README.md`, `CLAUDE.md` and `documentation/` after a change |
+| `setup-project` | — | set up a fresh clone |
+
+`model:` in a skill's frontmatter pins the model only while that skill runs: opus for the
+cross-cutting analysis, haiku for templated steps. Every skill that writes to GitHub, git or
+Supabase asks before each state-changing command. The shared `.claude/settings.json` lets
+`task lint`/`task test` run without prompting and denies reading `.env*`, so credentials
+never enter the conversation.
+
+**Issue conventions** (encoded in `new-issue`):
+- Bodies follow Problem / Evidence / Proposal / Acceptance.
+- Labels: one `type:*`, one or more `area:*`, one `priority:*`.
+- Milestones: M1 Hardening, M2 Auth & Prod, M3 Frontend MVP.
+- Work is grouped under epics #40–#46 as GitHub sub-issues, with blocked-by links for
+  ordering.
+- The single "Lineup" project board carries Status/Area/Priority/Size, and its Auto-add
+  workflow puts new issues on it.
 
 ## Conventions (OpenAPI / FastAPI)
 

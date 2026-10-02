@@ -6,7 +6,7 @@ afterwards has zero effect on a previously saved lineup.
 """
 
 import uuid
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -444,6 +444,41 @@ class TestGenerateFromSavedLineup:
         )
         assert response.status_code == 200
         assert "SZVTK" in response.headers["content-disposition"]
+
+    async def test_generate_without_optional_staff_fields(
+        self, async_client: AsyncClient
+    ):
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        payload = _lineup_payload(team["id"], player["id"])
+        for staff_field in ("doctor", "assistant_coach", "team_leader", "ball_thrower"):
+            del payload[staff_field]
+        lineup = (await async_client.post("/lineups/saved", json=payload)).json()
+        response = await async_client.post(
+            f"/lineups/saved/{lineup['id']}/generate?format=docx"
+        )
+        assert response.status_code == 200
+
+    async def test_generate_offloads_rendering_to_threadpool(
+        self, async_client: AsyncClient
+    ):
+        """PDF conversion blocks, so it must not run on the event loop."""
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        lineup = (
+            await async_client.post(
+                "/lineups/saved", json=_lineup_payload(team["id"], player["id"])
+            )
+        ).json()
+        with patch(
+            "lineup.api.file_response.run_in_threadpool",
+            new=AsyncMock(return_value=FAKE_PDF),
+        ) as threadpool:
+            response = await async_client.post(
+                f"/lineups/saved/{lineup['id']}/generate?format=pdf"
+            )
+        assert response.status_code == 200
+        threadpool.assert_awaited_once()
 
 
 class TestSavedLineupRepositoryUserFiltering:
