@@ -35,7 +35,7 @@ A PR is **blocking** if any of these hold:
 
 - **CI fails.** Read the failing log (`gh run view <run-id> --log-failed`) before judging.
   If the failure is environmental and already fixed on `main` (e.g. the `setup-task` API
-  rate limit fixed in `ad6fd6e`), it isn't the PR's fault: propose `@dependabot rebase`
+  rate limit, fixed by passing `repo-token` to `arduino/setup-task`), it isn't the PR's fault: propose `@dependabot rebase`
   and re-check.
 - **It has merge conflicts** (`mergeable` is `CONFLICTING`).
 - **It's a major-version bump, or touches a core dependency** (SQLAlchemy, FastAPI, asyncpg,
