@@ -4,3 +4,8 @@ __pycache__/
 
 .coverage
 docs/
+
+.env
+
+# Local SQLite database (default DATABASE_URL)
+lineup.db

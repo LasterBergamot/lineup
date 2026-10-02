@@ -1,9 +1,9 @@
 # Roadmap: Frontend
 
 No frontend exists today (see [[Current State: Frontend]]). This page is the least-detailed
-of the roadmap pages — the source design doc (`in-memory-db-plan.md`) only sketches the
-frontend's role in passing, as a consumer of the backend's auth-readiness work. Treat this
-as a starting sketch, not a spec.
+of the roadmap pages — the backend design docs ([[Current State: Backend]],
+[[Roadmap: Backend]]) only sketch the frontend's role in passing, as a consumer of the
+backend's auth-readiness work. Treat this as a starting sketch, not a spec.
 
 ## Planned OAuth / onboarding flow
 

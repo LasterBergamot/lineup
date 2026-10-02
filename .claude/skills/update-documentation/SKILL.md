@@ -6,9 +6,12 @@ description: Update documentation/ (the GitHub wiki mirror), README.md, CLAUDE.m
 Keep every doc in the repo honest, not just `documentation/`. `documentation/` is the source
 of truth for the project's GitHub wiki — it's mirrored 1:1 into the wiki by
 `.github/workflows/wiki-sync.yml` on every push to `main` that touches `documentation/**` —
-but `README.md`, `CLAUDE.md`, and any other doc file (e.g. `in-memory-db-plan.md`) can drift
+but `README.md`, `CLAUDE.md`, and any other doc file (e.g. `.env.example`) can drift
 out of sync with the code just as easily, and should be checked and updated in the same pass
 rather than treated as someone else's job.
+
+Write for a newcomer: every doc should let someone with no prior context on this repo understand
+the architecture and codebase, not just record what changed. Explain the "why", not only the "what".
 
 ## Files and their scope
 
@@ -31,7 +34,7 @@ files, not `documentation/`'s filesystem-safe filenames.
 ## Steps
 
 1. Identify what changed — read the actual diff or current code state (`lineup/`, `app.py`,
-   `Taskfile.yml`, `Dockerfile`, `compose.yml`, `in-memory-db-plan.md`) rather than relying on
+   `Taskfile.yml`, `Dockerfile`, `compose.yml`, `.env.example`) rather than relying on
    memory of what the docs currently say.
 2. For each fact category affected, update the matching `documentation/` file:
    - Architecture / API surface / data model change → `Current-State-Backend.md` (or
@@ -52,5 +55,5 @@ files, not `documentation/`'s filesystem-safe filenames.
    via the wiki-sync path — `README.md` isn't mirrored anywhere).
 8. Check `CLAUDE.md` too: module list, API shape, container setup, tasks, conventions, or
    project structure that changed. Update it directly.
-9. Check any other standalone doc referenced by the change (e.g. `in-memory-db-plan.md`) and
+9. Check any other standalone doc referenced by the change (e.g. `.env.example`) and
    update it if it's now stale, rather than assuming it's someone else's responsibility.

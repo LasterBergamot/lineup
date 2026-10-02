@@ -25,6 +25,7 @@ jobs:
         uses: arduino/setup-task@v3
         with:
           version: 3.x
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint
         run: task lint
@@ -57,6 +58,7 @@ jobs:
         uses: arduino/setup-task@v3
         with:
           version: 3.x
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build image, run container, verify PDF fidelity
         run: task test-e2e

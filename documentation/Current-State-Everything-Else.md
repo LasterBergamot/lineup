@@ -11,10 +11,29 @@ across the backend regardless of which module you're touching.
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server (no PDF support — no LibreOffice locally; DB tables auto-created on startup) |
+| `task serve` | local uvicorn dev server, loads `.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
+| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `.env` selects (Supabase pooler vs. local SQLite) |
 | `task build` / `task rebuild` | build container image (`localhost/lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
+
+## Configuration (environment variables)
+
+All runtime configuration is via environment variables, documented in `.env.example` (copy it
+to the git-ignored `.env`). With no `.env` the app runs entirely on local SQLite with no
+external services.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
+| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
+| `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
+
+`task up` (Docker Compose) reads `.env` automatically and passes these into the container;
+`task serve` sources it too. `task migrate` / `task migrate-new` do not (they target SQLite
+unless `DATABASE_URL` is passed for one run). `task db:postgres` / `task db:sqlite` /
+`task db:status` switch and report which database `.env` selects. Never commit `.env` — it is
+git-ignored.
 
 ## Containerization
 
@@ -30,7 +49,8 @@ across the backend regardless of which module you're touching.
   image lean — the image ships without tests, which is why the e2e suite runs from the host
   against the running container rather than inside the image.
 - `compose.yml` uses `image: lineup` (not `build: .`), so `task build`/`task rebuild` is
-  always required before `task up`. Full reset: `task down` → `docker rmi lineup` →
+  always required before `task up`. It also forwards `DATABASE_URL`/`ENV`/`SENTRY_DSN` into
+  the container, defaulting to SQLite when `.env` is absent. Full reset: `task down` → `docker rmi lineup` →
   `docker image prune` → `task rebuild` → `task up`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
@@ -51,7 +71,9 @@ across the backend regardless of which module you're touching.
   **not** pixel-diff, since the reference uses real Calibri and the container uses
   metric-compatible Carlito.
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite
-  DB per test, with `get_session` and `get_current_user_id` dependency-overridden.
+  DB per test, with `get_session` and `get_current_user_id` dependency-overridden. CI never
+  talks to a real Postgres: the Postgres-specific engine branches are tested by constructing
+  (lazy, never-connecting) engines, and tests ignore any local `.env`.
 - The `owner_id`/`user_id`-scoped filtering branches can't be reached through the API yet
   (since `get_current_user_id()` always returns `None`) — they're tested directly against
   the `db_session` fixture with real non-`None` IDs instead.
@@ -73,7 +95,10 @@ Two GitHub Actions workflows (`.github/workflows/`):
 - **`ci.yml`** — runs on every PR (and push) against `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
   coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
-  conversion fidelity), then scans the built image for vulnerabilities with Trivy.
+  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The
+  `arduino/setup-task` steps pass `github-token: ${{ secrets.GITHUB_TOKEN }}` so the action's
+  GitHub API lookups are authenticated; without it, shared runners occasionally hit the
+  unauthenticated rate limit and the job fails before any of our code runs.
 - **`wiki-sync.yml`** — on push to `main` touching `documentation/**`: mirrors this folder
   into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
   colons but `documentation/`'s filenames don't, for filesystem portability).

@@ -7,6 +7,11 @@
 - After any user-facing change: update `README.md` (API changes, new tasks, new prerequisites, structure changes).
 - After any change that affects current-state or roadmap facts (architecture, API surface, data model, dev workflow, planned work): update the relevant file(s) under `documentation/` to match — it's mirrored into the GitHub wiki by CI, so it needs to stay current the same way `README.md` does.
 - For any new code: write tests. For changed code: update existing tests. Coverage must stay at 100%.
+- Write `README.md` and `documentation/` so a newcomer with no prior context can understand the architecture, the codebase, and how a request flows through it — explain the "why", not just record what changed. Keep that bar on every doc update.
+- Before creating a PR in this repo, check for open GitHub Dependabot alerts via `gh api repos/LasterBergamot/lineup/dependabot/alerts` (filter for `"state": "open"`) and surface any findings to the user.
+- Also check the open Dependabot version-update PRs (`gh pr list --state open --author "app/dependabot"`, then `gh pr checks <n>` / `gh pr view <n>` for each). Alerts and these PRs are separate: an empty alerts list says nothing about pending PRs. A PR is **blocking** if its CI checks fail, it has merge conflicts, or it is a major-version bump (or touches a core dependency such as SQLAlchemy, FastAPI or asyncpg) whose effect on the current branch's code can't be shown to be safe; otherwise it is **non-blocking**.
+  - Non-blocking PRs: list them for the user, and once the user confirms (merging is a state-changing `gh` command, so the usual confirmation rule still applies), merge them, then bring the current branch up to date with the updated `main` (merge `main` into it, resolving `pyproject.toml`/`uv.lock` conflicts), run `uv sync`, and re-run `task lint` and `task test` before creating the PR.
+  - Blocking PRs: don't merge them. Report each with the reason (failing check, conflict, breaking change) and discuss the next step with the user.
 
 ---
 
@@ -18,7 +23,7 @@ PDF conversion uses LibreOffice headless, which is only available inside the con
 
 The template is authored in Calibri/Calibri Light (proprietary). The container ships the libre metric-compatible substitutes (Carlito etc.) so the PDF layout matches the source `.docx`; without them LibreOffice substitutes a differently-sized font and the tab-stop/table layout drifts.
 
-There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAlchemy async ORM + Alembic, running on in-memory/file SQLite locally and swappable to Postgres via `DATABASE_URL`. It's pre-Auth: `user_id`/`owner_id` columns exist everywhere but always resolve to `None` until real auth is wired in. See `in-memory-db-plan.md` for the full design rationale (snapshot vs. soft-reference strategy, ERD, Supabase/OAuth roadmap) — that file is a living document, not a historical record.
+There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAlchemy async ORM + Alembic, running on in-memory/file SQLite locally and swappable to Postgres (Supabase) via `DATABASE_URL`. It's pre-Auth: `user_id`/`owner_id` columns exist everywhere but always resolve to `None` until real auth is wired in. See `documentation/Current-State-Backend.md` for the design rationale (snapshot vs. soft-reference strategy, ERD) and `documentation/Roadmap-Backend.md` for the Supabase/OAuth roadmap.
 
 ---
 
@@ -53,14 +58,16 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 | `lineup/document/pdf_converter.py` | Converts docx bytes → PDF bytes via `libreoffice --headless` subprocess; uses a private per-call `-env:UserInstallation` profile and a 120s timeout (`CONVERSION_TIMEOUT_SECONDS`) |
 | `lineup/water_polo/water_polo_lineup_creator.py` | Orchestrates template filling; exposes `create_document_bytes()` and `create_pdf_bytes()` |
 | `lineup/water_polo/water_polo_lineup_dto.py` | `WaterPoloLineupDTO` and `Player` data classes with builder pattern |
-| `lineup/db/engine.py` | `DATABASE_URL` env var (default `sqlite+aiosqlite:///./lineup.db`); `get_session()` FastAPI dependency; `enable_sqlite_foreign_keys()` — see note below |
+| `lineup/db/engine.py` | `DATABASE_URL` env var (default `sqlite+aiosqlite:///./lineup.db`); `get_session()` FastAPI dependency; `enable_sqlite_foreign_keys()` (SQLite-only, no-op on other dialects); `_make_engine_kwargs()` (`NullPool` for Postgres) — see notes below |
 | `lineup/db/models.py` | `Team`, `Player`, `SavedLineup`, `LineupPlayerSnapshot` — see Data model note below |
 | `lineup/auth/dependencies.py` | `get_current_user_id()` — always returns `None` pre-Auth; post-Auth, replace its body to extract the JWT `sub` claim, zero router/service changes needed |
 | `lineup/teams/*.py`, `lineup/players/*.py`, `lineup/saved_lineups/*.py` | Standard `schemas.py`/`repository.py`/`service.py`/`router.py` layering per module |
 
-**Data model** (see `in-memory-db-plan.md` for the full ERD and rationale): `Team.players` and `SavedLineup.player_snapshots` are `relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships synchronously (raises `MissingGreenlet`), so eager `selectin` loading is required. A `SavedLineup` freezes `team_name`/`opponent_name`/`match_name` as plain text plus nullable soft FKs `source_team_id`/`source_opponent_id` → `teams.id` (`ondelete="SET NULL"`); each `LineupPlayerSnapshot` freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` → `players.id` (`ondelete="SET NULL"`). `Player.team_id` → `teams.id` uses `ondelete="RESTRICT"` at the DB level, but team deletion is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never fires in practice.
+**Data model** (see `documentation/Current-State-Backend.md` for the full ERD and rationale): `Team.players` and `SavedLineup.player_snapshots` are `relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships synchronously (raises `MissingGreenlet`), so eager `selectin` loading is required. A `SavedLineup` freezes `team_name`/`opponent_name`/`match_name` as plain text plus nullable soft FKs `source_team_id`/`source_opponent_id` → `teams.id` (`ondelete="SET NULL"`); each `LineupPlayerSnapshot` freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` → `players.id` (`ondelete="SET NULL"`). `Player.team_id` → `teams.id` uses `ondelete="RESTRICT"` at the DB level, but team deletion is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never fires in practice.
 
-**SQLite foreign key enforcement**: SQLite ignores `ondelete` clauses entirely unless `PRAGMA foreign_keys=ON` is set per-connection — `enable_sqlite_foreign_keys(engine)` in `lineup/db/engine.py` registers a SQLAlchemy `connect` event listener that sets this pragma; both the production engine and the test engine (`tests/conftest.py`'s `db_engine` fixture) call it. Without it, `SET NULL`/`RESTRICT` are silently inert.
+**SQLite foreign key enforcement**: SQLite ignores `ondelete` clauses entirely unless `PRAGMA foreign_keys=ON` is set per-connection — `enable_sqlite_foreign_keys(engine)` in `lineup/db/engine.py` registers a SQLAlchemy `connect` event listener that sets this pragma; both the production engine and the test engine (`tests/conftest.py`'s `db_engine` fixture) call it. Without it, `SET NULL`/`RESTRICT` are silently inert. The listener is gated on `async_engine.url.get_backend_name() == "sqlite"` — `PRAGMA` is SQLite-only syntax and would fail every connection on Postgres.
+
+**Postgres / Supabase connection notes**: there are two Supabase connection flavors. The app at runtime uses the *transaction pooler* (port 6543, user `postgres.<project-ref>`) with just `?ssl=require` on `DATABASE_URL`. `_make_engine_kwargs()` (Postgres only) adds `NullPool` since the pooler already pools, plus `connect_args` turning prepared statements off (`statement_cache_size=0` is asyncpg's own cache, `prepared_statement_cache_size=0` is SQLAlchemy's) and a `prepared_statement_name_func` giving each statement a unique name. All three are needed: without them the pooler hands one server connection to several clients and requests fail with `DuplicatePreparedStatementError` (found only by running against real Supabase; a `prepared_statement_cache_size=0` in the URL alone is NOT enough). An old URL that still carries `&prepared_statement_cache_size=0` is harmless. Also: `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so model defaults must be naive UTC (`_utcnow()` in `lineup/db/models.py`) — SQLite tolerates aware datetimes, asyncpg raises. SQLite-only tests can't catch this class of bug, so re-run the live smoke test (create team/player/saved lineup, delete) against the dev Supabase project after touching models or the engine. Alembic (`task migrate`) needs the *direct* connection (port 5432) — or the session-mode pooler if there's no IPv6 — because the transaction pooler can't run DDL. `ENV=production` means "schema is Alembic-managed, skip `create_all`", not "the prod deployment": set it for any real Postgres, including the dev Supabase project (unset, the app would create untracked tables and the next `task migrate` would fail). The app stays on the pooler, not the direct connection: migrations are a separate manual step, the direct host is IPv6-only, and `NullPool` opens a connection per request, which is cheap via the pooler but wasteful directly against Postgres. Switching between SQLite and Postgres: `task db:postgres` / `task db:sqlite` (sed-based, in the Taskfile) comment/uncomment the filled-in pooler `DATABASE_URL` in `.env` and add/remove `ENV=production`; `task db:status` reports the active one. `.env.example` documents all of this; Docker Compose and `task serve` load `.env`, but `task migrate`/`task migrate-new` deliberately don't (they default to SQLite, so a migration never hits Supabase by accident; pass `DATABASE_URL` for one run). Only a dev Supabase project exists so far; prod project, real auth and RLS are tracked separately (see `documentation/Roadmap-Backend.md`).
 
 **Coverage + async SQLAlchemy gotcha**: `coverage.py` needs `concurrency = ["greenlet", "thread"]` under `[tool.coverage.run]` in `pyproject.toml` — SQLAlchemy's async ORM bridges sync calls onto greenlets (`greenlet_spawn`), and without this setting, `coverage` silently drops line hits for code *after* a greenlet-based await resumes (e.g. the line right after `await session.commit()`), even though the code genuinely ran. This looked like a real ~90%-coverage shortfall across every DB-touching module until traced to this missing config.
 
@@ -83,7 +90,10 @@ task test       # pytest with coverage (must pass at 100%; e2e tests excluded)
 task test-e2e   # build image, start container, run real-conversion fidelity tests, tear down
 task lint       # ruff check
 task format     # ruff format
-task serve      # local uvicorn dev server (no PDF support — no LibreOffice; DB tables auto-created on startup)
+task serve      # local uvicorn dev server, loads .env (no PDF support — no LibreOffice; DB tables auto-created on startup unless ENV=production)
+task db:status  # show whether .env selects SQLite or the Supabase pooler
+task db:postgres  # switch .env to the Supabase pooler (DATABASE_URL + ENV=production)
+task db:sqlite  # switch .env back to local SQLite
 task build      # build container image (localhost/lineup)
 task rebuild    # force fresh build with --no-cache
 task up         # start container in detached mode
@@ -92,6 +102,8 @@ task migrate    # apply Alembic migrations (upgrade head)
 task migrate-new -- -m "description"  # autogenerate a new migration
 task migrate-down  # rollback one migration step
 ```
+
+Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `.env.example` — copy it to `.env` (git-ignored) to opt into Postgres/Supabase; with no `.env` everything runs on local SQLite.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 
@@ -140,6 +152,7 @@ lineup/
 ├── main.py
 ├── Dockerfile
 ├── compose.yml
+├── .env.example                      # documents DATABASE_URL / ENV / SENTRY_DSN (copy to git-ignored .env)
 ├── Taskfile.yml
 ├── docker/
 │   └── fontconfig/
@@ -163,7 +176,7 @@ lineup/
 │   │   └── water_polo_lineup_dto.py
 │   ├── db/
 │   │   ├── base.py       # DeclarativeBase
-│   │   ├── engine.py     # get_session(), enable_sqlite_foreign_keys()
+│   │   ├── engine.py     # get_session(), enable_sqlite_foreign_keys(), _make_engine_kwargs()
 │   │   └── models.py     # Team, Player, SavedLineup, LineupPlayerSnapshot
 │   ├── auth/
 │   │   └── dependencies.py   # get_current_user_id() — None pre-Auth
