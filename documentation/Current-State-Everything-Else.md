@@ -141,6 +141,37 @@ Two GitHub Actions workflows (`.github/workflows/`):
 - **Logging**: no dedicated logging tooling yet — see [[Roadmap: Everything Else]] for the
   deferred plan (this project has no live deployment to point a log viewer at today).
 
+## Claude Code tooling
+
+The repo ships project skills in `.claude/skills/` for the workflows that repeat. Each one is a
+Markdown playbook Claude follows when a request matches its description. They exist so these
+procedures run the same way every time instead of being reconstructed from memory:
+
+| Skill | Model | Use it to |
+|---|---|---|
+| `repo-audit` | opus | audit the whole repo (code, docs/infra/CI, GitHub state) with three parallel explorers, verify the serious findings, then reconcile them with issues and the board — the process behind epics #40–#46 |
+| `new-issue` | haiku | file or restructure an issue the project's way: Problem/Evidence/Proposal/Acceptance body, `type:`/`area:`/`priority:` labels, milestone, board fields, parent epic, blocked-by links |
+| `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `CLAUDE.md`) |
+| `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
+| `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
+| `update-documentation` | — | sync `README.md`, `CLAUDE.md` and `documentation/` after a change |
+| `setup-project` | — | set up a fresh clone |
+
+`model:` in a skill's frontmatter pins the model only while that skill runs: opus for the
+cross-cutting analysis, haiku for templated steps. Every skill that writes to GitHub, git or
+Supabase asks before each state-changing command. The shared `.claude/settings.json` lets
+`task lint`/`task test` run without prompting and denies reading `.env*`, so credentials
+never enter the conversation.
+
+**Issue conventions** (encoded in `new-issue`):
+- Bodies follow Problem / Evidence / Proposal / Acceptance.
+- Labels: one `type:*`, one or more `area:*`, one `priority:*`.
+- Milestones: M1 Hardening, M2 Auth & Prod, M3 Frontend MVP.
+- Work is grouped under epics #40–#46 as GitHub sub-issues, with blocked-by links for
+  ordering.
+- The single "Lineup" project board carries Status/Area/Priority/Size, and its Auto-add
+  workflow puts new issues on it.
+
 ## Conventions (OpenAPI / FastAPI)
 
 - Do not use `from __future__ import annotations` in router files — it breaks FastAPI's

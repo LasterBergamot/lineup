@@ -113,6 +113,10 @@ Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `.
 
 ---
 
+### Claude Code skills (`.claude/skills/`)
+
+`repo-audit` (opus): full audit → GitHub reconciliation. `new-issue` (haiku): issue conventions, labels/milestone/board/relations recipes. `triage-dependabot` (sonnet): the pre-PR Dependabot rule above. `create-pr` (sonnet): gates + PR. `supabase-smoke` (haiku): the live dev-Supabase smoke test. Also `update-documentation` and `setup-project`. The models are pinned with `model:` in each skill's frontmatter and apply only while the skill runs. If you change a workflow these skills encode (labels, milestones, epics, board fields, the Dependabot rule, the smoke-test steps), update the skill in the same change. `.claude/settings.json` (shared) allows `task lint`/`task test` and denies reading `.env*`; `.claude/settings.local.json` is personal and git-ignored.
+
 ## Conventions
 
 ### Security (ruff `S` / flake8-bandit)
