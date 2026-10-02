@@ -15,8 +15,11 @@ flowchart LR
 The repository abstraction (`schemas.py`/`repository.py`/`service.py`/`router.py` per
 module) was deliberately built so this is a **single environment-variable change** plus
 `alembic upgrade head` — no repository or service code needs to change when moving from
-SQLite to Postgres. See [[Roadmap: Backend]] for the Supabase-specific steps (RLS, asyncpg
-driver, auth cutover) and [[Current State: Backend]] for how the DB layer works today.
+SQLite to Postgres. This already works for a **dev** Supabase project (the `asyncpg` driver and
+dialect-aware engine are in place); the production project is still ahead. See
+[[Roadmap: Backend]] for the remaining Supabase steps (prod project, auth, RLS) and
+[[Current State: Backend]] for how the DB layer works today — including how to switch between
+SQLite and Supabase, recover lost credentials, and migrate to a different stack later.
 
 ## Multi-tenancy rollout
 

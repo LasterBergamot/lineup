@@ -4,6 +4,18 @@ A tool for generating water polo lineup documents. It takes match details and pl
 
 The document can be generated via a REST API, which returns the populated file as a PDF. The API also provides CRUD endpoints for managing teams, players, and saved lineups (persisted in SQLite locally, swappable to Postgres in production), so a lineup can be built from a saved roster instead of a one-off request payload.
 
+## How it works (start here)
+
+Water polo match officials need a filled-in lineup sheet ("rajtlista") before every game. This project automates that: you give it the match details and the players, it fills a Word template, and hands back a print-ready PDF.
+
+**Document generation** (`POST /lineups`): the request is validated (Pydantic models in `lineup/api/models.py`) and turned into a `WaterPoloLineupDTO`. `WaterPoloLineupCreator` passes it to `DocumentManager`, which fills `resources/rajtlista.docx` using python-docx. For `format=docx` the filled file is returned as is; for `format=pdf` (the default) `PdfConverter` runs LibreOffice in headless mode on it and returns the PDF. LibreOffice only exists inside the container image, which is why the API is run with `task build` + `task up`.
+
+**Persistence layer** (`/teams`, `/players`, `/lineups/saved`): so a lineup can be built from a saved roster instead of retyping everything. Each module (`lineup/teams/`, `lineup/players/`, `lineup/saved_lineups/`) has the same four files: `router.py` (HTTP), `schemas.py` (validation), `service.py` (business rules) and `repository.py` (SQL). Data is stored with SQLAlchemy (async) in a database chosen by the `DATABASE_URL` environment variable: local SQLite by default, Supabase Postgres when configured. Schema changes are managed by Alembic migrations. A saved lineup is a *frozen snapshot* (names copied as text), so deleting a team or player later never alters history.
+
+**Not yet implemented:** real authentication. Every row has an owner column, but it is always empty for now (`get_current_user_id()` returns `None`); adding login later means changing that one function. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
+
+**A first tour of the code:** `app.py` (wires everything together) → `lineup/api/router.py` (the one-off endpoint) → `lineup/water_polo/` (template filling orchestration) → `lineup/document/` (docx + PDF) → `lineup/db/` (engine and models) → `lineup/teams/` as the example of the persistence layering. `tests/` mirrors the modules one-to-one.
+
 ## AI Assistant
 
 This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root contains the project context that Claude Code reads automatically at the start of every session. Use `/update-context` to sync `CLAUDE.md` and `README.md` after making changes.
@@ -56,11 +68,41 @@ This runs `uv sync` and sets up the virtual environment with all required depend
 
 ## Running
 
+Two ways to run things, depending on whether you need PDF output:
+
 ```bash
-task run
+task run      # CLI: fills the template with the sample data in main.py, no server needed
+task serve    # local API server with auto-reload; DOCX only (no LibreOffice outside the container)
+task build && task up   # full API in a container, with PDF conversion
 ```
 
-The output document is written to `resources/modified_rajtlista.docx`.
+`task run` writes its output to `resources/modified_rajtlista.docx`. With no configuration, the API uses a local SQLite file (`./lineup.db`) and creates its tables on startup, so a fresh clone works out of the box.
+
+## Environment variables
+
+Configuration is through environment variables, all optional. `.env.example` documents each one; copy it to `.env` (git-ignored, never commit it) and uncomment what you need.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
+| `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name |
+| `SENTRY_DSN` | unset | Enables Sentry error reporting. Leave unset locally, in CI and in tests |
+
+`task up` loads `.env` automatically and passes these into the container. `task serve` and `task migrate` do **not** read `.env`; load it into your shell first with `set -a; source .env; set +a`.
+
+### Using the Supabase dev database
+
+The dev environment can run against a hosted Postgres on [Supabase](https://supabase.com) (project `lineup-dev`). This only replaces the database; authentication is not wired up yet.
+
+1. Put the **transaction pooler** URL (port 6543, with `?ssl=require&prepared_statement_cache_size=0`) in `.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `.env.example`.
+2. Create the tables once with Alembic, using the **direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead): `DATABASE_URL="<direct URL>" task migrate`.
+3. Start the app (`task up`, or `task serve` after loading `.env`).
+
+**Switching back to local SQLite:** comment out (or delete) `DATABASE_URL` and `ENV` in `.env` and restart. Nothing else changes.
+
+**If the credentials are lost:** the database password can be reset at any time in the Supabase dashboard (Project Settings → Database → *Reset database password*) without losing data; update your `.env`. API keys and the JWT secret are always viewable and rotatable in Project Settings. The only unrecoverable situation is losing access to the Supabase account itself, so keep the account recovery e-mail and 2FA backup codes safe and consider adding a second owner to the organization.
+
+**Changing the schema later:** edit `lineup/db/models.py`, run `task migrate-new -- -m "description"` (against local SQLite), review the generated file in `alembic/versions/`, then `task migrate` (and the same with the direct `DATABASE_URL` to update Supabase). Moving to a different database or cloud provider someday is covered in the wiki's *Current State: Backend* page.
 
 ## API
 
@@ -123,7 +165,7 @@ Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"
 
 ### Teams, Players & Saved Lineups
 
-Backed by a SQLite database (in-memory for tests, file-backed at `./lineup.db` for local dev via `task serve`, swappable to Postgres via `DATABASE_URL`). All list endpoints are paginated: `?limit=20&offset=0`, where `limit=0` returns everything, in the envelope `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
+Backed by a SQLite database (in-memory for tests, file-backed at `./lineup.db` for local dev via `task serve`, swappable to Supabase Postgres via `DATABASE_URL` — see [Environment variables](#environment-variables)). All list endpoints are paginated: `?limit=20&offset=0`, where `limit=0` returns everything, in the envelope `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
 
 | Method | Path | Description |
 |--------|------|--------------|
@@ -159,7 +201,7 @@ POST /lineups/saved
 |-----------------|-----------------------------------------------------------------|
 | `task install`  | Install dependencies via `uv sync`                              |
 | `task run`      | Run the CLI application                                         |
-| `task serve`    | Start the API server locally                                    |
+| `task serve`    | Start the API server locally (DOCX only; creates tables on startup unless `ENV=production`) |
 | `task test`     | Run tests with coverage (100%)                                  |
 | `task test-e2e` | Build+run the container and verify real PDF conversion fidelity |
 | `task lint`     | Lint the codebase with ruff                                     |
@@ -179,7 +221,9 @@ lineup/
 ├── main.py                          # CLI entry point
 ├── app.py                           # FastAPI application entry point
 ├── Dockerfile                       # Container image definition
-├── compose.yml                      # Docker Compose configuration
+├── compose.yml                      # Docker Compose configuration (forwards DATABASE_URL/ENV/SENTRY_DSN)
+├── .env.example                     # Documents the env vars; copy to git-ignored .env
+├── documentation/                   # Source of the GitHub wiki (mirrored by CI)
 ├── alembic.ini                      # Alembic configuration
 ├── alembic/
 │   ├── env.py                       # Async migration environment
@@ -202,7 +246,7 @@ lineup/
 │   │   └── water_polo_lineup_dto.py      # Data model and builders
 │   ├── db/
 │   │   ├── base.py                  # DeclarativeBase
-│   │   ├── engine.py                # DB engine, get_session() dependency
+│   │   ├── engine.py                # DB engine (SQLite/Postgres aware), get_session() dependency
 │   │   └── models.py                # Team, Player, SavedLineup, LineupPlayerSnapshot
 │   ├── auth/
 │   │   └── dependencies.py          # get_current_user_id() — None pre-Auth
@@ -222,11 +266,11 @@ lineup/
 │   ├── test_water_polo_lineup_creator.py  # Creator unit tests
 │   ├── test_water_polo_lineup_dto.py      # DTO and builder unit tests
 │   ├── test_auth_dependencies.py    # Auth dependency unit test
-│   ├── test_db_engine.py            # DB engine unit test
+│   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate, Postgres pool settings)
 │   ├── test_teams.py                # Teams API + repository tests
 │   ├── test_players.py              # Players API + repository tests
 │   └── test_saved_lineups.py        # Saved lineups API + repository tests
-└── Taskfile.yml
+└── Taskfile.yml                     # Task runner commands
 ```
 
 ## Customizing the lineup

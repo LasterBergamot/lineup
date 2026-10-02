@@ -1,8 +1,10 @@
 # Roadmap: Backend
 
-Status (per `in-memory-db-plan.md`, the living design doc this page summarizes): core
-persistence (Teams/Players/SavedLineups on the target snapshot schema) is **done**. Team
-Collaboration and the Supabase/OAuth stage are **not started**.
+Status: core persistence (Teams/Players/SavedLineups on the target snapshot schema) is
+**done**, and the app can already run against a **dev** Supabase Postgres project (DB cutover
+only — see [[Current State: Backend]]). Team Collaboration, real authentication, RLS and the
+production Supabase project are **not started**. (The current-state design — ERD, snapshot
+strategy — lives in [[Current State: Backend]]; this page only covers what is still ahead.)
 
 ## Planned data model additions
 
@@ -46,10 +48,15 @@ erDiagram
      `get_current_user_id()` (`lineup/auth/dependencies.py`) returns `payload["sub"]`
      instead of `None` — **zero router or service changes needed**, since every repository
      already accepts and conditionally filters on `user_id`.
-2. **Database driver cutover**
-   - Add `asyncpg>=0.30` to production dependencies.
-   - Set `DATABASE_URL=postgresql+asyncpg://...` in the production environment.
-   - Run `alembic upgrade head` against Postgres.
+2. **Production database cutover** *(remaining piece — the dev half is done)*
+   - Done for dev: `asyncpg` is a dependency, the engine is dialect-aware, and the app runs
+     against the `lineup-dev` Supabase project via `DATABASE_URL` (see
+     [[Current State: Backend]]).
+   - Still to do: create a separate `lineup-prod` Supabase project, run `alembic upgrade head`
+     against it, and wire its `DATABASE_URL` + secrets into the deployment (paired with CD).
+
+   This dev cutover is independent of the auth/RLS sequence below: the dev database can be
+   used before any of steps 1, 3–5 exist.
 3. **Row Level Security (RLS) in PostgreSQL**
    - `teams`: public read for `is_public = true` (powers the opponent pool); read/write
      restricted to `owner_id = auth.uid()` or team members.
@@ -70,7 +77,7 @@ flowchart TD
     A[Today: pre-Auth, user_id always None] --> B[Add team_members / team_invitations tables + migration]
     B --> C[Swap get_current_user_id to real JWT sub]
     C --> D[Enable RLS policies in Postgres]
-    D --> E[Cut DATABASE_URL to Supabase Postgres in prod]
+    D --> E[Cut DATABASE_URL to Supabase Postgres in prod<br/>dev project already cut over]
     E --> F[Ship invitation endpoints]
 ```
 

@@ -142,8 +142,8 @@ Since only the dev DB cutover ships here, create a new GitHub issue for what's l
 - `task serve` and `task build && task up` with no `.env` present — confirm identical behavior to today, then `task down`.
 
 **Manual, against the real `lineup-dev` Supabase project (not automatable):**
-1. Create `.env` from `.env.example`; export the **direct** URL; `ENV=production task migrate` — confirm `alembic upgrade head` succeeds and all 4 tables + `alembic_version` appear in Supabase's Table Editor.
-2. Switch `.env` to the **pooler** URL (`ssl=require&prepared_statement_cache_size=0`), keep `ENV=production`, run `task serve` — confirm no `PRAGMA` syntax error (proves the dialect gate works against a real server) and `POST /teams`/`GET /teams` succeed, with the row visible in Supabase's Table Editor.
+1. Create `.env` from `.env.example` (pooler URL + `ENV=production`); run `DATABASE_URL="<direct URL>" task migrate` (Alembic doesn't read `.env`; on an IPv4-only network use the session-mode pooler URL, port 5432) — confirm `alembic upgrade head` succeeds and all 4 tables + `alembic_version` appear in Supabase's Table Editor.
+2. Load `.env` into the shell (`set -a; source .env; set +a` — `task serve` doesn't read it on its own), run `task serve` — confirm no `PRAGMA` syntax error (proves the dialect gate works against a real server) and `POST /teams`/`GET /teams` succeed, with the row visible in Supabase's Table Editor.
 3. Repeat via `task build && task up` (containerized path, compose auto-loads `.env`).
 4. **Switch back**: comment out the Postgres lines in `.env` (or delete it), restart — confirm the app falls back to local SQLite cleanly, proving the toggle is bidirectional, not a one-way migration.
 5. Re-run `task test`/`task test-e2e` afterward to confirm neither reads the real `.env` or was affected.

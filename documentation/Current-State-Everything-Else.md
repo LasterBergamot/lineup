@@ -16,6 +16,22 @@ across the backend regardless of which module you're touching.
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
 
+## Configuration (environment variables)
+
+All runtime configuration is via environment variables, documented in `.env.example` (copy it
+to the git-ignored `.env`). With no `.env` the app runs entirely on local SQLite with no
+external services.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
+| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
+| `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
+
+`task up` (Docker Compose) reads `.env` automatically and passes these into the container;
+`task serve` and `task migrate` do not, so load it into the shell first
+(`set -a; source .env; set +a`). Never commit `.env` — it is git-ignored.
+
 ## Containerization
 
 - `Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps.
@@ -30,7 +46,8 @@ across the backend regardless of which module you're touching.
   image lean — the image ships without tests, which is why the e2e suite runs from the host
   against the running container rather than inside the image.
 - `compose.yml` uses `image: lineup` (not `build: .`), so `task build`/`task rebuild` is
-  always required before `task up`. Full reset: `task down` → `docker rmi lineup` →
+  always required before `task up`. It also forwards `DATABASE_URL`/`ENV`/`SENTRY_DSN` into
+  the container, defaulting to SQLite when `.env` is absent. Full reset: `task down` → `docker rmi lineup` →
   `docker image prune` → `task rebuild` → `task up`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
@@ -51,7 +68,9 @@ across the backend regardless of which module you're touching.
   **not** pixel-diff, since the reference uses real Calibri and the container uses
   metric-compatible Carlito.
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite
-  DB per test, with `get_session` and `get_current_user_id` dependency-overridden.
+  DB per test, with `get_session` and `get_current_user_id` dependency-overridden. CI never
+  talks to a real Postgres: the Postgres-specific engine branches are tested by constructing
+  (lazy, never-connecting) engines, and tests ignore any local `.env`.
 - The `owner_id`/`user_id`-scoped filtering branches can't be reached through the API yet
   (since `get_current_user_id()` always returns `None`) — they're tested directly against
   the `db_session` fixture with real non-`None` IDs instead.
