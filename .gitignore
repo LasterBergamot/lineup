@@ -6,3 +6,6 @@ __pycache__/
 docs/
 
 .env
+
+# Local SQLite database (default DATABASE_URL)
+lineup.db
