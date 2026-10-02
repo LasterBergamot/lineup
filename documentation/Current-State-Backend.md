@@ -63,12 +63,30 @@ Request body is `LineupRequest`: match, division, team_name, cap (`"Fehér"` or 
 date, coach, doctor, assistant_coach, team_leader, ball_thrower, and 1–15 players with
 unique cap numbers 1–15.
 
+Both generation endpoints (this one and `POST /lineups/saved/{id}/generate`) build a
+`WaterPoloLineupDTO` and hand it to `build_file_response()` in `lineup/api/file_response.py`,
+so rendering, headers and error handling live in one place:
+
+- **Rendering runs in the threadpool** (`run_in_threadpool`). PDF conversion is a blocking
+  LibreOffice subprocess that can take seconds; running it on the event loop would freeze
+  every other request, including all the DB endpoints.
+- **Filename header**: `rajtlista_<team>_<date>.<ext>`. HTTP header values are latin-1, so a
+  team name with Hungarian `ő`/`ű` (or a `"`/`;`) can't go into a plain `filename="..."`. The
+  header carries the real name in the RFC 6266 `filename*=UTF-8''...` form plus an
+  accent-stripped ASCII `filename="..."` fallback for older clients.
+- **Errors**: a LibreOffice timeout returns **504** `"PDF conversion timed out"`; any other
+  rendering failure returns **500** `"Document generation failed"` (details go to the log).
+- **Staff fields are optional at the document level**: only match, division, team name, cap,
+  date and coach are required by `WaterPoloLineupDTOBuilder.build()`; a missing doctor /
+  assistant coach / team leader / ball thrower renders as an empty line. `LineupRequest` still
+  requires them for the one-off endpoint, but saved lineups may omit them.
+
 ### Teams
 
 | Method | Path | Notes |
 |---|---|---|
 | `GET`/`POST` | `/teams` | Paginated CRUD |
-| `GET` | `/teams/pool?search=&limit=` | Shared opponent pool — public teams only, plain list (not the paginated envelope). Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
+| `GET` | `/teams/pool?search=&limit=` | Shared opponent pool — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | `DELETE` returns **409** if the team still has roster players (app-level check, not DB-level) |
 
 ### Players
@@ -84,7 +102,7 @@ unique cap numbers 1–15.
 |---|---|---|
 | `GET`/`POST` | `/lineups/saved` | A saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time |
 | `GET`/`DELETE` | `/lineups/saved/{id}` | |
-| `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Renders the document from the snapshot |
+| `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Renders the document from the snapshot (same rendering/headers/errors as `POST /lineups`, see above) |
 
 Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster
 at save time) or as free text — at least one of the two is required per field. Deleting the

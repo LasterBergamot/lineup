@@ -35,12 +35,13 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 - `format` query param defaults to `pdf`; `docx` skips LibreOffice conversion entirely
 - Request body: `LineupRequest` (match, division, team_name, cap, date, coach, doctor, assistant_coach, team_leader, ball_thrower, players)
 - `cap` must be `"Fehér"` or `"Kék"`; players: 1–15, unique cap numbers 1–15
-- Returns binary file with `Content-Disposition: attachment` header
+- Returns binary file with `Content-Disposition: attachment` header (`filename=` ASCII fallback + `filename*=UTF-8''…`)
+- Errors: 422 invalid input, 504 LibreOffice timeout, 500 other rendering failures — shared with `POST /lineups/saved/{id}/generate` via `lineup/api/file_response.py`
 
 #### Teams / Players / Saved Lineups
 
 - `GET/POST /teams`, `GET/PUT/DELETE /teams/{id}` — CRUD, paginated list (`?limit=&offset=`, `limit=0` = all)
-- `GET /teams/pool?search=&limit=` — shared opponent pool: public teams (`is_public=True`) only, plain list (not the paginated envelope). Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
+- `GET /teams/pool?search=&limit=` — shared opponent pool: public teams (`is_public=True`) only, plain list (not the paginated envelope), `limit` 1–100. Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
 - `DELETE /teams/{id}` returns **409** if the team still has roster players assigned (`Player.team_id`); otherwise 200. This check is app-level, not DB-level.
 - `GET/POST /players`, `GET/PUT/DELETE /players/{id}` — CRUD; `team_id` is optional on create/update and filterable on list. `DELETE /players/{id}` is **unconditionally** safe (204) — it never blocks, because saved lineups store frozen snapshots, not live references.
 - `GET/POST /lineups/saved`, `GET/DELETE /lineups/saved/{id}`, `POST /lineups/saved/{id}/generate?format=pdf|docx` — a saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster at save time) or as free text — at least one of the two is required per field (enforced by Pydantic `model_validator`s in `lineup/saved_lineups/schemas.py`). Deleting the source team/player afterwards never changes an already-saved lineup.
@@ -53,11 +54,12 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 | `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers all 4 routers; initializes Sentry at import time if `SENTRY_DSN` is set (errors only, `traces_sample_rate=0.0`) |
 | `main.py` | CLI entry point |
 | `lineup/api/models.py` | Pydantic request models (`LineupRequest`, `PlayerRequest`) |
-| `lineup/api/router.py` | `POST /lineups` endpoint; `FileFormat` enum for the `format` query param |
+| `lineup/api/router.py` | `POST /lineups` endpoint (builds the DTO, delegates to `build_file_response`) |
+| `lineup/api/file_response.py` | Shared by both generate endpoints: `FileFormat` enum, media types, `content_disposition()` (RFC 6266 `filename*` + ASCII fallback — header values are latin-1, so `ő`/`ű` would crash a plain `filename=`), `build_file_response()` (renders via `run_in_threadpool` so LibreOffice never blocks the event loop; `TimeoutExpired` → 504, other errors → 500) |
 | `lineup/document/document_manager.py` | `.docx` read/write/style logic |
 | `lineup/document/pdf_converter.py` | Converts docx bytes → PDF bytes via `libreoffice --headless` subprocess; uses a private per-call `-env:UserInstallation` profile and a 120s timeout (`CONVERSION_TIMEOUT_SECONDS`) |
 | `lineup/water_polo/water_polo_lineup_creator.py` | Orchestrates template filling; exposes `create_document_bytes()` and `create_pdf_bytes()` |
-| `lineup/water_polo/water_polo_lineup_dto.py` | `WaterPoloLineupDTO` and `Player` data classes with builder pattern |
+| `lineup/water_polo/water_polo_lineup_dto.py` | `WaterPoloLineupDTO` and nested `WaterPoloLineupDTO.Player` data classes with builder pattern; `build()` requires match/division/team_name/cap/date/coach only — staff fields default to `""` (saved lineups may omit them) |
 | `lineup/db/engine.py` | `DATABASE_URL` env var (default `sqlite+aiosqlite:///./lineup.db`); `get_session()` FastAPI dependency; `enable_sqlite_foreign_keys()` (SQLite-only, no-op on other dialects); `_make_engine_kwargs()` (`NullPool` for Postgres) — see notes below |
 | `lineup/db/models.py` | `Team`, `Player`, `SavedLineup`, `LineupPlayerSnapshot` — see Data model note below |
 | `lineup/auth/dependencies.py` | `get_current_user_id()` — always returns `None` pre-Auth; post-Auth, replace its body to extract the JWT `sub` claim, zero router/service changes needed |
@@ -75,7 +77,8 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 
 - `Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps
 - Fonts: `--no-install-recommends` is kept, so the metric-compatible font packages are installed explicitly — `fonts-crosextra-carlito` (Calibri/Calibri Light), `fonts-crosextra-caladea` (Cambria), `fonts-liberation2` (Arial/Times/Courier). `docker/fontconfig/99-calibri-carlito.conf` (copied to `/etc/fonts/conf.d/`) forces Calibri → Carlito, and `fc-cache -f` refreshes the cache. These are what make the PDF match the source `.docx`.
-- `.dockerignore` keeps the build context lean and, notably, excludes `tests/` (plus `.venv/`, `.claude/`, `.coverage`) — so the image ships without tests. That's why the e2e suite runs from the host against the running container, not inside the image.
+- `.dockerignore` is a security control: the Dockerfile does `COPY . .`, so it must exclude `.env`/`.env.*` (Supabase credentials) and `*.db`, alongside tests, docs, `*.md`, caches, `.git`, `.github`, `.claude`. Add any new secret/local-state file to it. Because `tests/` is excluded the image ships without tests — that's why the e2e suite runs from the host against the running container, not inside the image.
+- `CMD` uses `uv run --no-sync` so the container doesn't re-sync (and install the dev group) at start; deps are installed at build time with `uv sync --frozen --no-dev`.
 - `compose.yml`: single `api` service using the pre-built `lineup` image (not `build: .`)
 - `task build` / `task rebuild` builds the image; `task up` / `task down` starts/stops it; containers can be monitored using `lazydocker`
 - CI's `e2e` job scans the built `lineup:latest` image with `aquasecurity/trivy-action` (severity `CRITICAL,HIGH`) after `task test-e2e` runs — report-only (`exit-code: "0"`, never fails the build), since the LibreOffice + apt package surface has more CVEs than can realistically be kept at zero. Results go to the job log (table format) and the repo's Security → Code scanning tab (SARIF upload via `github/codeql-action/upload-sarif`).
@@ -94,7 +97,8 @@ task serve      # local uvicorn dev server, loads .env (no PDF support — no Li
 task db:status  # show whether .env selects SQLite or the Supabase pooler
 task db:postgres  # switch .env to the Supabase pooler (DATABASE_URL + ENV=production)
 task db:sqlite  # switch .env back to local SQLite
-task build      # build container image (localhost/lineup)
+task run        # run main.py (CLI demo, writes resources/modified_rajtlista.docx)
+task build      # build container image (lineup)
 task rebuild    # force fresh build with --no-cache
 task up         # start container in detached mode
 task down       # stop container
@@ -123,7 +127,7 @@ Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `.
 - `pyproject.toml` enforces `fail_under = 100`
 - Every new module needs a corresponding `tests/test_<module>.py`
 - Any code that calls LibreOffice must mock `PdfConverter.convert` — it is not available locally
-- Tests for API endpoints that trigger PDF conversion use an `autouse` fixture in `test_api.py` that patches `PdfConverter.convert`
+- Tests for API endpoints that trigger PDF conversion use an `autouse` fixture in `test_api.py` (and in `TestGenerateFromSavedLineup` in `test_saved_lineups.py`) that patches `PdfConverter.convert`. To force a rendering failure, patch `lineup.api.file_response.WaterPoloLineupCreator` — that's where both endpoints construct it now
 - `tests/test_pdf_conversion_e2e.py` is the exception: it drives the **real** conversion against the running container. It is marked `e2e` and excluded from `task test` by `addopts = "-m 'not e2e'"` (so it never affects coverage); run it via `task test-e2e`. It talks to the API over HTTP (stdlib `urllib`) and validates layout with `pdfplumber` — asserting a single page, expected text, and that word widths/positions match `expected-rajtlista.pdf`. It does **not** pixel-diff (the reference uses real Calibri, the container uses metric-compatible Carlito).
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite DB per test, with `get_session` and `get_current_user_id` dependency-overridden (`get_current_user_id` always yields `None`, matching pre-Auth production behavior).
 - The `owner_id`/`user_id`-scoped filtering branches in `teams/players/saved_lineups` repositories can't be reached through the API yet (since `get_current_user_id()` always returns `None`) — they're tested directly against the `db_session` fixture instead, calling repository functions with real non-`None` IDs.
@@ -167,6 +171,7 @@ lineup/
 ├── lineup/
 │   ├── api/
 │   │   ├── models.py
+│   │   ├── file_response.py   # FileFormat, content_disposition(), build_file_response()
 │   │   └── router.py
 │   ├── document/
 │   │   ├── document_manager.py
@@ -209,6 +214,7 @@ lineup/
     ├── test_water_polo_lineup_dto.py
     ├── test_auth_dependencies.py
     ├── test_db_engine.py
+    ├── test_db_models.py
     ├── test_teams.py
     ├── test_players.py
     └── test_saved_lineups.py

@@ -2,7 +2,7 @@
 
 A tool for generating water polo lineup documents. It takes match details and player information, then fills in a `.docx` template (`resources/rajtlista.docx`) and converts the result to a PDF.
 
-The document can be generated via a REST API, which returns the populated file as a PDF. The API also provides CRUD endpoints for managing teams, players, and saved lineups (persisted in SQLite locally, swappable to Postgres in production), so a lineup can be built from a saved roster instead of a one-off request payload.
+The document can be generated via a REST API, which returns the populated file as a PDF. The API also provides CRUD endpoints for managing teams, players, and saved lineups (persisted in SQLite locally, swappable to Supabase Postgres — currently a dev project; no production deployment exists yet), so a lineup can be built from a saved roster instead of a one-off request payload.
 
 ## How it works (start here)
 
@@ -47,7 +47,7 @@ If you're editing the workflow YAML files themselves, `yamllint` and `actionlint
 Required to install and run the project:
 
 - **Operating System:** Any Linux distribution, preferably **Arch Linux**. On Windows, [Try Omarchy for Windows](https://github.com/omacom/try-omarchy-windows) can be used.
-- [Python 3.x](https://www.python.org/downloads/)
+- [Python 3.13+](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — dependency manager
 - [Task](https://taskfile.dev/installation/) — task runner
 - [Docker Engine](https://docs.docker.com/engine/) & [Docker Compose](https://docs.docker.com/compose/) — container engine and compose (required for PDF conversion via LibreOffice)
@@ -158,12 +158,16 @@ Returns the lineup file with a `Content-Disposition: attachment` header containi
 ```
 # PDF (default)
 Content-Type: application/pdf
-Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..pdf"
+Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..pdf"; filename*=UTF-8''rajtlista_SZVTK_2024.%2012.%2021..pdf
 
 # DOCX
 Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"
+Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"; filename*=UTF-8''rajtlista_SZVTK_2024.%2012.%2021..docx
 ```
+
+The header carries the name twice. HTTP headers are latin-1, so a team name with `ő`/`ű` can't go into plain `filename="..."`. The real UTF-8 name goes in `filename*` (RFC 6266), which browsers prefer; `filename` is an accent-stripped ASCII fallback (`Szőreg` → `Szoreg`).
+
+**Errors:** `422` for invalid input, `504` if LibreOffice doesn't finish the PDF conversion within 120 s, `500` for any other rendering failure. The same rendering, headers and errors apply to `POST /lineups/saved/{id}/generate`. Conversion runs in a worker thread, so a slow PDF never blocks the other endpoints.
 
 ### Teams, Players & Saved Lineups
 
@@ -242,6 +246,7 @@ lineup/
 ├── lineup/
 │   ├── api/
 │   │   ├── models.py                # Pydantic request models
+│   │   ├── file_response.py         # Shared rendering + download response for both generate endpoints
 │   │   └── router.py                # POST /lineups endpoint
 │   ├── document/
 │   │   ├── document_manager.py      # .docx read/write logic
@@ -272,6 +277,7 @@ lineup/
 │   ├── test_water_polo_lineup_dto.py      # DTO and builder unit tests
 │   ├── test_auth_dependencies.py    # Auth dependency unit test
 │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate, Postgres pool settings)
+│   ├── test_db_models.py            # ORM model unit tests
 │   ├── test_teams.py                # Teams API + repository tests
 │   ├── test_players.py              # Players API + repository tests
 │   └── test_saved_lineups.py        # Saved lineups API + repository tests

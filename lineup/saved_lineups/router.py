@@ -15,15 +15,10 @@ from lineup.saved_lineups.schemas import (
     SavedLineupCreate,
     SavedLineupResponse,
 )
-from lineup.water_polo.water_polo_lineup_creator import WaterPoloLineupCreator
+from lineup.api.file_response import FileFormat, build_file_response
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
-from lineup.api.router import FileFormat
 
 router = APIRouter(prefix="/lineups/saved", tags=["saved-lineups"])
-
-DOCX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
 
 
 @router.get("", response_model=PaginatedSavedLineups)
@@ -106,29 +101,12 @@ async def generate_from_saved_lineup(
         .set_cap(lineup_response.cap)
         .set_date(lineup_response.date)
         .set_coach(lineup_response.coach)
-        .set_doctor(lineup_response.doctor or "")
-        .set_assistant_coach(lineup_response.assistant_coach or "")
-        .set_team_leader(lineup_response.team_leader or "")
-        .set_ball_thrower(lineup_response.ball_thrower or "")
+        .set_doctor(lineup_response.doctor)
+        .set_assistant_coach(lineup_response.assistant_coach)
+        .set_team_leader(lineup_response.team_leader)
+        .set_ball_thrower(lineup_response.ball_thrower)
         .set_players(players)
         .build()
     )
 
-    creator = WaterPoloLineupCreator()
-    team_name = lineup_response.team_name
-    date = lineup_response.date
-
-    if file_format == FileFormat.PDF:
-        content = creator.create_pdf_bytes(dto)
-        media_type = "application/pdf"
-        filename = f"rajtlista_{team_name}_{date}.pdf"
-    else:
-        content = creator.create_document_bytes(dto)
-        media_type = DOCX_MEDIA_TYPE
-        filename = f"rajtlista_{team_name}_{date}.docx"
-
-    return Response(
-        content=content,
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return await build_file_response(dto, file_format)

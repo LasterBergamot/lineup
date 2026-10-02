@@ -1,4 +1,5 @@
 import copy
+import subprocess
 
 import pytest
 from unittest.mock import patch
@@ -114,22 +115,38 @@ def test_create_lineup_docx_filename_contains_team_and_date(client, valid_payloa
     content_disposition = response.headers["content-disposition"]
     assert valid_payload["team_name"] in content_disposition
     assert valid_payload["date"] in content_disposition
-    assert content_disposition.endswith('.docx"')
+    assert content_disposition.endswith(".docx")
 
 
-def test_create_lineup_template_not_found_returns_500(client, valid_payload):
+def test_create_lineup_conversion_timeout_returns_504(client, valid_payload):
     with patch(
-        "lineup.api.router.WaterPoloLineupCreator", side_effect=FileNotFoundError
+        "lineup.document.pdf_converter.PdfConverter.convert",
+        side_effect=subprocess.TimeoutExpired(cmd="libreoffice", timeout=120),
     ):
         response = client.post("/lineups", json=valid_payload)
-    assert response.status_code == 500
-    assert response.json()["detail"] == "Document template not found"
+    assert response.status_code == 504
+    assert response.json()["detail"] == "PDF conversion timed out"
 
 
 def test_create_lineup_unexpected_error_returns_500(client, valid_payload):
     with patch(
-        "lineup.api.router.WaterPoloLineupCreator", side_effect=RuntimeError("forced")
+        "lineup.api.file_response.WaterPoloLineupCreator",
+        side_effect=RuntimeError("forced"),
     ):
         response = client.post("/lineups", json=valid_payload)
     assert response.status_code == 500
     assert response.json()["detail"] == "Document generation failed"
+
+
+def test_create_lineup_non_latin1_team_name_returns_utf8_filename(
+    client, valid_payload
+):
+    payload = copy.deepcopy(valid_payload)
+    payload["team_name"] = 'Szőreg "Ű";'
+    response = client.post("/lineups", json=payload)
+    assert response.status_code == 200
+    content_disposition = response.headers["content-disposition"]
+    assert 'filename="rajtlista_Szoreg _U__' in content_disposition
+    assert "filename*=UTF-8''rajtlista_Sz%C5%91reg%20%22%C5%B0%22%3B_" in (
+        content_disposition
+    )

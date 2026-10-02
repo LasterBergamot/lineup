@@ -1,29 +1,17 @@
-import logging
-from enum import Enum
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
+from lineup.api.file_response import FileFormat, build_file_response
 from lineup.api.models import LineupRequest
-from lineup.water_polo.water_polo_lineup_creator import WaterPoloLineupCreator
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
 router = APIRouter(prefix="/lineups", tags=["lineups"])
-logger = logging.getLogger(__name__)
-
-DOCX_MEDIA_TYPE = (
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-)
-
-
-class FileFormat(str, Enum):
-    PDF = "pdf"
-    DOCX = "docx"
 
 
 @router.post("", status_code=200)
-def create_lineup(
+async def create_lineup(
     request: LineupRequest,
     file_format: Annotated[
         FileFormat,
@@ -53,24 +41,4 @@ def create_lineup(
         .set_players(players)
         .build()
     )
-    try:
-        creator = WaterPoloLineupCreator()
-        if file_format == FileFormat.PDF:
-            content = creator.create_pdf_bytes(dto)
-            media_type = "application/pdf"
-            filename = f"rajtlista_{request.team_name}_{request.date}.pdf"
-        else:
-            content = creator.create_document_bytes(dto)
-            media_type = DOCX_MEDIA_TYPE
-            filename = f"rajtlista_{request.team_name}_{request.date}.docx"
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="Document template not found")
-    except Exception as e:
-        logger.error("Document generation failed: %s", e)
-        raise HTTPException(status_code=500, detail="Document generation failed")
-
-    return Response(
-        content=content,
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return await build_file_response(dto, file_format)

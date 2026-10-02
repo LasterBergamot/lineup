@@ -2,10 +2,6 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 
-class Player:
-    pass
-
-
 @dataclass
 class WaterPoloLineupDTO:
     match: str
@@ -18,7 +14,7 @@ class WaterPoloLineupDTO:
     assistant_coach: str
     team_leader: str
     ball_thrower: str
-    players: List[Player] = field(default_factory=list)
+    players: List["WaterPoloLineupDTO.Player"] = field(default_factory=list)
 
     class WaterPoloLineupDTOBuilder:
         def __init__(self):
@@ -32,7 +28,7 @@ class WaterPoloLineupDTO:
             self.assistant_coach: Optional[str] = None
             self.team_leader: Optional[str] = None
             self.ball_thrower: Optional[str] = None
-            self.players: List[Player] = []
+            self.players: List["WaterPoloLineupDTO.Player"] = []
 
         def set_match(
             self, match: str
@@ -67,44 +63,46 @@ class WaterPoloLineupDTO:
             return self
 
         def set_doctor(
-            self, doctor: str
+            self, doctor: Optional[str]
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.doctor = doctor
             return self
 
         def set_assistant_coach(
-            self, assistant_coach: str
+            self, assistant_coach: Optional[str]
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.assistant_coach = assistant_coach
             return self
 
         def set_team_leader(
-            self, team_leader: str
+            self, team_leader: Optional[str]
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.team_leader = team_leader
             return self
 
         def set_ball_thrower(
-            self, ball_thrower: str
+            self, ball_thrower: Optional[str]
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.ball_thrower = ball_thrower
             return self
 
         def set_players(
-            self, players: List[Player]
+            self, players: List["WaterPoloLineupDTO.Player"]
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             self.players = players
             return self
 
         def add_player(
-            self, player: Player
+            self, player: "WaterPoloLineupDTO.Player"
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
-            if not isinstance(player, Player):
+            if not isinstance(player, WaterPoloLineupDTO.Player):
                 raise ValueError("player must be an instance of Player")
             self.players.append(player)
             return self
 
         def build(self) -> "WaterPoloLineupDTO":
+            # Staff fields are optional (saved lineups may omit them) and render
+            # as blank lines on the sheet; only the match details are required.
             if not all(
                 [
                     self.match,
@@ -113,13 +111,11 @@ class WaterPoloLineupDTO:
                     self.cap,
                     self.date,
                     self.coach,
-                    self.doctor,
-                    self.assistant_coach,
-                    self.team_leader,
-                    self.ball_thrower,
                 ]
             ):
-                raise ValueError("All fields must be set")
+                raise ValueError(
+                    "Match, division, team name, cap, date and coach must be set"
+                )
             return WaterPoloLineupDTO(
                 match=self.match,
                 division=self.division,
@@ -127,10 +123,10 @@ class WaterPoloLineupDTO:
                 cap=self.cap,
                 date=self.date,
                 coach=self.coach,
-                doctor=self.doctor,
-                assistant_coach=self.assistant_coach,
-                team_leader=self.team_leader,
-                ball_thrower=self.ball_thrower,
+                doctor=self.doctor or "",
+                assistant_coach=self.assistant_coach or "",
+                team_leader=self.team_leader or "",
+                ball_thrower=self.ball_thrower or "",
                 players=self.players,
             )
 

@@ -9,3 +9,6 @@ docs/
 
 # Local SQLite database (default DATABASE_URL)
 lineup.db
+
+# Personal Claude Code settings
+.claude/settings.local.json

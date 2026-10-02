@@ -1,8 +1,32 @@
+# The image only needs the app code, the template, Alembic and the lockfile.
+# Anything else is either secret (.env), stale local state (*.db) or noise.
+
+# Secrets and local state: never bake these into an image layer
+.env
+.env.*
+*.db
+
+# VCS, tooling, caches
 .git
+.github
 .idea
+.claude
+.codemie
+.venv
 __pycache__
 *.pyc
 .coverage
-.venv
+.pytest_cache
+.ruff_cache
+.yamllint
+.claudeignore
+
+# Tests and docs (the e2e suite runs from the host against the container)
 tests/
-.claude/
+docs/
+documentation/
+*.md
+
+# Container/dev orchestration files aren't needed inside the image
+compose.yml
+Taskfile.yml

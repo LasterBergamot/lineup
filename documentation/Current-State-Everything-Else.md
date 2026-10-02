@@ -13,7 +13,8 @@ across the backend regardless of which module you're touching.
 | `task lint` / `task format` | `ruff check` / `ruff format` |
 | `task serve` | local uvicorn dev server, loads `.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `.env` selects (Supabase pooler vs. local SQLite) |
-| `task build` / `task rebuild` | build container image (`localhost/lineup`) / force fresh build with `--no-cache` |
+| `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
+| `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
 
@@ -45,9 +46,15 @@ git-ignored.
   `docker/fontconfig/99-calibri-carlito.conf` forces Calibri → Carlito and `fc-cache -f`
   refreshes the cache — without this, LibreOffice substitutes a differently-sized font and
   the tab-stop/table layout drifts in the PDF.
-- `.dockerignore` excludes `tests/` (plus `.venv/`, `.claude/`, `.coverage`) to keep the
-  image lean — the image ships without tests, which is why the e2e suite runs from the host
-  against the running container rather than inside the image.
+- `.dockerignore` matters for **security**, not just size: the Dockerfile does `COPY . .`, so
+  anything not excluded ends up in an image layer. It excludes `.env`/`.env.*` (the Supabase
+  credentials) and `*.db` (local SQLite data), plus tests, docs, `*.md`, caches, `.git`,
+  `.github`, `.claude` and the Compose/Taskfile files. Check it whenever a new secret or
+  local-state file appears in the repo root. The image ships without tests, which is why the
+  e2e suite runs from the host against the running container rather than inside the image.
+- The container starts with `uv run --no-sync uvicorn ...`: dependencies were installed at
+  build time with `uv sync --frozen --no-dev`, and `--no-sync` stops `uv run` from re-syncing
+  (and pulling the dev group) at every start.
 - `compose.yml` uses `image: lineup` (not `build: .`), so `task build`/`task rebuild` is
   always required before `task up`. It also forwards `DATABASE_URL`/`ENV`/`SENTRY_DSN` into
   the container, defaulting to SQLite when `.env` is absent. Full reset: `task down` → `docker rmi lineup` →
