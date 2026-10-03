@@ -77,7 +77,7 @@ Also list the open alerts. For each blocking PR, propose a next step: rebase, a 
 - **Merge the non-blocking PRs:**
 
   ```bash
-  gh pr merge <n> --repo LasterBergamot/lineup --squash
+  gh pr merge <n> --repo LasterBergamot/lineup --merge
   ```
 
   Branch protection requires `Lint & test` and `E2E (real PDF conversion)` to be green.

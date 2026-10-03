@@ -119,6 +119,7 @@ Two environments only (dev + prod, no separate test env), so two long-lived bran
 - **`develop`** — the default branch and integration branch. Feature/fix branches (`feat/<issue>-…`, `fix/…`, `chore/…`) are cut from it and PR'd back into it. Will deploy to the dev environment once CD exists (#8). Dependabot PRs target it, and `wiki-sync.yml` publishes `documentation/` from it.
 - **`main`** — production. Only changes via a release PR `develop` → `main` (later: prod deploy + version tag, #17). A hotfix branches off `main`, is PR'd into `main`, then `main` is merged back into `develop`.
 - Both are protected: changes go through PRs with green `Lint & test` and `E2E (real PDF conversion)`; no force-pushes or deletions. GitHub can't restrict which branch a PR into `main` comes from, so "only from `develop` (or a hotfix)" is a convention.
+- **PRs are merged with a merge commit** (`gh pr merge --merge`), never squash or rebase, so each branch commit and its `#N` reference stays in history, and `git branch -d` works after the merge. Keep branch history clean by amending instead: `git commit --amend` for the last commit, `git commit --fixup=<sha>` + `git rebase --autosquash origin/develop` for an earlier one. After a push, that means `git push --force-with-lease`, on feature branches only. GitHub deletes the remote branch on merge.
 
 ---
 

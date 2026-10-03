@@ -40,7 +40,7 @@ The `documentation/` folder is the source of truth for the project's [GitHub wik
 
 ## Branches
 
-There are two environments (dev and prod), so there are two long-lived branches. **`develop`** is the default branch: branch off it and open your PR against it (it will deploy to dev once CD exists). **`main`** is production and only changes through a release PR from `develop` (or a hotfix). Both are protected and require green CI. See [Roadmap: Everything Else](https://github.com/LasterBergamot/lineup/wiki/Roadmap:-Everything-Else) for the full model, and `PLAN.md` for the planned dev-preview work.
+There are two environments (dev and prod), so there are two long-lived branches. **`develop`** is the default branch: branch off it and open your PR against it (it will deploy to dev once CD exists). **`main`** is production and only changes through a release PR from `develop` (or a hotfix). Both are protected and require green CI. PRs are merged with a merge commit (no squash/rebase), so keep your branch's commits tidy with `git commit --amend` / `--fixup` rather than adding "fix" commits. See [Roadmap: Everything Else](https://github.com/LasterBergamot/lineup/wiki/Roadmap:-Everything-Else) for the full model, and `PLAN.md` for the planned dev-preview work.
 
 ## Continuous Integration
 
