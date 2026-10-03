@@ -8,7 +8,11 @@
       "Read(./.env)",
       "Read(./.env.local)",
       "Read(./.env.production)",
-      "Read(./.env.development)"
+      "Read(./.env.development)",
+      "Read(./backend/.env)",
+      "Read(./backend/.env.local)",
+      "Read(./backend/.env.production)",
+      "Read(./backend/.env.development)"
     ]
   }
 }

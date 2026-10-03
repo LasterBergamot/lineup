@@ -25,8 +25,8 @@ Launch all three in **one message** so they run concurrently. Each is read-only 
 report findings as `file:line`, a short quote, an explanation and a severity (high/med/low),
 verified against the code rather than guessed.
 
-- **Code.** Read in full: `app.py`, `main.py`, `lineup/**`, `alembic/env.py`,
-  `alembic/versions/*`, `tests/**`, `pyproject.toml`. Hunt for:
+- **Code.** Read in full (all under `backend/`): `app.py`, `main.py`, `lineup/**`,
+  `alembic/env.py`, `alembic/versions/*`, `tests/**`, `pyproject.toml`. Hunt for:
   - validation mismatches between `lineup/api/models.py` and the saved-lineup schemas;
   - ORM vs migration drift (nullable, ondelete, indexes, server defaults, constraints);
   - async SQLAlchemy pitfalls (identity map, selectin, rollbacks);
@@ -35,13 +35,14 @@ verified against the code rather than guessed.
   - header and filename injection; input limits; layering violations; dead code;
   - tests that assert the wrong thing; the coverage config.
 - **Docs, infra and CI.** Read: `CLAUDE.md`, `README.md`, `documentation/*`, `Taskfile.yml`,
-  `Dockerfile`, `compose.yml`, `.dockerignore`, `.env.example`, `.gitignore`, `.github/**`,
+  `compose.yml`, `.gitignore`, `.github/**`, `backend/Dockerfile`, `backend/.dockerignore`,
+  `backend/.env.example`,
   `.claude/**`. Hunt for:
   - docs that contradict each other or the code (verify structure trees with `ls`/`find`;
-    task names vs the Taskfile; endpoints vs `lineup/*/router.py`);
+    task names vs the Taskfile; endpoints vs `backend/lineup/*/router.py`);
   - roadmap items already done, or technically unworkable (e.g. RLS while the app connects
     as a role that bypasses RLS);
-  - Docker: root user, healthcheck, pinning, what `COPY . .` pulls in;
+  - Docker: root user, healthcheck, pinning, what `COPY . .` pulls in (the build context is `backend/`);
   - CI: `permissions`, `concurrency`, SHA pinning, `--locked`, caching, whether migrations run;
   - Dependabot ecosystems and groups; stale skill or command instructions.
 - **GitHub state** (read-only `gh` only). Collect:

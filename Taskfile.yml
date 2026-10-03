@@ -2,23 +2,28 @@ version: "3"
 
 tasks:
   run:
+    dir: backend
     desc: Run the application
     cmd: uv run python main.py
 
   install:
+    dir: backend
     desc: Install dependencies
     cmd: uv sync
 
   lint:
+    dir: backend
     desc: Lint the codebase
     cmd: uv run ruff check .
 
   format:
+    dir: backend
     desc: Format the codebase
     cmd: uv run ruff format .
 
   serve:
-    desc: Start the API server (loads .env if present, so it follows task db:sqlite / db:postgres)
+    dir: backend
+    desc: Start the API server (loads backend/.env if present, so it follows task db:sqlite / db:postgres)
     cmd: |
       set -a
       [ -f .env ] && . ./.env
@@ -26,18 +31,20 @@ tasks:
       uv run uvicorn app:app --reload
 
   db:status:
-    desc: Show which database the app will use (based on .env)
+    dir: backend
+    desc: Show which database the app will use (based on backend/.env)
     silent: true
     cmd: |
       if [ -f .env ] && grep -qE '^DATABASE_URL="postgresql' .env; then
         host=$(grep -E '^DATABASE_URL="postgresql' .env | sed -E 's|.*@([^/?]*).*|\1|')
         echo "postgres (Supabase pooler: $host)"
       else
-        echo "sqlite (local ./lineup.db)"
+        echo "sqlite (local backend/lineup.db)"
       fi
 
   db:sqlite:
-    desc: Switch .env to local SQLite (comments out the Postgres URL, removes ENV=production)
+    dir: backend
+    desc: Switch backend/.env to local SQLite (comments out the Postgres URL, removes ENV=production)
     silent: true
     cmd: |
       [ -f .env ] || { echo "No .env: already on SQLite (the default)."; exit 0; }
@@ -45,11 +52,12 @@ tasks:
       echo "Switched to SQLite. Restart task serve / run task up to apply."
 
   db:postgres:
-    desc: Switch .env to the Supabase Postgres pooler (uncomments the saved URL, sets ENV=production)
+    dir: backend
+    desc: Switch backend/.env to the Supabase Postgres pooler (uncomments the saved URL, sets ENV=production)
     silent: true
     cmd: |
       [ -f .env ] && grep -qE '^#? ?DATABASE_URL="postgresql\+asyncpg://[^"<>]*:6543/' .env || {
-        echo "No filled-in pooler DATABASE_URL (port 6543) found in .env. Copy .env.example to .env and add your Supabase URL first." >&2
+        echo "No filled-in pooler DATABASE_URL (port 6543) found in backend/.env. Copy backend/.env.example to backend/.env and add your Supabase URL first." >&2
         exit 1
       }
       sed -E -i 's|^# (DATABASE_URL="postgresql\+asyncpg://[^"<>]*:6543/[^"]*")|\1|' .env
@@ -60,24 +68,25 @@ tasks:
       echo "Switched to Postgres. Restart task serve / run task up to apply."
 
   test:
+    dir: backend
     desc: Run tests with coverage (100%; e2e tests excluded via pyproject addopts)
     cmd: uv run pytest --cov=lineup --cov-report=term-missing
 
   test-e2e:
     desc: Build+run the container and validate real PDF conversion fidelity
     cmds:
-      - docker build -t lineup .
+      - docker build -t lineup backend
       - docker compose up -d
       - defer: docker compose down
-      - uv run pytest -m e2e tests/test_pdf_conversion_e2e.py -v
+      - cd backend && uv run pytest -m e2e tests/test_pdf_conversion_e2e.py -v
 
   build:
     desc: Build the container image
-    cmd: docker build -t lineup .
+    cmd: docker build -t lineup backend
 
   rebuild:
     desc: Force a fresh container image build (no cache)
-    cmd: docker build --no-cache -t lineup .
+    cmd: docker build --no-cache -t lineup backend
 
   up:
     desc: Start the API in a container (detached)
@@ -88,13 +97,16 @@ tasks:
     cmd: docker compose down
 
   migrate:
+    dir: backend
     desc: Apply Alembic migrations (upgrade head)
     cmd: uv run alembic upgrade head
 
   migrate-new:
+    dir: backend
     desc: "Auto-generate a new migration. Usage: task migrate-new -- -m 'description'"
     cmd: uv run alembic revision --autogenerate {{.CLI_ARGS}}
 
   migrate-down:
+    dir: backend
     desc: Rollback one migration step
     cmd: uv run alembic downgrade -1

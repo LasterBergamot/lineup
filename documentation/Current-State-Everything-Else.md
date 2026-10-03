@@ -3,6 +3,21 @@
 Cross-cutting concerns: dev workflow, containerization, testing, and conventions that apply
 across the backend regardless of which module you're touching.
 
+## Repository layout
+
+The repo is split so each side can be built, tested and deployed on its own: **`backend/`**
+holds all the Python (API, Alembic migrations, tests, `Dockerfile`, `pyproject.toml`, the
+`.docx` template), and **`frontend/`** will hold the web app. The repo root keeps only
+what is shared: `Taskfile.yml`, `compose.yml`, `.github/` (CI and Dependabot), `.claude/`,
+`documentation/` and the top-level docs.
+
+The one rule to remember: **Python commands run with `backend/` as the working directory**.
+`alembic.ini` (`prepend_sys_path = .`), the template path `resources/rajtlista.docx`, pytest's
+rootdir (`from app import app`), `--cov=lineup` and the default SQLite file `./lineup.db` are all
+relative to the current directory. The `task` commands set `dir: backend` for you, so run them
+from anywhere; if you call `uv`, `pytest` or `alembic` by hand, `cd backend` first. Paths
+elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relative to `backend/`.
+
 ## Dev workflow (`Taskfile.yml`)
 
 | Task | Purpose |
@@ -11,8 +26,8 @@ across the backend regardless of which module you're touching.
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server, loads `.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
-| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `.env` selects (Supabase pooler vs. local SQLite) |
+| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
+| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |
 | `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
@@ -20,8 +35,8 @@ across the backend regardless of which module you're touching.
 
 ## Configuration (environment variables)
 
-All runtime configuration is via environment variables, documented in `.env.example` (copy it
-to the git-ignored `.env`). With no `.env` the app runs entirely on local SQLite with no
+All runtime configuration is via environment variables, documented in `backend/.env.example` (copy it
+to the git-ignored `backend/.env`). With no `backend/.env` the app runs entirely on local SQLite with no
 external services.
 
 | Variable | Default | Purpose |
@@ -30,34 +45,38 @@ external services.
 | `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
 
-`task up` (Docker Compose) reads `.env` automatically and passes these into the container;
+`task up` (Docker Compose, through `env_file: backend/.env` in the root `compose.yml`) passes these into the container;
 `task serve` sources it too. `task migrate` / `task migrate-new` do not (they target SQLite
 unless `DATABASE_URL` is passed for one run). `task db:postgres` / `task db:sqlite` /
-`task db:status` switch and report which database `.env` selects. Never commit `.env` — it is
+`task db:status` switch and report which database `backend/.env` selects. Never commit `backend/.env` — it is
 git-ignored.
 
 ## Containerization
 
-- `Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps.
+- `backend/Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps.
 - **Font fidelity**: the template is authored in Calibri/Calibri Light (proprietary).
   `--no-install-recommends` is kept, so the metric-compatible substitutes are installed
   explicitly: `fonts-crosextra-carlito` (Calibri/Calibri Light), `fonts-crosextra-caladea`
   (Cambria), `fonts-liberation2` (Arial/Times/Courier).
-  `docker/fontconfig/99-calibri-carlito.conf` forces Calibri → Carlito and `fc-cache -f`
+  `backend/docker/fontconfig/99-calibri-carlito.conf` forces Calibri → Carlito and `fc-cache -f`
   refreshes the cache — without this, LibreOffice substitutes a differently-sized font and
   the tab-stop/table layout drifts in the PDF.
-- `.dockerignore` matters for **security**, not just size: the Dockerfile does `COPY . .`, so
-  anything not excluded ends up in an image layer. It excludes `.env`/`.env.*` (the Supabase
-  credentials) and `*.db` (local SQLite data), plus tests, docs, `*.md`, caches, `.git`,
-  `.github`, `.claude` and the Compose/Taskfile files. Check it whenever a new secret or
-  local-state file appears in the repo root. The image ships without tests, which is why the
+- The Docker build context is `backend/` (`docker build -t lineup backend`), so nothing at the
+  repo root (`.github/`, `.claude/`, `documentation/`, `frontend/`, Compose/Taskfile) can ever
+  reach the image. `backend/.dockerignore` matters for **security**, not just size: the
+  Dockerfile does `COPY . .`, so anything not excluded ends up in an image layer. It excludes
+  `.env`/`.env.*` (the Supabase credentials in `backend/.env` sit *inside* the context) and
+  `*.db` (local SQLite data), plus tests, `*.md`, caches and `.git`. Check it whenever a new
+  secret or local-state file appears in `backend/`. The image ships without tests, which is why the
   e2e suite runs from the host against the running container rather than inside the image.
 - The container starts with `uv run --no-sync uvicorn ...`: dependencies were installed at
   build time with `uv sync --frozen --no-dev`, and `--no-sync` stops `uv run` from re-syncing
   (and pulling the dev group) at every start.
-- `compose.yml` uses `image: lineup` (not `build: .`), so `task build`/`task rebuild` is
-  always required before `task up`. It also forwards `DATABASE_URL`/`ENV`/`SENTRY_DSN` into
-  the container, defaulting to SQLite when `.env` is absent. Full reset: `task down` → `docker rmi lineup` →
+- `compose.yml` (repo root) uses `image: lineup` (not `build:`), so `task build`/`task rebuild` is
+  always required before `task up`. It takes its settings from `env_file: backend/.env`
+  (`required: false`, Compose >= 2.24) — Compose's own `.env` lookup only checks next to
+  `compose.yml`, so it would no longer see `backend/.env` — and the container falls back to its
+  SQLite default when the file is absent. Full reset: `task down` → `docker rmi lineup` →
   `docker image prune` → `task rebuild` → `task up`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
@@ -80,7 +99,7 @@ git-ignored.
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite
   DB per test, with `get_session` and `get_current_user_id` dependency-overridden. CI never
   talks to a real Postgres: the Postgres-specific engine branches are tested by constructing
-  (lazy, never-connecting) engines, and tests ignore any local `.env`.
+  (lazy, never-connecting) engines, and tests ignore any local `backend/.env`.
 - The `owner_id`/`user_id`-scoped filtering branches can't be reached through the API yet
   (since `get_current_user_id()` always returns `None`) — they're tested directly against
   the `db_session` fixture with real non-`None` IDs instead.
@@ -115,7 +134,7 @@ Two GitHub Actions workflows (`.github/workflows/`):
 ### Security & observability tooling
 
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
-  ecosystem (`pyproject.toml`/`uv.lock`) and the `github-actions` ecosystem (the two workflow
+  ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`) and the `github-actions` ecosystem (the two workflow
   files). Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
@@ -162,7 +181,7 @@ procedures run the same way every time instead of being reconstructed from memor
 `model:` in a skill's frontmatter pins the model only while that skill runs: opus for the
 cross-cutting analysis, haiku for templated steps. Every skill that writes to GitHub, git or
 Supabase asks before each state-changing command. The shared `.claude/settings.json` lets
-`task lint`/`task test` run without prompting and denies reading `.env*`, so credentials
+`task lint`/`task test` run without prompting and denies reading `.env*` (at the root and in `backend/`), so credentials
 never enter the conversation.
 
 **Issue conventions** (encoded in `new-issue`):

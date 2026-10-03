@@ -45,7 +45,7 @@ erDiagram
 1. **Authentication**
    - Enable the Google OAuth provider in the Supabase dashboard.
    - Incoming requests send a Bearer JWT; FastAPI validates it and
-     `get_current_user_id()` (`lineup/auth/dependencies.py`) returns `payload["sub"]`
+     `get_current_user_id()` (`backend/lineup/auth/dependencies.py`) returns `payload["sub"]`
      instead of `None` — **zero router or service changes needed**, since every repository
      already accepts and conditionally filters on `user_id`.
 2. **Production database cutover** *(remaining piece — the dev half is done)*

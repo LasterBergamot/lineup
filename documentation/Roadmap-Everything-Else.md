@@ -8,7 +8,7 @@ frontend roadmap pages.
 ```mermaid
 flowchart LR
     A[SQLite in-memory<br/>tests] --> C[Single DATABASE_URL env var]
-    B[SQLite file<br/>./lineup.db, task serve] --> C
+    B[SQLite file<br/>backend/lineup.db, task serve] --> C
     C --> D[Postgres via asyncpg<br/>production / Supabase]
 ```
 

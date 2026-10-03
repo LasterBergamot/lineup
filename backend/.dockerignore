@@ -6,27 +6,16 @@
 .env.*
 *.db
 
-# VCS, tooling, caches
+# VCS, tooling, caches (the build context is backend/, so repo-root dirs like .github never reach it)
 .git
-.github
 .idea
-.claude
-.codemie
 .venv
 __pycache__
 *.pyc
 .coverage
 .pytest_cache
 .ruff_cache
-.yamllint
-.claudeignore
 
-# Tests and docs (the e2e suite runs from the host against the container)
+# Tests and markdown (the e2e suite runs from the host against the container)
 tests/
-docs/
-documentation/
 *.md
-
-# Container/dev orchestration files aren't needed inside the image
-compose.yml
-Taskfile.yml

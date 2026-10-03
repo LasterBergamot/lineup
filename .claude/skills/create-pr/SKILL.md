@@ -37,7 +37,7 @@ Once the branch is pushed, rewriting it needs `git push --force-with-lease` (nev
 
 Run the `triage-dependabot` skill. Merging any non-blocking PR it finds needs the user's
 confirmation. If something was merged, it also brings this branch up to date: merge `develop`,
-`uv sync`, lint, test.
+`uv sync` (in `backend/`), lint, test.
 
 ## 3. Quality gates
 
@@ -46,8 +46,9 @@ task lint
 task test        # must report 100 % coverage
 ```
 
-Run `task test-e2e` too if the diff touches `lineup/document/`, `lineup/water_polo/`,
-`lineup/api/file_response.py`, `resources/`, the `Dockerfile`, `docker/` or `compose.yml`. It
+Run `task test-e2e` too if the diff touches `backend/lineup/document/`, `backend/lineup/water_polo/`,
+`backend/lineup/api/file_response.py`, `backend/resources/`, `backend/Dockerfile`, `backend/docker/`
+or `compose.yml`. It
 needs Docker and stops the running `lineup` container at the end; tell the user beforehand.
 
 Check that every new or changed module has tests (CLAUDE.md "Tests" conventions), and that

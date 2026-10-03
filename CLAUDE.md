@@ -11,16 +11,18 @@
 - Write `README.md` and `documentation/` so a newcomer with no prior context can understand the architecture, the codebase, and how a request flows through it — explain the "why", not just record what changed. Keep that bar on every doc update.
 - Before creating a PR in this repo, check for open GitHub Dependabot alerts via `gh api repos/LasterBergamot/lineup/dependabot/alerts` (filter for `"state": "open"`) and surface any findings to the user.
 - Also check the open Dependabot version-update PRs (`gh pr list --state open --author "app/dependabot"`, then `gh pr checks <n>` / `gh pr view <n>` for each). Alerts and these PRs are separate: an empty alerts list says nothing about pending PRs. A PR is **blocking** if its CI checks fail, it has merge conflicts, or it is a major-version bump (or touches a core dependency such as SQLAlchemy, FastAPI or asyncpg) whose effect on the current branch's code can't be shown to be safe; otherwise it is **non-blocking**.
-  - Non-blocking PRs: list them for the user, and once the user confirms (merging is a state-changing `gh` command, so the usual confirmation rule still applies), merge them, then bring the current branch up to date with the updated `develop` (merge `develop` into it, resolving `pyproject.toml`/`uv.lock` conflicts), run `uv sync`, and re-run `task lint` and `task test` before creating the PR.
+  - Non-blocking PRs: list them for the user, and once the user confirms (merging is a state-changing `gh` command, so the usual confirmation rule still applies), merge them, then bring the current branch up to date with the updated `develop` (merge `develop` into it, resolving `backend/pyproject.toml`/`backend/uv.lock` conflicts), run `uv sync` (in `backend/`), and re-run `task lint` and `task test` before creating the PR.
   - Blocking PRs: don't merge them. Report each with the reason (failing check, conflict, breaking change) and discuss the next step with the user.
 
 ---
 
 ## Project Overview
 
-Water polo lineup document generator. Takes match details and player info, fills a `.docx` template (`resources/rajtlista.docx`), and returns the result via a REST API as either a PDF (default) or DOCX.
+Water polo lineup document generator. Takes match details and player info, fills a `.docx` template (`backend/resources/rajtlista.docx`), and returns the result via a REST API as either a PDF (default) or DOCX.
 
 PDF conversion uses LibreOffice headless, which is only available inside the container — the API must be run via `task build` + `task up`, not `task serve`.
+
+**Repo layout**: the Python backend lives in `backend/` (and a Vite/React app will live in `frontend/`); the repo root only holds what is shared or cross-cutting — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`, `README.md`, `CLAUDE.md`, `PLAN.md`. **Every Python command must run with `backend/` as its working directory**, because `alembic.ini` (`prepend_sys_path = .`), the `resources/…` template paths, pytest's rootdir (`from app import app`), `--cov=lineup` and the `./lineup.db` SQLite default are all cwd-relative. The root `Taskfile.yml` sets `dir: backend` on those tasks, so use `task …` from anywhere; if you run `uv`/`pytest`/`alembic` by hand, `cd backend` first. The split exists so CI, Docker and Dependabot can treat the two sides separately (the Docker build context is `backend/`, so repo-root files never enter the image).
 
 The template is authored in Calibri/Calibri Light (proprietary). The container ships the libre metric-compatible substitutes (Carlito etc.) so the PDF layout matches the source `.docx`; without them LibreOffice substitutes a differently-sized font and the tab-stop/table layout drifts.
 
@@ -50,6 +52,8 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 
 ### Key modules
 
+Paths in this table are relative to `backend/`.
+
 | File | Responsibility |
 |------|---------------|
 | `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers all 4 routers; initializes Sentry at import time if `SENTRY_DSN` is set (errors only, `traces_sample_rate=0.0`) |
@@ -70,17 +74,17 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 
 **SQLite foreign key enforcement**: SQLite ignores `ondelete` clauses entirely unless `PRAGMA foreign_keys=ON` is set per-connection — `enable_sqlite_foreign_keys(engine)` in `lineup/db/engine.py` registers a SQLAlchemy `connect` event listener that sets this pragma; both the production engine and the test engine (`tests/conftest.py`'s `db_engine` fixture) call it. Without it, `SET NULL`/`RESTRICT` are silently inert. The listener is gated on `async_engine.url.get_backend_name() == "sqlite"` — `PRAGMA` is SQLite-only syntax and would fail every connection on Postgres.
 
-**Postgres / Supabase connection notes**: there are two Supabase connection flavors. The app at runtime uses the *transaction pooler* (port 6543, user `postgres.<project-ref>`) with just `?ssl=require` on `DATABASE_URL`. `_make_engine_kwargs()` (Postgres only) adds `NullPool` since the pooler already pools, plus `connect_args` turning prepared statements off (`statement_cache_size=0` is asyncpg's own cache, `prepared_statement_cache_size=0` is SQLAlchemy's) and a `prepared_statement_name_func` giving each statement a unique name. All three are needed: without them the pooler hands one server connection to several clients and requests fail with `DuplicatePreparedStatementError` (found only by running against real Supabase; a `prepared_statement_cache_size=0` in the URL alone is NOT enough). An old URL that still carries `&prepared_statement_cache_size=0` is harmless. Also: `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so model defaults must be naive UTC (`_utcnow()` in `lineup/db/models.py`) — SQLite tolerates aware datetimes, asyncpg raises. SQLite-only tests can't catch this class of bug, so re-run the live smoke test (create team/player/saved lineup, delete) against the dev Supabase project after touching models or the engine. Alembic (`task migrate`) needs the *direct* connection (port 5432) — or the session-mode pooler if there's no IPv6 — because the transaction pooler can't run DDL. `ENV=production` means "schema is Alembic-managed, skip `create_all`", not "the prod deployment": set it for any real Postgres, including the dev Supabase project (unset, the app would create untracked tables and the next `task migrate` would fail). The app stays on the pooler, not the direct connection: migrations are a separate manual step, the direct host is IPv6-only, and `NullPool` opens a connection per request, which is cheap via the pooler but wasteful directly against Postgres. Switching between SQLite and Postgres: `task db:postgres` / `task db:sqlite` (sed-based, in the Taskfile) comment/uncomment the filled-in pooler `DATABASE_URL` in `.env` and add/remove `ENV=production`; `task db:status` reports the active one. `.env.example` documents all of this; Docker Compose and `task serve` load `.env`, but `task migrate`/`task migrate-new` deliberately don't (they default to SQLite, so a migration never hits Supabase by accident; pass `DATABASE_URL` for one run). Only a dev Supabase project exists so far; prod project, real auth and RLS are tracked separately (see `documentation/Roadmap-Backend.md`).
+**Postgres / Supabase connection notes**: there are two Supabase connection flavors. The app at runtime uses the *transaction pooler* (port 6543, user `postgres.<project-ref>`) with just `?ssl=require` on `DATABASE_URL`. `_make_engine_kwargs()` (Postgres only) adds `NullPool` since the pooler already pools, plus `connect_args` turning prepared statements off (`statement_cache_size=0` is asyncpg's own cache, `prepared_statement_cache_size=0` is SQLAlchemy's) and a `prepared_statement_name_func` giving each statement a unique name. All three are needed: without them the pooler hands one server connection to several clients and requests fail with `DuplicatePreparedStatementError` (found only by running against real Supabase; a `prepared_statement_cache_size=0` in the URL alone is NOT enough). An old URL that still carries `&prepared_statement_cache_size=0` is harmless. Also: `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so model defaults must be naive UTC (`_utcnow()` in `lineup/db/models.py`) — SQLite tolerates aware datetimes, asyncpg raises. SQLite-only tests can't catch this class of bug, so re-run the live smoke test (create team/player/saved lineup, delete) against the dev Supabase project after touching models or the engine. Alembic (`task migrate`) needs the *direct* connection (port 5432) — or the session-mode pooler if there's no IPv6 — because the transaction pooler can't run DDL. `ENV=production` means "schema is Alembic-managed, skip `create_all`", not "the prod deployment": set it for any real Postgres, including the dev Supabase project (unset, the app would create untracked tables and the next `task migrate` would fail). The app stays on the pooler, not the direct connection: migrations are a separate manual step, the direct host is IPv6-only, and `NullPool` opens a connection per request, which is cheap via the pooler but wasteful directly against Postgres. Switching between SQLite and Postgres: `task db:postgres` / `task db:sqlite` (sed-based, in the Taskfile) comment/uncomment the filled-in pooler `DATABASE_URL` in `backend/.env` and add/remove `ENV=production`; `task db:status` reports the active one. `backend/.env.example` documents all of this; Docker Compose and `task serve` load `backend/.env`, but `task migrate`/`task migrate-new` deliberately don't (they default to SQLite, so a migration never hits Supabase by accident; pass `DATABASE_URL` for one run). Only a dev Supabase project exists so far; prod project, real auth and RLS are tracked separately (see `documentation/Roadmap-Backend.md`).
 
 **Coverage + async SQLAlchemy gotcha**: `coverage.py` needs `concurrency = ["greenlet", "thread"]` under `[tool.coverage.run]` in `pyproject.toml` — SQLAlchemy's async ORM bridges sync calls onto greenlets (`greenlet_spawn`), and without this setting, `coverage` silently drops line hits for code *after* a greenlet-based await resumes (e.g. the line right after `await session.commit()`), even though the code genuinely ran. This looked like a real ~90%-coverage shortfall across every DB-touching module until traced to this missing config.
 
 ### Container
 
-- `Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps
-- Fonts: `--no-install-recommends` is kept, so the metric-compatible font packages are installed explicitly — `fonts-crosextra-carlito` (Calibri/Calibri Light), `fonts-crosextra-caladea` (Cambria), `fonts-liberation2` (Arial/Times/Courier). `docker/fontconfig/99-calibri-carlito.conf` (copied to `/etc/fonts/conf.d/`) forces Calibri → Carlito, and `fc-cache -f` refreshes the cache. These are what make the PDF match the source `.docx`.
-- `.dockerignore` is a security control: the Dockerfile does `COPY . .`, so it must exclude `.env`/`.env.*` (Supabase credentials) and `*.db`, alongside tests, docs, `*.md`, caches, `.git`, `.github`, `.claude`. Add any new secret/local-state file to it. Because `tests/` is excluded the image ships without tests — that's why the e2e suite runs from the host against the running container, not inside the image.
+- `backend/Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps
+- Fonts: `--no-install-recommends` is kept, so the metric-compatible font packages are installed explicitly — `fonts-crosextra-carlito` (Calibri/Calibri Light), `fonts-crosextra-caladea` (Cambria), `fonts-liberation2` (Arial/Times/Courier). `backend/docker/fontconfig/99-calibri-carlito.conf` (copied to `/etc/fonts/conf.d/`) forces Calibri → Carlito, and `fc-cache -f` refreshes the cache. These are what make the PDF match the source `.docx`.
+- The Docker build context is `backend/` (`docker build -t lineup backend` in the Taskfile), so repo-root items (`.github/`, `.claude/`, `documentation/`, `frontend/`, `compose.yml`, `Taskfile.yml`) can never enter the image. `backend/.dockerignore` is a security control: the Dockerfile does `COPY . .`, so it must exclude `.env`/`.env.*` (`backend/.env` holds the Supabase credentials and now sits *inside* the context) and `*.db`, alongside tests, `*.md`, caches, `.git`. Add any new secret/local-state file to it. Because `tests/` is excluded the image ships without tests — that's why the e2e suite runs from the host against the running container, not inside the image.
 - `CMD` uses `uv run --no-sync` so the container doesn't re-sync (and install the dev group) at start; deps are installed at build time with `uv sync --frozen --no-dev`.
-- `compose.yml`: single `api` service using the pre-built `lineup` image (not `build: .`)
+- `compose.yml` (repo root): single `api` service using the pre-built `lineup` image (not `build:`). It gets its settings from `env_file: backend/.env` with `required: false` (Compose >= 2.24) — compose's own `.env` interpolation only looks next to `compose.yml`, so it would silently stop seeing `backend/.env`. With no `backend/.env` the container falls back to its in-container SQLite default.
 - `task build` / `task rebuild` builds the image; `task up` / `task down` starts/stops it; containers can be monitored using `lazydocker`
 - CI's `e2e` job scans the built `lineup:latest` image with `aquasecurity/trivy-action` (severity `CRITICAL,HIGH`) after `task test-e2e` runs — report-only (`exit-code: "0"`, never fails the build), since the LibreOffice + apt package surface has more CVEs than can realistically be kept at zero. Results go to the job log (table format) and the repo's Security → Code scanning tab (SARIF upload via `github/codeql-action/upload-sarif`).
 
@@ -94,10 +98,10 @@ task test       # pytest with coverage (must pass at 100%; e2e tests excluded)
 task test-e2e   # build image, start container, run real-conversion fidelity tests, tear down
 task lint       # ruff check
 task format     # ruff format
-task serve      # local uvicorn dev server, loads .env (no PDF support — no LibreOffice; DB tables auto-created on startup unless ENV=production)
-task db:status  # show whether .env selects SQLite or the Supabase pooler
-task db:postgres  # switch .env to the Supabase pooler (DATABASE_URL + ENV=production)
-task db:sqlite  # switch .env back to local SQLite
+task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup unless ENV=production)
+task db:status  # show whether backend/.env selects SQLite or the Supabase pooler
+task db:postgres  # switch backend/.env to the Supabase pooler (DATABASE_URL + ENV=production)
+task db:sqlite  # switch backend/.env back to local SQLite
 task run        # run main.py (CLI demo, writes resources/modified_rajtlista.docx)
 task build      # build container image (lineup)
 task rebuild    # force fresh build with --no-cache
@@ -108,7 +112,7 @@ task migrate-new -- -m "description"  # autogenerate a new migration
 task migrate-down  # rollback one migration step
 ```
 
-Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `.env.example` — copy it to `.env` (git-ignored) to opt into Postgres/Supabase; with no `.env` everything runs on local SQLite.
+Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 
@@ -125,11 +129,13 @@ Two environments only (dev + prod, no separate test env), so two long-lived bran
 
 ### Claude Code skills (`.claude/skills/`)
 
-`repo-audit` (opus): full audit → GitHub reconciliation. `new-issue` (haiku): issue conventions, labels/milestone/board/relations recipes. `triage-dependabot` (sonnet): the pre-PR Dependabot rule above. `create-pr` (sonnet): gates + PR. `supabase-smoke` (haiku): the live dev-Supabase smoke test. Also `update-documentation` and `setup-project`. The models are pinned with `model:` in each skill's frontmatter and apply only while the skill runs. If you change a workflow these skills encode (labels, milestones, epics, board fields, the Dependabot rule, the smoke-test steps), update the skill in the same change. `.claude/settings.json` (shared) allows `task lint`/`task test` and denies reading `.env*`; `.claude/settings.local.json` is personal and git-ignored.
+`repo-audit` (opus): full audit → GitHub reconciliation. `new-issue` (haiku): issue conventions, labels/milestone/board/relations recipes. `triage-dependabot` (sonnet): the pre-PR Dependabot rule above. `create-pr` (sonnet): gates + PR. `supabase-smoke` (haiku): the live dev-Supabase smoke test. Also `update-documentation` and `setup-project`. The models are pinned with `model:` in each skill's frontmatter and apply only while the skill runs. If you change a workflow these skills encode (labels, milestones, epics, board fields, the Dependabot rule, the smoke-test steps), update the skill in the same change. `.claude/settings.json` (shared) allows `task lint`/`task test` and denies reading `.env*` at the root and `backend/.env*`; `.claude/settings.local.json` is personal and git-ignored.
 
 ## Conventions
 
 ### Security (ruff `S` / flake8-bandit)
+
+Paths are relative to `backend/`.
 
 - `[tool.ruff.lint] extend-select = ["S"]` in `pyproject.toml` enables flake8-bandit checks as part of `task lint`.
 - `per-file-ignores` suppresses `S101` (`assert`) and `S310` (`urlopen` scheme check) for `tests/**` — both are expected patterns in test code (pytest's `assert` idiom; `S310` flags a fixed local `BASE_URL` constant, never user input), not real risks.
@@ -137,6 +143,8 @@ Two environments only (dev + prod, no separate test env), so two long-lived bran
 - If a *new* `S`-rule violation appears anywhere outside these two ignored spots, treat it as a real finding: fix the underlying code rather than reflexively adding another ignore.
 
 ### Tests
+
+Paths below are relative to `backend/` (run pytest from there — `task test` does).
 
 - `pyproject.toml` enforces `fail_under = 100`
 - Every new module needs a corresponding `tests/test_<module>.py`
@@ -157,7 +165,7 @@ Two environments only (dev + prod, no separate test env), so two long-lived bran
 
 ### Container image
 
-- `compose.yml` uses `image: lineup`, not `build: .` — so `task build`/`task rebuild` is always needed before `task up`
+- `compose.yml` uses `image: lineup`, not `build:` — so `task build`/`task rebuild` is always needed before `task up`
 - To fully reset: `task down` → `docker rmi lineup` → `docker image prune` → `task rebuild` → `task up`
 
 ---
@@ -166,73 +174,79 @@ Two environments only (dev + prod, no separate test env), so two long-lived bran
 
 ```
 lineup/
-├── app.py
-├── main.py
-├── Dockerfile
-├── compose.yml
-├── .env.example                      # documents DATABASE_URL / ENV / SENTRY_DSN (copy to git-ignored .env)
 ├── Taskfile.yml
+├── compose.yml                       # image: lineup; env_file backend/.env (optional)
 ├── PLAN.md                           # dev-preview plan + progress log (FE, auth, invitations, dev deploy)
+├── README.md  CLAUDE.md
+├── .github/                          # CI (ci.yml, wiki-sync.yml), dependabot.yml
+├── .claude/                          # settings.json, skills/, commands/
+├── documentation/                    # mirrored into the GitHub wiki by CI
 ├── frontend/
 │   └── DESIGN.md                     # Polaris theme spec (shadcn tokens) — the app itself is not scaffolded yet
-├── docker/
-│   └── fontconfig/
-│       └── 99-calibri-carlito.conf   # Calibri → Carlito mapping, copied into the image
-├── resources/
-│   └── rajtlista.docx
-├── alembic.ini
-├── alembic/
-│   ├── env.py
-│   └── versions/
-│       └── 35ce55ceabf4_initial_schema.py   # single squashed migration — teams/players/saved_lineups/lineup_player_snapshots
-├── lineup/
-│   ├── api/
-│   │   ├── models.py
-│   │   ├── file_response.py   # FileFormat, content_disposition(), build_file_response()
-│   │   └── router.py
-│   ├── document/
-│   │   ├── document_manager.py
-│   │   └── pdf_converter.py
-│   ├── water_polo/
-│   │   ├── water_polo_lineup_creator.py
-│   │   └── water_polo_lineup_dto.py
-│   ├── db/
-│   │   ├── base.py       # DeclarativeBase
-│   │   ├── engine.py     # get_session(), enable_sqlite_foreign_keys(), _make_engine_kwargs()
-│   │   └── models.py     # Team, Player, SavedLineup, LineupPlayerSnapshot
-│   ├── auth/
-│   │   └── dependencies.py   # get_current_user_id() — None pre-Auth
-│   ├── teams/
-│   │   ├── schemas.py
-│   │   ├── repository.py
-│   │   ├── service.py
-│   │   └── router.py
-│   ├── players/
-│   │   ├── schemas.py
-│   │   ├── repository.py
-│   │   ├── service.py
-│   │   └── router.py
-│   └── saved_lineups/
-│       ├── schemas.py
-│       ├── repository.py
-│       ├── service.py
-│       └── router.py
-└── tests/
+└── backend/                          # everything Python; run Python commands with this as cwd
+    ├── app.py
+    ├── main.py
+    ├── pyproject.toml  uv.lock  .python-version
+    ├── Dockerfile  .dockerignore
+    ├── .env.example                      # documents DATABASE_URL / ENV / SENTRY_DSN (copy to git-ignored backend/.env)
+    ├── docker/
+    │   └── fontconfig/
+    │       └── 99-calibri-carlito.conf   # Calibri → Carlito mapping, copied into the image
     ├── resources/
-    │   ├── expected_rajtlista.docx
-    │   └── expected-rajtlista.pdf     # reference render for the e2e fidelity test
-    ├── conftest.py
-    ├── test_api.py
-    ├── test_app.py
-    ├── test_document_manager.py
-    ├── test_pdf_converter.py
-    ├── test_pdf_conversion_e2e.py     # e2e: real conversion vs the running container
-    ├── test_water_polo_lineup_creator.py
-    ├── test_water_polo_lineup_dto.py
-    ├── test_auth_dependencies.py
-    ├── test_db_engine.py
-    ├── test_db_models.py
-    ├── test_teams.py
-    ├── test_players.py
-    └── test_saved_lineups.py
+    │   └── rajtlista.docx
+    ├── alembic.ini
+    ├── alembic/
+    │   ├── env.py
+    │   └── versions/
+    │       └── 35ce55ceabf4_initial_schema.py   # single squashed migration — teams/players/saved_lineups/lineup_player_snapshots
+    ├── lineup/
+    │   ├── api/
+    │   │   ├── models.py
+    │   │   ├── file_response.py   # FileFormat, content_disposition(), build_file_response()
+    │   │   └── router.py
+    │   ├── document/
+    │   │   ├── document_manager.py
+    │   │   └── pdf_converter.py
+    │   ├── water_polo/
+    │   │   ├── water_polo_lineup_creator.py
+    │   │   └── water_polo_lineup_dto.py
+    │   ├── db/
+    │   │   ├── base.py       # DeclarativeBase
+    │   │   ├── engine.py     # get_session(), enable_sqlite_foreign_keys(), _make_engine_kwargs()
+    │   │   └── models.py     # Team, Player, SavedLineup, LineupPlayerSnapshot
+    │   ├── auth/
+    │   │   └── dependencies.py   # get_current_user_id() — None pre-Auth
+    │   ├── teams/
+    │   │   ├── schemas.py
+    │   │   ├── repository.py
+    │   │   ├── service.py
+    │   │   └── router.py
+    │   ├── players/
+    │   │   ├── schemas.py
+    │   │   ├── repository.py
+    │   │   ├── service.py
+    │   │   └── router.py
+    │   └── saved_lineups/
+    │       ├── schemas.py
+    │       ├── repository.py
+    │       ├── service.py
+    │       └── router.py
+    └── tests/
+        ├── resources/
+        │   ├── expected_rajtlista.docx
+        │   └── expected-rajtlista.pdf     # reference render for the e2e fidelity test
+        ├── conftest.py
+        ├── test_api.py
+        ├── test_app.py
+        ├── test_document_manager.py
+        ├── test_pdf_converter.py
+        ├── test_pdf_conversion_e2e.py     # e2e: real conversion vs the running container
+        ├── test_water_polo_lineup_creator.py
+        ├── test_water_polo_lineup_dto.py
+        ├── test_auth_dependencies.py
+        ├── test_db_engine.py
+        ├── test_db_models.py
+        ├── test_teams.py
+        ├── test_players.py
+        └── test_saved_lineups.py
 ```

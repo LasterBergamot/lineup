@@ -26,6 +26,9 @@ flowchart LR
     G -.->|"generate" endpoint reuses| B
 ```
 
+Paths on this page are relative to `backend/`, where all the Python lives (see
+[[Current State: Everything Else]] for why Python commands run from there).
+
 The persistence layer follows a consistent `schemas.py` / `repository.py` / `service.py` /
 `router.py` layering per module (`lineup/teams/`, `lineup/players/`, `lineup/saved_lineups/`).
 Each layer has one job, which is what keeps the code easy to follow:
@@ -221,17 +224,17 @@ Why the Postgres URL looks the way it does:
   and wasteful directly against Postgres, whose connection slots are limited, and (3) Supabase
   recommends the pooler for short-lived connections like a request-per-connection web app.
 
-All variables are documented in `.env.example`. Docker Compose loads `.env` automatically and
-passes `DATABASE_URL`/`ENV`/`SENTRY_DSN` into the container, and `task serve` sources `.env`
+All variables are documented in `backend/.env.example`. Docker Compose loads `backend/.env` (via `env_file` in the root `compose.yml`) and
+passes `DATABASE_URL`/`ENV`/`SENTRY_DSN` into the container, and `task serve` sources `backend/.env`
 too. `task migrate` / `task migrate-new` deliberately do **not** read it: they target local
 SQLite unless `DATABASE_URL` is passed for that single run, so a migration can never hit
 Supabase by accident.
 
-**Switching databases**: `task db:postgres` and `task db:sqlite` flip `.env` between the two
+**Switching databases**: `task db:postgres` and `task db:sqlite` flip `backend/.env` between the two
 (uncomment/comment the real pooler `DATABASE_URL`, add/remove `ENV=production`), and
 `task db:status` reports the active one. Restart `task serve` / run `task up` to apply.
 Switching back to SQLite involves no code or data migration — the two databases are simply
-independent. `db:postgres` refuses to run unless `.env` already holds a filled-in pooler URL
+independent. `db:postgres` refuses to run unless `backend/.env` already holds a filled-in pooler URL
 (port 6543, no `<placeholders>`).
 
 ### Changing the schema later (Alembic)
@@ -254,7 +257,7 @@ Nothing here is a single point of failure as long as access to the Supabase acco
 kept:
 
 - **Database password lost** — Supabase dashboard → Project Settings → Database → *Reset
-  database password*. No data is lost; update the password in your `.env` / deployment secrets.
+  database password*. No data is lost; update the password in your `backend/.env` / deployment secrets.
 - **API keys / JWT secret** — always re-viewable in Project Settings → Data API / JWT Settings,
   and rotatable if a leak is suspected (rotating the JWT secret invalidates issued tokens,
   which only matters once auth is wired in).

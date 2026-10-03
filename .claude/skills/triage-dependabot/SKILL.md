@@ -87,11 +87,11 @@ Also list the open alerts. For each blocking PR, propose a next step: rebase, a 
   git fetch origin && git merge origin/develop
   ```
 
-  Resolve `pyproject.toml`/`uv.lock` conflicts by keeping both sides' intent, then
-  regenerate the lock with `uv lock` rather than hand-editing it. Then:
+  Resolve `backend/pyproject.toml`/`backend/uv.lock` conflicts by keeping both sides' intent, then
+  regenerate the lock with `uv lock` (run from `backend/`) rather than hand-editing it. Then:
 
   ```bash
-  uv sync
+  (cd backend && uv sync)
   task lint
   task test
   ```

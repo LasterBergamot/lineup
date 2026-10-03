@@ -28,7 +28,15 @@ skip unless the user is specifically working on CI workflows or wants container 
 task install
 ```
 
-This runs `uv sync` and creates the virtualenv. Confirm it completes without errors.
+This runs `uv sync` inside `backend/` (every Python command runs with `backend/` as its
+working directory, which the tasks handle for you) and creates the virtualenv in
+`backend/.venv`. Confirm it completes without errors.
+
+## 2b. Optional: local configuration
+
+With no `backend/.env` everything runs on local SQLite (`backend/lineup.db`). To opt into
+Postgres/Supabase, copy `backend/.env.example` to `backend/.env` (git-ignored) and fill it in.
+Don't read `backend/.env` back; it holds credentials.
 
 ## 3. Run the test suite
 
@@ -47,7 +55,7 @@ task build
 task up
 ```
 
-`task build` builds the `lineup` image (LibreOffice + metric-compatible fonts baked in);
+`task build` builds the `lineup` image from the `backend/` directory (LibreOffice + metric-compatible fonts baked in);
 `task up` starts it via `compose.yml`. The API should now be reachable at
 `http://127.0.0.1:8000`, docs at `http://127.0.0.1:8000/docs`.
 
@@ -75,7 +83,7 @@ task test-e2e
 ```
 
 Builds the image fresh, starts the container, runs the real PDF-conversion fidelity check
-against `tests/resources/expected-rajtlista.pdf`, then tears down. This is the strongest
+against `backend/tests/resources/expected-rajtlista.pdf`, then tears down. This is the strongest
 signal that LibreOffice/fonts are working correctly end to end.
 
 ## 7. Report status
