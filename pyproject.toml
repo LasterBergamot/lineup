@@ -12,7 +12,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "asyncpg>=0.30",
     "alembic>=1.14",
-    "sentry-sdk[fastapi]>=2.70.0",
+    "sentry-sdk[fastapi]>=2.71.0",
 ]
 
 [dependency-groups]
