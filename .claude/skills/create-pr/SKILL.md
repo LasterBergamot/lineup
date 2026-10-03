@@ -23,6 +23,16 @@ git diff --stat origin/develop...HEAD
 If you're on `develop` or `main`, stop: propose a branch name first (`fix/…`, `feat/<issue>-…`,
 `chore/…`). Uncommitted changes need a commit, which needs approval, before anything else.
 
+Keep the branch's history meaningful, because PRs are merged with a merge commit (step 7),
+so every branch commit lands in `develop` as-is. A follow-up change that belongs to an
+existing commit (a typo, a lint fix, a review remark) goes into that commit, not into a new
+"fix" commit:
+- the last commit: `git commit --amend`
+- an earlier one: `git commit --fixup=<sha>`, then `git rebase --autosquash origin/develop`
+
+Once the branch is pushed, rewriting it needs `git push --force-with-lease` (never plain
+`--force`, never on `develop`/`main`). Ask the user first, as for any push.
+
 ## 2. Dependabot (required by CLAUDE.md)
 
 Run the `triage-dependabot` skill. Merging any non-blocking PR it finds needs the user's
@@ -95,3 +105,14 @@ gh pr checks <n> --repo LasterBergamot/lineup --watch --interval 20
 Report the PR URL and the check results. If a check fails, read the log
 (`gh run view <id> --log-failed`) and propose a fix. Never merge the PR yourself unless the
 user explicitly asks.
+
+When the user asks to merge, use a **merge commit**, never squash or rebase:
+
+```bash
+gh pr merge <n> --repo LasterBergamot/lineup --merge
+```
+
+Squash and rebase merges create new commits. The branch's own commits (and their `#N`
+references) then never reach `develop`, and `git branch -d` refuses to delete the merged
+branch. The remote branch is deleted automatically on merge (repo setting). Delete the local
+one with `git branch -d <branch>` after `git pull` on `develop`.
