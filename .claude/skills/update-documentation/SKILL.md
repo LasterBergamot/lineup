@@ -5,7 +5,7 @@ description: Update documentation/ (the GitHub wiki mirror), README.md, CLAUDE.m
 
 Keep every doc in the repo honest, not just `documentation/`. `documentation/` is the source
 of truth for the project's GitHub wiki — it's mirrored 1:1 into the wiki by
-`.github/workflows/wiki-sync.yml` on every push to `main` that touches `documentation/**` —
+`.github/workflows/wiki-sync.yml` on every push to `develop` that touches `documentation/**` —
 but `README.md`, `CLAUDE.md`, and any other doc file (e.g. `.env.example`) can drift
 out of sync with the code just as easily, and should be checked and updated in the same pass
 rather than treated as someone else's job.
@@ -48,7 +48,7 @@ files, not `documentation/`'s filesystem-safe filenames.
    matching `Current-State-*` page rather than leaving it duplicated in both.
 5. If `Home.md`'s summary of a page's contents no longer matches (e.g. a page's scope shifted
    materially), update `Home.md` too.
-6. Do not touch the wiki directly — edits here get pushed to `main` and synced by CI; direct
+6. Do not touch the wiki directly — edits here get merged into `develop` and synced by CI; direct
    wiki edits get silently overwritten by the next sync.
 7. Check `README.md` for the same change: API behavior, prerequisites, available tasks,
    project structure tree, or examples that no longer match reality. Update it directly (not
