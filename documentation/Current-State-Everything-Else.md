@@ -99,7 +99,7 @@ again on async DB code.
 
 Two GitHub Actions workflows (`.github/workflows/`):
 
-- **`ci.yml`** — runs on every PR (and push) against `main`: `task lint` (`ruff check .`,
+- **`ci.yml`** — runs on every PR (and push) against `develop` or `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
   coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
   conversion fidelity), then scans the built image for vulnerabilities with Trivy. The
@@ -108,7 +108,7 @@ Two GitHub Actions workflows (`.github/workflows/`):
   unauthenticated rate limit and the job fails before any of our code runs. The input really is
   `repo-token`: an unknown input such as `github-token` is ignored with only an
   "Unexpected input(s)" warning, which is how an earlier version of this fix silently did nothing.
-- **`wiki-sync.yml`** — on push to `main` touching `documentation/**`: mirrors this folder
+- **`wiki-sync.yml`** — on push to `develop` touching `documentation/**`: mirrors this folder
   into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
   colons but `documentation/`'s filenames don't, for filesystem portability).
 

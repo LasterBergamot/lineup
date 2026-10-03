@@ -1,9 +1,14 @@
 version: 2
 
+# Version-update PRs target `develop` (the integration branch); `main`
+# only receives release merges from `develop`. Security-update PRs always
+# target the default branch, which is also `develop`.
+
 updates:
   # Python dependencies managed by uv (pyproject.toml + uv.lock at repo root).
   - package-ecosystem: "uv"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -13,6 +18,7 @@ updates:
   # Keep the two GitHub Actions workflows' pinned action versions current too.
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     labels:

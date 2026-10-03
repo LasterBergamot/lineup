@@ -70,7 +70,7 @@ Issue numbers marked **new** don't exist yet. Create them with the `new-issue` s
 replace "new" with the number here.
 
 ### Phase 0 — Branching + repo restructure
-- [ ] **new** Branching strategy: create `develop` and make it the default branch. Protect both
+- [x] **new** Branching strategy: create `develop` and make it the default branch. Protect both
       branches (PR + green CI required, no force-push). `ci.yml` triggers on both branches;
       `dependabot.yml` gets `target-branch: develop`. Update `CLAUDE.md` (the Dependabot rule
       says "merge `main`"), the `create-pr` and `triage-dependabot` skills (base branch), and
@@ -373,3 +373,4 @@ Endpoints (amends #51):
 | Date | What | Refs |
 |---|---|---|
 | 2026-10-03 | Plan drafted; all decisions D1–D11 agreed. Polaris chosen (spec moved to `frontend/DESIGN.md`), invite expiry 24 h by default. | — |
+| 2026-10-03 | `develop` created and made the default branch. Both branches protected; CI, Dependabot and wiki sync retargeted; skills/docs updated. (Done without a separate issue.) | — |

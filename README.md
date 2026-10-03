@@ -36,14 +36,18 @@ Skills that touch GitHub, git or the database still ask before every state-chang
 
 ## Documentation & wiki
 
-The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `main` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
+The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `develop` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
+
+## Branches
+
+There are two environments (dev and prod), so there are two long-lived branches. **`develop`** is the default branch: branch off it and open your PR against it (it will deploy to dev once CD exists). **`main`** is production and only changes through a release PR from `develop` (or a hotfix). Both are protected and require green CI. See [Roadmap: Everything Else](https://github.com/LasterBergamot/lineup/wiki/Roadmap:-Everything-Else) for the full model, and `PLAN.md` for the planned dev-preview work.
 
 ## Continuous Integration
 
 Two GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
 
-- **`.github/workflows/ci.yml`** — on every PR (and push) against `main`: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
-- **`.github/workflows/wiki-sync.yml`** — on push to `main` that touches `documentation/**`: mirrors those files into the GitHub wiki.
+- **`.github/workflows/ci.yml`** — on every PR (and push) against `develop` or `main`: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
+- **`.github/workflows/wiki-sync.yml`** — on push to `develop` that touches `documentation/**`: mirrors those files into the GitHub wiki.
 
 If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
 

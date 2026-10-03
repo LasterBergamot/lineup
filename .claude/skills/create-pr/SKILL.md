@@ -4,8 +4,9 @@ description: Prepare and open a pull request for the current branch of LasterBer
 model: sonnet
 ---
 
-`main` is protected: it only changes through PRs that pass `Lint & test` and
-`E2E (real PDF conversion)`. This skill gets a branch into that state and opens the PR.
+`develop` and `main` are protected: they only change through PRs that pass `Lint & test` and
+`E2E (real PDF conversion)`. Feature branches target `develop` (deploys to dev); a release is
+a `develop` → `main` PR (deploys to prod). This skill gets a branch into that state and opens the PR.
 
 Committing, pushing, merging Dependabot PRs and creating the PR are all state-changing git
 or `gh` commands. Show what you're about to do and get an explicit go-ahead for each.
@@ -15,17 +16,17 @@ Approving the PR doesn't approve unrelated merges.
 
 ```bash
 git status --short
-git log --oneline origin/main..HEAD
-git diff --stat origin/main...HEAD
+git log --oneline origin/develop..HEAD
+git diff --stat origin/develop...HEAD
 ```
 
-If you're on `main`, stop: propose a branch name first (`fix/…`, `feat/<issue>-…`,
+If you're on `develop` or `main`, stop: propose a branch name first (`fix/…`, `feat/<issue>-…`,
 `chore/…`). Uncommitted changes need a commit, which needs approval, before anything else.
 
 ## 2. Dependabot (required by CLAUDE.md)
 
 Run the `triage-dependabot` skill. Merging any non-blocking PR it finds needs the user's
-confirmation. If something was merged, it also brings this branch up to date: merge `main`,
+confirmation. If something was merged, it also brings this branch up to date: merge `develop`,
 `uv sync`, lint, test.
 
 ## 3. Quality gates
@@ -62,7 +63,7 @@ gh issue list --repo LasterBergamot/lineup --state open --search "<keywords from
 
 ```bash
 git push -u origin <branch>
-gh pr create --repo LasterBergamot/lineup --base main --head <branch> --title "<imperative summary>" --body-file - <<'EOF'
+gh pr create --repo LasterBergamot/lineup --base develop --head <branch> --title "<imperative summary>" --body-file - <<'EOF'
 ## Summary
 - **What changed**, and the *why* (the bug or need it addresses)
 

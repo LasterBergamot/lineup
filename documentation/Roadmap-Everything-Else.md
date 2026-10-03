@@ -21,6 +21,31 @@ dialect-aware engine are in place); the production project is still ahead. See
 [[Current State: Backend]] for how the DB layer works today — including how to switch between
 SQLite and Supabase, recover lost credentials, and migrate to a different stack later.
 
+## Branching model and environments
+
+The project is small (a handful of users), so it runs exactly **two environments — dev and
+prod** — and one long-lived branch for each:
+
+```mermaid
+flowchart LR
+    F[feature / fix branch] -->|PR| D[develop]
+    D -->|"release PR"| M[main]
+    H[hotfix branch] -->|PR| M
+    M -->|merge back| D
+    D -.->|"CD (planned, #8)"| DEV[dev: Fly.io + Cloudflare Pages + dev Supabase]
+    M -.->|"CD + version tag (planned, #17)"| PROD[prod]
+```
+
+- `develop` is the default branch: every PR targets it, Dependabot targets it, and the wiki is
+  published from it. Once CD exists, each merge deploys to dev.
+- `main` only moves on a release (a `develop` → `main` PR) or a hotfix. Releases will later
+  create the `vX.Y.Z` tag and deploy to prod.
+- A separate test/staging environment was considered and dropped: with a handful of users,
+  dev already is the place to try things before prod.
+
+The work to get the dev environment running end-to-end (frontend, auth, invitations, CD) is
+planned in `PLAN.md` at the repo root.
+
 ## Multi-tenancy rollout
 
 `user_id`/`owner_id` columns already exist on every table and every repository already

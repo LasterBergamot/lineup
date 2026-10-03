@@ -27,4 +27,5 @@ saved roster instead of a one-off request payload.
 - [[Roadmap: Backend]] — production Supabase project, auth, RLS, team collaboration &
   invitations (the dev-database cutover is already done)
 - [[Roadmap: Frontend]] — planned OAuth flow, onboarding, team management UI
-- [[Roadmap: Everything Else]] — cross-cutting rollout concerns not specific to one side
+- [[Roadmap: Everything Else]] — branching model and environments (dev + prod), cross-cutting
+  rollout concerns not specific to one side

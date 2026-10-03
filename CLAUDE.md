@@ -11,7 +11,7 @@
 - Write `README.md` and `documentation/` so a newcomer with no prior context can understand the architecture, the codebase, and how a request flows through it — explain the "why", not just record what changed. Keep that bar on every doc update.
 - Before creating a PR in this repo, check for open GitHub Dependabot alerts via `gh api repos/LasterBergamot/lineup/dependabot/alerts` (filter for `"state": "open"`) and surface any findings to the user.
 - Also check the open Dependabot version-update PRs (`gh pr list --state open --author "app/dependabot"`, then `gh pr checks <n>` / `gh pr view <n>` for each). Alerts and these PRs are separate: an empty alerts list says nothing about pending PRs. A PR is **blocking** if its CI checks fail, it has merge conflicts, or it is a major-version bump (or touches a core dependency such as SQLAlchemy, FastAPI or asyncpg) whose effect on the current branch's code can't be shown to be safe; otherwise it is **non-blocking**.
-  - Non-blocking PRs: list them for the user, and once the user confirms (merging is a state-changing `gh` command, so the usual confirmation rule still applies), merge them, then bring the current branch up to date with the updated `main` (merge `main` into it, resolving `pyproject.toml`/`uv.lock` conflicts), run `uv sync`, and re-run `task lint` and `task test` before creating the PR.
+  - Non-blocking PRs: list them for the user, and once the user confirms (merging is a state-changing `gh` command, so the usual confirmation rule still applies), merge them, then bring the current branch up to date with the updated `develop` (merge `develop` into it, resolving `pyproject.toml`/`uv.lock` conflicts), run `uv sync`, and re-run `task lint` and `task test` before creating the PR.
   - Blocking PRs: don't merge them. Report each with the reason (failing check, conflict, breaking change) and discuss the next step with the user.
 
 ---
@@ -111,6 +111,14 @@ task migrate-down  # rollback one migration step
 Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `.env.example` — copy it to `.env` (git-ignored) to opt into Postgres/Supabase; with no `.env` everything runs on local SQLite.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
+
+### Branches and environments
+
+Two environments only (dev + prod, no separate test env), so two long-lived branches:
+
+- **`develop`** — the default branch and integration branch. Feature/fix branches (`feat/<issue>-…`, `fix/…`, `chore/…`) are cut from it and PR'd back into it. Will deploy to the dev environment once CD exists (#8). Dependabot PRs target it, and `wiki-sync.yml` publishes `documentation/` from it.
+- **`main`** — production. Only changes via a release PR `develop` → `main` (later: prod deploy + version tag, #17). A hotfix branches off `main`, is PR'd into `main`, then `main` is merged back into `develop`.
+- Both are protected: changes go through PRs with green `Lint & test` and `E2E (real PDF conversion)`; no force-pushes or deletions. GitHub can't restrict which branch a PR into `main` comes from, so "only from `develop` (or a hotfix)" is a convention.
 
 ---
 

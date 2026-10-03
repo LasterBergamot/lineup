@@ -34,7 +34,7 @@ gh pr view <n> --repo LasterBergamot/lineup --json body,files
 A PR is **blocking** if any of these hold:
 
 - **CI fails.** Read the failing log (`gh run view <run-id> --log-failed`) before judging.
-  If the failure is environmental and already fixed on `main` (e.g. the `setup-task` API
+  If the failure is environmental and already fixed on `develop` (e.g. the `setup-task` API
   rate limit, fixed by passing `repo-token` to `arduino/setup-task`), it isn't the PR's fault: propose `@dependabot rebase`
   and re-check.
 - **It has merge conflicts** (`mergeable` is `CONFLICTING`).
@@ -50,7 +50,7 @@ A PR is **blocking** if any of these hold:
 
   Grep this repo for each breaking change, e.g. "credentials persisted to a separate file"
   → does any workflow `git push` after checkout? Paths that the PR's CI doesn't exercise
-  (e.g. `wiki-sync.yml` only runs on `main`) count as unverified: say so explicitly.
+  (e.g. `wiki-sync.yml` only runs on pushes to `develop`) count as unverified: say so explicitly.
 
 Otherwise it's **non-blocking**.
 
@@ -84,7 +84,7 @@ Also list the open alerts. For each blocking PR, propose a next step: rebase, a 
 - **Then update the current branch:**
 
   ```bash
-  git fetch origin && git merge origin/main
+  git fetch origin && git merge origin/develop
   ```
 
   Resolve `pyproject.toml`/`uv.lock` conflicts by keeping both sides' intent, then
