@@ -3,6 +3,7 @@
 ## Instructions
 
 - Read this file at the start of every session before doing anything.
+- `PLAN.md` is the working plan for the dev preview (frontend, auth, invitations, dev deployment). Read it when picking up that work; tick its checklist and add a progress-log row when an item lands.
 - After completing any task: update this file if architecture, conventions, tasks, or modules changed.
 - After any user-facing change: update `README.md` (API changes, new tasks, new prerequisites, structure changes).
 - After any change that affects current-state or roadmap facts (architecture, API surface, data model, dev workflow, planned work): update the relevant file(s) under `documentation/` to match — it's mirrored into the GitHub wiki by CI, so it needs to stay current the same way `README.md` does.
@@ -162,6 +163,9 @@ lineup/
 ├── compose.yml
 ├── .env.example                      # documents DATABASE_URL / ENV / SENTRY_DSN (copy to git-ignored .env)
 ├── Taskfile.yml
+├── PLAN.md                           # dev-preview plan + progress log (FE, auth, invitations, dev deploy)
+├── frontend/
+│   └── DESIGN.md                     # Polaris theme spec (shadcn tokens) — the app itself is not scaffolded yet
 ├── docker/
 │   └── fontconfig/
 │       └── 99-calibri-carlito.conf   # Calibri → Carlito mapping, copied into the image
