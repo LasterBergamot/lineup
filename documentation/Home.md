@@ -1,7 +1,7 @@
 # Lineup — Wiki Home
 
 **Lineup** is a water polo lineup document generator. It takes match details and player
-info, fills a `.docx` template (`resources/rajtlista.docx`), and returns the result via a
+info, fills a `.docx` template (`backend/resources/rajtlista.docx`), and returns the result via a
 REST API as either a PDF (default, via LibreOffice headless conversion) or a DOCX. It also
 has a persistence layer (Teams, Players, Saved Lineups) so a lineup can be built from a
 saved roster instead of a one-off request payload.

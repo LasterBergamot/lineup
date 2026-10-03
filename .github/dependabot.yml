@@ -5,9 +5,9 @@ version: 2
 # target the default branch, which is also `develop`.
 
 updates:
-  # Python dependencies managed by uv (pyproject.toml + uv.lock at repo root).
+  # Python dependencies managed by uv (pyproject.toml + uv.lock in backend/).
   - package-ecosystem: "uv"
-    directory: "/"
+    directory: "/backend"
     target-branch: "develop"
     schedule:
       interval: "weekly"
