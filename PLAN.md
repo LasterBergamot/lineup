@@ -75,7 +75,7 @@ replace "new" with the number here.
       `dependabot.yml` gets `target-branch: develop`. Update `CLAUDE.md` (the Dependabot rule
       says "merge `main`"), the `create-pr` and `triage-dependabot` skills (base branch), and
       `documentation/Roadmap-Everything-Else.md`. Refs #17, #8.
-- [x] Move the backend into `backend/` (D3, §4). Restructure only, no behaviour change. (branch `chore/86-move-backend-into-backend-dir`, #86, PR pending)
+- [x] Move the backend into `backend/` (D3, §4). Restructure only, no behaviour change. (branch `chore/86-move-backend-into-backend-dir`, #86, PR #87)
 - [ ] Amend #13: retitle to "Dev environment on Fly.io", drop "test env", replace Management-API
       auto-resume with the cron (D8).
 - [ ] Amend #17: record D2 (the release happens on the `develop` → `main` merge).
@@ -382,4 +382,4 @@ Endpoints (amends #51):
 |---|---|---|
 | 2026-10-03 | Plan drafted; all decisions D1–D11 agreed. Polaris chosen (spec moved to `frontend/DESIGN.md`), invite expiry 24 h by default. | — |
 | 2026-10-03 | `develop` created and made the default branch. Both branches protected; CI, Dependabot and wiki sync retargeted; skills/docs updated. (Done without a separate issue.) | — |
-| 2026-10-03 | Backend moved into `backend/` on branch `chore/86-move-backend-into-backend-dir` (`git mv`, Taskfile `dir: backend`, Docker context `backend/`, compose `env_file`, CI `working-directory`, Dependabot `/backend`, docs and skills updated). PR number pending. | #86 |
+| 2026-10-03 | Backend moved into `backend/` on branch `chore/86-move-backend-into-backend-dir` (`git mv`, Taskfile `dir: backend`, Docker context `backend/`, compose `env_file`, CI `working-directory`, Dependabot `/backend`, docs and skills updated). Merged in PR #87. | #86, #87 |
