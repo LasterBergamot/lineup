@@ -59,12 +59,12 @@ gh api repos/LasterBergamot/lineup/milestones
   - `p2`: when convenient
 - **Milestone:**
   - `M1 – Hardening`: bugs, data layer, container, CI, tooling
-  - `M2 – Auth & Prod`: auth, RLS, prod, CD, observability
-  - `M3 – Frontend MVP`
+  - `M2 – Prod`: prod Supabase project, prod CD from `main`, releases, RLS, observability
+  - `M3 – Dev preview`: Google sign-in, teams and invitations, the frontend, dev deployment (`PLAN.md`)
 
   Leave it empty only for true backlog.
 - **Parent epic:** #40 auth, #41 API, #42 test/CI, #43 data/Supabase, #44 container/PDF,
-  #45 observability, #46 tooling. Check that these are still open; add new epics if the
+  #45 observability, #46 tooling, #20 frontend. Check that these are still open; add new epics if the
   set changed.
 - **Board fields:**
   - Area: same values as the `area:*` labels

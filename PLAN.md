@@ -42,7 +42,7 @@ before the public deploy, and the public deploy comes before inviting anyone.
 | D6 | **Auth:** Google OAuth through Supabase Auth. The FE uses `@supabase/supabase-js` for sign-in only; all data goes through FastAPI. The API validates the JWT against the project's JWKS. | Decided |
 | D7 | **Dev behaves like prod** (same sign-in and invite flow). Access to dev is limited by keeping the Google OAuth consent screen in **Testing** mode, with a list of test users (see §6.4). | Decided |
 | D8 | **Supabase free-tier pause:** a weekly GitHub Actions cron calls `/health?db=1`. The FE detects a paused DB and says so (see §5.3). | Decided |
-| D9 | **Milestones:** rename "M3 – Frontend MVP" to **"M3 – Dev preview"** and move the relevant issues into it. M2 becomes the prod milestone. | Decided |
+| D9 | **Milestones:** **"M3 – Dev preview"** holds the dev-preview work (auth, teams and invitations, UI, dev deployment); **"M2 – Prod"** is the prod milestone. Phase 1 issues stay in M1, since Phase 1 is a subset of it. | Decided |
 | D10 | **Team/ownership model:** teams as workspaces, owner + member roles, multi-use invite links, name-only public opponent directory, invite links that expire after 24 h by default (see §6). | Decided |
 | D11 | **UI theme: Polaris** (tweakcn, shadcn tokens). Its spec lives in `frontend/DESIGN.md`. AstroVista was dropped. | Decided |
 
@@ -76,15 +76,15 @@ replace "new" with the number here.
       says "merge `main`"), the `create-pr` and `triage-dependabot` skills (base branch), and
       `documentation/Roadmap-Everything-Else.md`. Refs #17, #8.
 - [x] Move the backend into `backend/` (D3, §4). Restructure only, no behaviour change. (branch `chore/86-move-backend-into-backend-dir`, #86, PR #87)
-- [ ] Amend #13: retitle to "Dev environment on Fly.io", drop "test env", replace Management-API
+- [x] Amend #13: retitle to "Dev environment on Fly.io", drop "test env", replace Management-API
       auto-resume with the cron (D8).
-- [ ] Amend #17: record D2 (the release happens on the `develop` → `main` merge).
-- [ ] Amend #8: narrow to "CD for dev from `develop`". **new** issue: prod CD from `main` (M2).
-- [ ] Amend #39: split out **new** "Google OAuth + JWKS validation on dev" (M3). #39 keeps the
+- [x] Amend #17: record D2 (the release happens on the `develop` → `main` merge).
+- [x] Amend #8: narrow to "CD for dev from `develop`". New issue #100: prod CD from `main` (M2).
+- [x] Amend #39: split out #101 "Google OAuth + JWKS validation on dev" (M3). #39 keeps the
       prod project and cutover.
-- [ ] Amend #20: record D3–D5 and turn it into the **Frontend epic**.
-- [ ] Amend #19, #49, #50 and #51 to match §6 once D10 is confirmed.
-- [ ] Rename and re-scope the milestones (D9).
+- [x] Amend #20: record D3–D5 and turn it into the **Frontend epic**.
+- [x] Amend #19, #49, #50 and #51 to match §6 once D10 is confirmed.
+- [x] Rename and re-scope the milestones (D9). (#102, PR #103)
 
 ### Phase 1 — Backend prerequisites for a browser UI and a public URL
 A subset of M1. The rest of M1 follows at its own pace.
@@ -108,7 +108,7 @@ A subset of M1. The rest of M1 follows at its own pace.
       This meets #20's acceptance.
 
 ### Phase 3 — Real auth on dev
-- [ ] **new** (split from #39) Google provider on the dev Supabase project. `get_current_user_id()`
+- [ ] #101 (split from #39) Google provider on the dev Supabase project. `get_current_user_id()`
       validates the JWT via JWKS and returns `sub`.
 - [ ] #47 fail closed (401 without a valid token)
 - [ ] #19 `team_members` / `team_invitations` schema (as amended by §6)
@@ -391,3 +391,4 @@ Endpoints (amends #51):
 | 2026-10-03 | `develop` created and made the default branch. Both branches protected; CI, Dependabot and wiki sync retargeted; skills/docs updated. (Done without a separate issue.) | — |
 | 2026-10-03 | Backend moved into `backend/` on branch `chore/86-move-backend-into-backend-dir` (`git mv`, Taskfile `dir: backend`, Docker context `backend/`, compose `env_file`, CI `working-directory`, Dependabot `/backend`, docs and skills updated). Merged in PR #87. | #86, #87 |
 | 2026-10-04 | Compliance audit (GDPR + OWASP): epic #92 with gap issues #93–#98, compliance sections added to #19/#51/#25/#13, and the `compliance-audit` skill (full + quick per-feature mode) with its compliance gate before Phase 4. Merged in PR #99. | #92, #99 |
+| 2026-10-04 | Phase 0 finished: #13, #17, #8, #20, #19, #49, #50, #51 and #39 amended to the plan (decision sections appended), new issues #100 (prod CD from `main`, M2) and #101 (Google OAuth + JWKS on dev, M3), milestones renamed to "M2 – Prod" and "M3 – Dev preview" with the dev-preview issues moved into M3. Repo bookkeeping in PR #103. | #100, #101, #102, #103 |
