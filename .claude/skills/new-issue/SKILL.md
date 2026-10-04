@@ -23,7 +23,16 @@ What's wrong or missing, and why it matters (one short paragraph).
 
 ## Acceptance
 - [ ] Observable, testable outcome(s), e.g. "unknown team_id → 404, with tests"
+
+## Privacy & security   <!-- optional, see below -->
+- G4, S8: requirement IDs touched, plus the acceptance items they add
 ```
+
+Add the `## Privacy & security` section to feature and security issues that touch personal
+data, auth, endpoints, external services, logging, files or FE storage/headers. Fill it in
+with `compliance-audit quick <issue#>`; the IDs come from
+`.claude/skills/compliance-audit/requirements.md`. Leave it out when the quick check finds
+nothing compliance-relevant.
 
 Epics (`type:epic`) use `## Goal` + `## Sub-issues` instead. Their children are linked as
 GitHub sub-issues, not as a checklist.

@@ -7,7 +7,9 @@ effort: high
 
 Audit the repository end to end, verify the serious findings yourself, and turn them into
 GitHub issue changes the user approves. This is the process that produced epics #40–#46 in
-Oct 2026; rerun it the same way so results stay comparable.
+Oct 2026; rerun it the same way so results stay comparable. Regulatory and standards checks
+(GDPR, Hungarian rules, the OWASP baseline) live in the `compliance-audit` skill. This audit
+reports security bugs it comes across, but doesn't work through that checklist.
 
 **Read-only until the user approves.** Steps 1–4 change nothing. Every git/`gh` write in
 step 5 needs the user's explicit go-ahead, stage by stage (see the user's global CLAUDE.md:

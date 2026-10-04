@@ -122,6 +122,13 @@ A subset of M1. The rest of M1 follows at its own pace.
 - [ ] Run the `supabase-smoke` skill after the model changes.
 
 ### Phase 4 — Dev deployment + CD
+**Compliance gate (#92):** before anyone outside the team gets access to dev, the following
+must be done:
+- #94 GDPR documentation pack
+- #93 Sentry PII scrubbing (required before any `SENTRY_DSN` is set)
+- #97 frontend privacy/security baseline
+
+#96 (API hardening) should land with the public deploy.
 - [ ] #13 Fly.io app `lineup-dev`: `auto_stop_machines`, `min_machines_running = 0`, ~1 GB RAM
       for LibreOffice. Secrets via `fly secrets`: pooler `DATABASE_URL`, `ENV=production`,
       Supabase JWKS URL, `CORS_ORIGINS`.
@@ -383,3 +390,4 @@ Endpoints (amends #51):
 | 2026-10-03 | Plan drafted; all decisions D1–D11 agreed. Polaris chosen (spec moved to `frontend/DESIGN.md`), invite expiry 24 h by default. | — |
 | 2026-10-03 | `develop` created and made the default branch. Both branches protected; CI, Dependabot and wiki sync retargeted; skills/docs updated. (Done without a separate issue.) | — |
 | 2026-10-03 | Backend moved into `backend/` on branch `chore/86-move-backend-into-backend-dir` (`git mv`, Taskfile `dir: backend`, Docker context `backend/`, compose `env_file`, CI `working-directory`, Dependabot `/backend`, docs and skills updated). Merged in PR #87. | #86, #87 |
+| 2026-10-04 | Compliance audit (GDPR + OWASP): epic #92 with gap issues #93–#98, compliance sections added to #19/#51/#25/#13, and the `compliance-audit` skill (full + quick per-feature mode) with its compliance gate before Phase 4. Merged in PR #99. | #92, #99 |
