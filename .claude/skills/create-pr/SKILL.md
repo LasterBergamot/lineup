@@ -41,6 +41,12 @@ confirmation. If something was merged, it also brings this branch up to date: me
 
 ## 3. Quality gates
 
+First run the `compliance-audit` skill in quick mode on the branch
+(`compliance-audit quick <branch>`). A MUST it flags gets fixed on the branch, or listed in
+the PR body under "Pre-PR checks" with a follow-up issue. Don't open the PR while an
+unresolved MUST is neither fixed nor listed. If it reports "no compliance-relevant change",
+note that in the PR body and move on.
+
 ```bash
 task lint
 task test        # must report 100 % coverage
