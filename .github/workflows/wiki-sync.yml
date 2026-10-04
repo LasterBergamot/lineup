@@ -28,6 +28,8 @@ jobs:
         run: |
           declare -A PAGE_MAP=(
             ["Home.md"]="Home.md"
+            ["Newcomer-Guide.md"]="Newcomer-Guide.md"
+            ["References.md"]="References.md"
             ["Current-State-Backend.md"]="Current-State:-Backend.md"
             ["Current-State-Everything-Else.md"]="Current-State:-Everything-Else.md"
             ["Current-State-Frontend.md"]="Current-State:-Frontend.md"
@@ -35,6 +37,15 @@ jobs:
             ["Roadmap-Everything-Else.md"]="Roadmap:-Everything-Else.md"
             ["Roadmap-Frontend.md"]="Roadmap:-Frontend.md"
           )
+          # A page missing from PAGE_MAP would silently never be
+          # published, so fail instead.
+          for file in documentation/*.md; do
+            name="$(basename "$file")"
+            if [[ -z "${PAGE_MAP[$name]:-}" ]]; then
+              echo "::error::documentation/${name} is missing from PAGE_MAP"
+              exit 1
+            fi
+          done
           for src in "${!PAGE_MAP[@]}"; do
             cp "documentation/${src}" "wiki/${PAGE_MAP[$src]}"
           done

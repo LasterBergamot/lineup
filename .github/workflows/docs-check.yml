@@ -1,0 +1,31 @@
+name: Docs check
+
+# Separate from ci.yml on purpose: it must re-run when the `no-docs` label is
+# added or removed, and doing that in ci.yml would re-run the whole suite
+# (including e2e) each time.
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-touched:
+    name: Docs updated
+    # Dependabot PRs only bump versions; they have no README/wiki impact.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require a docs change alongside code changes
+        env:
+          # Passed through env, never interpolated into the script, so label
+          # names can't inject commands.
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE_REF: ${{ github.base_ref }}
+        run: scripts/check_docs_touched.sh "origin/${BASE_REF}" HEAD

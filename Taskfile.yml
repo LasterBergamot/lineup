@@ -110,3 +110,11 @@ tasks:
     dir: backend
     desc: Rollback one migration step
     cmd: uv run alembic downgrade -1
+
+  docs:references:
+    desc: Regenerate the dependency block in documentation/References.md
+    cmd: python3 scripts/docs_references.py --write
+
+  docs:check:
+    desc: Fail if documentation/References.md is stale (run by CI)
+    cmd: python3 scripts/docs_references.py --check

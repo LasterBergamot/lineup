@@ -5,7 +5,7 @@ model: sonnet
 ---
 
 `develop` and `main` are protected: they only change through PRs that pass `Lint & test` and
-`E2E (real PDF conversion)`. Feature branches target `develop` (deploys to dev); a release is
+`E2E (real PDF conversion)` (and, for PRs, `Docs updated`). Feature branches target `develop` (deploys to dev); a release is
 a `develop` → `main` PR (deploys to prod). This skill gets a branch into that state and opens the PR.
 
 Committing, pushing, merging Dependabot PRs and creating the PR are all state-changing git
@@ -62,9 +62,15 @@ no new ruff `S` ignores were added outside the two documented spots.
 
 ## 4. Docs
 
-If the diff changes the API, data model, tasks, container or dev workflow, run the
-`update-documentation` skill. It covers `README.md`, `CLAUDE.md` and `documentation/` (the
-wiki mirror). Commit the result, after approval.
+Always run the `update-documentation` skill, whatever the diff. It covers `README.md`,
+`CLAUDE.md` and `documentation/` (the wiki mirror, including the Newcomer Guide and
+References pages, and `task docs:references` for the generated block). Commit the result,
+after approval.
+
+The PR needs either a docs diff, or a `No doc impact: <reason>` line in the body plus the
+`no-docs` label (adding a label is a state-changing `gh` command: ask first). CI's
+`Docs updated` check (`scripts/check_docs_touched.sh`) fails otherwise, so run
+`scripts/check_docs_touched.sh origin/develop HEAD` yourself before opening the PR.
 
 ## 5. Find the linked issues
 
@@ -89,6 +95,9 @@ Closes #N / Refs #M (what part)
 ## Pre-PR checks
 - Dependabot alerts: …
 - Dependabot PRs: … (merged / blocking + reason)
+
+## Docs
+- Updated: … (README / CLAUDE.md / documentation pages), or `No doc impact: <reason>`
 
 ## Test plan
 - [x] `task lint`

@@ -39,7 +39,9 @@ Skills that touch GitHub, git or the database still ask before every state-chang
 
 ## Documentation & wiki
 
-The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `develop` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
+The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting, plus two reader-oriented pages: the **Newcomer Guide**, a junior-developer walkthrough of the tools, the request flow and how to make a first change, and **References**, the official docs for every library, tool, service, spec and regulation we use). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `develop` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
+
+**Keeping the docs current is part of every change.** A PR that touches code or config (`backend/lineup/`, `Dockerfile`, `compose.yml`, `Taskfile.yml`, workflows, …) must also update `README.md`, `CLAUDE.md` or a page under `documentation/`, or say `No doc impact: <reason>` and carry the `no-docs` label. The `Docs updated` check fails otherwise (run `scripts/check_docs_touched.sh origin/develop HEAD` to try it locally). The dependency tables in `documentation/References.md` are generated: run `task docs:references` after changing a dependency, `Dockerfile` or workflow (`task docs:check` verifies it, and CI runs it).
 
 ## Branches
 
@@ -47,10 +49,11 @@ There are two environments (dev and prod), so there are two long-lived branches.
 
 ## Continuous Integration
 
-Two GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
+Three GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
 
 - **`.github/workflows/ci.yml`** — on every PR (and push) against `develop` or `main`: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
-- **`.github/workflows/wiki-sync.yml`** — on push to `develop` that touches `documentation/**`: mirrors those files into the GitHub wiki.
+- **`.github/workflows/docs-check.yml`** — on every PR: fails if the diff touches code or config without touching `README.md`, `CLAUDE.md` or `documentation/` (escape hatch: the `no-docs` label). `ci.yml` additionally runs `task docs:check`, which fails when the generated part of `documentation/References.md` is stale.
+- **`.github/workflows/wiki-sync.yml`** — on push to `develop` that touches `documentation/**`: mirrors those files into the GitHub wiki (and fails if a file in `documentation/` is missing from its page map).
 
 If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
 
@@ -243,6 +246,8 @@ POST /lineups/saved
 | `task migrate`  | Apply Alembic migrations (`upgrade head`)                        |
 | `task migrate-new -- -m "description"` | Autogenerate a new Alembic migration          |
 | `task migrate-down` | Roll back one migration step                                 |
+| `task docs:references` | Regenerate the dependency block in `documentation/References.md` |
+| `task docs:check` | Fail if that block is stale (CI runs it)                       |
 
 ## Project structure
 
@@ -250,8 +255,9 @@ POST /lineups/saved
 lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
-├── documentation/                   # Source of the GitHub wiki (mirrored by CI)
-├── .github/                         # CI workflows + Dependabot config
+├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md)
+├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator)
+├── .github/                         # CI workflows, PR template + Dependabot config
 ├── .claude/                         # Shared Claude Code settings, skills, commands
 ├── PLAN.md  CLAUDE.md               # Working plan and assistant context
 ├── frontend/                        # Frontend home (design spec only so far)

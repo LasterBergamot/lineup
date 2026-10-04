@@ -38,6 +38,9 @@ jobs:
       - name: Test with coverage
         run: task test
 
+      - name: References page up to date
+        run: task docs:check
+
   e2e:
     name: E2E (real PDF conversion)
     runs-on: ubuntu-latest

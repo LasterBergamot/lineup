@@ -17,7 +17,9 @@ the architecture and codebase, not just record what changed. Explain the "why", 
 
 | File | Covers |
 |------|--------|
-| `Home.md` | Wiki landing page — links to the other 6 pages |
+| `Home.md` | Wiki landing page — links to every other page |
+| `Newcomer-Guide.md` | Junior-developer walkthrough: tools and why, glossary, one request through the layers, run/test, first change, gotchas |
+| `References.md` | Official docs for every library, tool, service, spec and regulation; the *Libraries, images and actions* block is generated |
 | `Current-State-Backend.md` | Backend architecture, API surface, data model as they exist *today* |
 | `Current-State-Frontend.md` | Frontend as it exists today (currently: none exists) |
 | `Current-State-Everything-Else.md` | Cross-cutting current state — container/deploy, dev workflow, conventions |
@@ -58,3 +60,13 @@ files, not `documentation/`'s filesystem-safe filenames.
    project structure that changed. Update it directly.
 9. Check any other standalone doc referenced by the change (e.g. `backend/.env.example`) and
    update it if it's now stale, rather than assuming it's someone else's responsibility.
+10. Newcomer Guide: if the change alters the architecture, request flow, tooling, commands or
+    the contribution workflow, update `Newcomer-Guide.md` (keep it written for a junior
+    developer: explain the "why", define jargon in the glossary).
+11. References: run `task docs:references` whenever a dependency, `Dockerfile` or workflow
+    changed, and add a row to the handwritten tables of `References.md` for any new service,
+    tool, spec or regulation. `task docs:check` must pass.
+12. A new file in `documentation/` must be added to `PAGE_MAP` in `.github/workflows/wiki-sync.yml`
+    and linked from `Home.md`.
+13. If nothing needs documenting, say so explicitly (`No doc impact: <reason>`); the PR must
+    carry that line and the `no-docs` label.
