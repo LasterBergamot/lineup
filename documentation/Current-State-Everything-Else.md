@@ -188,8 +188,8 @@ never enter the conversation.
 **Issue conventions** (encoded in `new-issue`):
 - Bodies follow Problem / Evidence / Proposal / Acceptance.
 - Labels: one `type:*`, one or more `area:*`, one `priority:*`.
-- Milestones: M1 Hardening, M2 Auth & Prod, M3 Frontend MVP.
-- Work is grouped under epics #40–#46 as GitHub sub-issues, with blocked-by links for
+- Milestones: M1 Hardening, M2 Prod, M3 Dev preview.
+- Work is grouped under epics #40–#46 (and the frontend epic #20) as GitHub sub-issues, with blocked-by links for
   ordering.
 - The single "Lineup" project board carries Status/Area/Priority/Size, and its Auto-add
   workflow puts new issues on it.
