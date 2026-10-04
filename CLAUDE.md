@@ -5,10 +5,13 @@
 - Read this file at the start of every session before doing anything.
 - `PLAN.md` is the working plan for the dev preview (frontend, auth, invitations, dev deployment). Read it when picking up that work; tick its checklist and add a progress-log row (with the real PR number) when an item lands; delete the file once the whole plan is done.
 - After completing any task: update this file if architecture, conventions, tasks, or modules changed.
-- After any user-facing change: update `README.md` (API changes, new tasks, new prerequisites, structure changes).
+- On **every** change, check `README.md`, `CLAUDE.md` and the matching `documentation/` page(s) and update whatever the change makes stale (API, tasks, prerequisites, structure, workflow, dependencies, container, CI). A PR must contain a docs diff, or an explicit `No doc impact: <reason>` line in its description plus the `no-docs` label. CI enforces this (`.github/workflows/docs-check.yml`, `scripts/check_docs_touched.sh`); the `create-pr` skill runs `update-documentation` as a gate.
 - After any change that affects current-state or roadmap facts (architecture, API surface, data model, dev workflow, planned work): update the relevant file(s) under `documentation/` to match — it's mirrored into the GitHub wiki by CI, so it needs to stay current the same way `README.md` does.
 - When starting implementation of a feature or fix, run the `compliance-audit` skill in quick mode (`compliance-audit quick <issue#>`) before coding, and fold its findings into the plan and the tests. It checks the change against the GDPR/security requirements in `.claude/skills/compliance-audit/requirements.md` (epic #92) and stops immediately when nothing is compliance-relevant.
 - For any new code: write tests. For changed code: update existing tests. Coverage must stay at 100%.
+- `documentation/Newcomer-Guide.md` (wiki: *Newcomer Guide*) is the junior-developer walkthrough: tools and why we use them, glossary, one request through the layers, how to run, test and make a first change. Keep it current when the architecture, the request flow, the tooling or the contribution workflow changes.
+- `documentation/References.md` (wiki: *References*) lists the official docs for every library, tool, service, spec and regulation we use. Its *Libraries, images and actions* block is generated: after changing a dependency, `Dockerfile` or workflow run `task docs:references` (CI's `task docs:check` fails on a stale block). Add a row to the handwritten tables when you adopt a new service, tool, spec or regulation.
+- Every new file in `documentation/` must also be added to `PAGE_MAP` in `.github/workflows/wiki-sync.yml` (a test and the workflow fail otherwise) and linked from `documentation/Home.md`.
 - Write `README.md` and `documentation/` so a newcomer with no prior context can understand the architecture, the codebase, and how a request flows through it — explain the "why", not just record what changed. Keep that bar on every doc update.
 - Before creating a PR in this repo, check for open GitHub Dependabot alerts via `gh api repos/LasterBergamot/lineup/dependabot/alerts` (filter for `"state": "open"`) and surface any findings to the user.
 - Also check the open Dependabot version-update PRs (`gh pr list --state open --author "app/dependabot"`, then `gh pr checks <n>` / `gh pr view <n>` for each). Alerts and these PRs are separate: an empty alerts list says nothing about pending PRs. A PR is **blocking** if its CI checks fail, it has merge conflicts, or it is a major-version bump (or touches a core dependency such as SQLAlchemy, FastAPI or asyncpg) whose effect on the current branch's code can't be shown to be safe; otherwise it is **non-blocking**.
@@ -111,6 +114,8 @@ task down       # stop container
 task migrate    # apply Alembic migrations (upgrade head)
 task migrate-new -- -m "description"  # autogenerate a new migration
 task migrate-down  # rollback one migration step
+task docs:references  # regenerate the dependency block in documentation/References.md
+task docs:check   # fail if that block is stale (CI runs it)
 ```
 
 Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
@@ -179,9 +184,10 @@ lineup/
 ├── compose.yml                       # image: lineup; env_file backend/.env (optional)
 ├── PLAN.md                           # dev-preview plan + progress log (FE, auth, invitations, dev deploy)
 ├── README.md  CLAUDE.md
-├── .github/                          # CI (ci.yml, wiki-sync.yml), dependabot.yml
+├── .github/                          # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                          # settings.json, skills/, commands/
-├── documentation/                    # mirrored into the GitHub wiki by CI
+├── documentation/                    # mirrored into the GitHub wiki by CI (incl. Newcomer-Guide.md, References.md)
+├── scripts/                          # check_docs_touched.sh (docs gate), docs_references.py (generates References.md block)
 ├── frontend/
 │   └── DESIGN.md                     # Polaris theme spec (shadcn tokens) — the app itself is not scaffolded yet
 └── backend/                          # everything Python; run Python commands with this as cwd
@@ -245,6 +251,7 @@ lineup/
         ├── test_water_polo_lineup_creator.py
         ├── test_water_polo_lineup_dto.py
         ├── test_auth_dependencies.py
+        ├── test_docs_tooling.py           # scripts/ (References generator, docs gate) + wiki PAGE_MAP completeness
         ├── test_db_engine.py
         ├── test_db_models.py
         ├── test_teams.py

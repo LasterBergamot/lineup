@@ -7,11 +7,19 @@ has a persistence layer (Teams, Players, Saved Lineups) so a lineup can be built
 saved roster instead of a one-off request payload.
 
 - Source repo: [LasterBergamot/lineup](https://github.com/LasterBergamot/lineup)
-- New here? Start with the repo's `README.md` (what the project is, how to set it up and run
-  it, how a request is handled), then read [[Current State: Backend]].
+- New here? Read the [[Newcomer Guide]] (what each tool is and why we use it, a glossary, one
+  request walked through the code, how to make a first change). The repo's `README.md` covers
+  setup and running; then read [[Current State: Backend]].
 - Day-to-day project context lives in the repo's `CLAUDE.md` (architecture, conventions,
   dev workflow). This wiki is for the higher-level narrative and diagrams that don't belong
   in either of those.
+
+## Guides and references
+
+- [[Newcomer Guide]] — the junior-developer walkthrough: stack, glossary, request flow, running,
+  testing, your first change, common gotchas
+- [[References]] — official docs and links for every library, tool, service, spec and regulation
+  we use (the dependency tables are generated from the repo)
 
 ## Current State
 

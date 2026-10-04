@@ -32,6 +32,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
+| `task docs:references` / `task docs:check` | regenerate / verify the dependency block in `documentation/References.md` (`scripts/docs_references.py`) |
 
 ## Configuration (environment variables)
 
@@ -116,7 +117,7 @@ again on async DB code.
 
 ## Continuous Integration
 
-Two GitHub Actions workflows (`.github/workflows/`):
+Three GitHub Actions workflows (`.github/workflows/`):
 
 - **`ci.yml`** — runs on every PR (and push) against `develop` or `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
@@ -127,9 +128,28 @@ Two GitHub Actions workflows (`.github/workflows/`):
   unauthenticated rate limit and the job fails before any of our code runs. The input really is
   `repo-token`: an unknown input such as `github-token` is ignored with only an
   "Unexpected input(s)" warning, which is how an earlier version of this fix silently did nothing.
+- **`docs-check.yml`** — on every PR (also when labels change, which is why it is not part of
+  `ci.yml`: re-running the e2e job for a label would be wasteful): runs
+  `scripts/check_docs_touched.sh`, which fails when the diff touches code or config paths
+  (`backend/lineup/`, `backend/alembic/`, `backend/app.py`, `pyproject.toml`, `Dockerfile`,
+  `.env.example`, `compose.yml`, `Taskfile.yml`, `scripts/`, workflows, later `frontend/src/`)
+  but none of `README.md`, `CLAUDE.md` or `documentation/`. The escape hatch for changes that
+  genuinely need no documentation is the `no-docs` label together with a
+  `No doc impact: <reason>` line in the PR description. Dependabot PRs are skipped. The job
+  is read-only (`contents: read`) and passes labels through `env:` rather than interpolating
+  them into the script. **Why a check at all:** docs drifted whenever updating them depended
+  on someone remembering; a failing check makes "did you update the docs?" part of review.
 - **`wiki-sync.yml`** — on push to `develop` touching `documentation/**`: mirrors this folder
   into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
-  colons but `documentation/`'s filenames don't, for filesystem portability).
+  colons but `documentation/`'s filenames don't, for filesystem portability). The map is
+  explicit, so a page missing from it would silently never be published: the workflow now
+  fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
+  checks the same thing on every PR.
+
+`ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
+`documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the
+workflows. The block lists package *names* only (no versions), so Dependabot version bumps don't
+turn it red; only adding or removing a dependency does, and `task docs:references` fixes it.
 
 ### Security & observability tooling
 
