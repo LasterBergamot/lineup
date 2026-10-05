@@ -37,10 +37,11 @@ class Team(Base):
     """A club's team. Doubles as a roster (its `players`) and, when `is_public`, as an entry
     in the shared opponent pool.
 
-    `owner_id` is the Supabase user id (`sub`) of the user who created the team, who is also
-    its first `owner` row in `team_members`. A team that still has roster players cannot be
-    deleted (`players.team_id` is `ON DELETE RESTRICT`; the service reports it as 409 before
-    the database ever has to).
+    A team is a *workspace*: whoever has a row in `team_members` may use its roster and saved
+    lineups. `created_by` (the Supabase user id of the creator, who is also its first `owner`
+    member) is for auditing only and grants nothing; ownership can move (`team_members.role`).
+    A team that still has roster players or saved lineups cannot be deleted (both foreign keys
+    are `ON DELETE RESTRICT`; the service reports it as 409 before the database ever has to).
 
     """
 
@@ -48,7 +49,7 @@ class Team(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    owner_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     # Whether this team is visible to other users in the shared opponent pool
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -129,39 +130,47 @@ class TeamInvitation(Base):
 
 
 class Player(Base):
-    """A roster entry: a person's name and NSSZ (federation registration) number, optionally
-    assigned to a team. `user_id` is the Supabase user id of whoever created it.
+    """A roster entry: a person's name and NSSZ (federation registration) number on a team's
+    roster. Visible to every member of that team; `created_by` (Supabase user id) is audit-only.
 
     Deleting a player is always safe: saved lineups hold copies, not references.
 
     """
 
     __tablename__ = "players"
+    __table_args__ = (Index("ix_players_team_id", "team_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     nssz_number: Mapped[str] = mapped_column(String(50), nullable=False)
-    team_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID, ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        UUID, ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False
     )
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
-    team: Mapped["Team | None"] = relationship("Team", back_populates="players")
+    team: Mapped["Team"] = relationship("Team", back_populates="players")
 
 
 class SavedLineup(Base):
     """A lineup frozen at creation time, ready to be rendered to PDF/DOCX later.
 
     Every text column is a copy, so rendering never joins against `teams` or `players`.
-    `source_team_id` / `source_opponent_id` are soft references (set to NULL if the team is
-    deleted) kept for reuse and cloning. `player_snapshots` always loads ordered by cap number.
+    `team_id` is the workspace the lineup lives in: every member of that team can see it
+    (`ON DELETE RESTRICT`, so a team with saved lineups can't be deleted). `source_team_id` /
+    `source_opponent_id` are soft references (set to NULL if the team is deleted) kept for
+    reuse and cloning, and have nothing to do with access. `created_by` is audit-only.
+    `player_snapshots` always loads ordered by cap number.
 
     """
 
     __tablename__ = "saved_lineups"
+    __table_args__ = (Index("ix_saved_lineups_team_id", "team_id"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        UUID, ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False
+    )
 
     # Frozen text snapshot, self-contained: rendering never needs to join
     # against teams/players, and deleting either has zero effect on this row.
@@ -177,7 +186,7 @@ class SavedLineup(Base):
     assistant_coach: Mapped[str | None] = mapped_column(String(200), nullable=True)
     team_leader: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ball_thrower: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     # Optional soft references for reuse/cloning; nulled out if the source is

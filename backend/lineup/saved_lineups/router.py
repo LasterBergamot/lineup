@@ -29,17 +29,20 @@ async def list_saved_lineups(
         int, Query(ge=1, le=200, description="Max items to return (1-200).")
     ] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    team_id: uuid.UUID | None = None,
     source_team_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PaginatedSavedLineups:
-    """List saved lineups, oldest first, optionally only those made for one team
-    (`source_team_id`). Paginated: `limit` is 1-200 (default 20), `offset` starts at 0.
+    """List the saved lineups of all teams you belong to, oldest first, optionally only those
+    saved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:
+    `limit` is 1-200 (default 20), `offset` starts at 0.
     """
     items, total = await service.list_saved_lineups(
         session,
         user_id=user_id,
         source_team_id=source_team_id,
+        team_id=team_id,
         limit=limit,
         offset=offset,
     )
@@ -52,12 +55,13 @@ async def create_saved_lineup(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> SavedLineupResponse:
-    """Save a lineup as a frozen snapshot.
+    """Save a lineup as a frozen snapshot in the workspace of `team_id` (a team you belong to).
 
     For the team, the opponent and each player, send either a `source_*_id` (the current name
     and NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ
-    numbers must be unique within the lineup. Deleting the source team or player later does not
-    change a saved lineup.
+    numbers must be unique within the lineup. Your own team and players must belong to a team you are in,
+    the opponent may also be a team listed in the directory; anything else is a 404. Deleting
+    the source team or player later does not change a saved lineup.
     """
     return await service.create_saved_lineup(session, data=body, user_id=user_id)
 

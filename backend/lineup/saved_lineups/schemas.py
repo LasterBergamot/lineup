@@ -47,11 +47,14 @@ class SavedLineupPlayerCreate(BaseModel):
 class SavedLineupCreate(BaseModel):
     """Body for saving a lineup.
 
-    Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
+    `team_id` is the workspace the lineup is saved in (a team you belong to); every member of
+    that team can then see it. It is independent of `source_team_id`, which only says where the
+    team *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
     defaults to "<team> - <opponent>". Blank optional values count as not provided. Cap numbers
     must be unique, and no roster player may appear twice.
     """
 
+    team_id: uuid.UUID
     source_team_id: uuid.UUID | None = None
     team_name: OptionalCleanStr120 = None
     source_opponent_id: uuid.UUID | None = None
@@ -123,10 +126,12 @@ class SavedLineupPlayerResponse(BaseModel):
 
 class SavedLineupResponse(BaseModel):
     """A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`
-    fields are soft references and become null if the source is deleted.
+    fields are soft references and become null if the source is deleted. `team_id` is the
+    workspace the lineup lives in.
     """
 
     id: uuid.UUID
+    team_id: uuid.UUID
     team_name: str
     opponent_name: str
     match_name: str

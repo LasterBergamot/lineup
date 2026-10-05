@@ -126,9 +126,10 @@ git-ignored.
   `tests/test_auth_dependencies.py` with throw-away generated keys and no network. CI never
   talks to a real Postgres: the Postgres-specific engine branches are tested by constructing
   (lazy, never-connecting) engines, and tests ignore any local `backend/.env`.
-- The `owner_id`/`user_id`-scoped filtering is tested both through the API with two users
-  (`tests/test_tenant_isolation.py`) and directly against the `db_session` fixture in the
-  repository tests.
+- Team-membership scoping is tested both through the API with two users
+  (`tests/test_tenant_isolation.py`, which also proves teammates share a roster) and directly against the
+  `db_session` fixture in the repository tests. Most API tests need a team first: `tests/helpers.py`
+  has `ensure_team()` / `create_player()`.
 
 ### The coverage/greenlet gotcha
 

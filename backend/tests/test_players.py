@@ -8,7 +8,10 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lineup.db.models import Team, TeamMember
 from lineup.players import repository as player_repo
+from lineup.teams import repository as team_repo
+from tests.helpers import create_player
 
 
 async def _create_team(async_client: AsyncClient, name: str = "SZVTK") -> dict:
@@ -23,17 +26,13 @@ async def _create_player(
     nssz_number: str = "MVLSZ123456789",
     team_id: str | None = None,
 ) -> dict:
-    payload = {"name": name, "nssz_number": nssz_number}
-    if team_id is not None:
-        payload["team_id"] = team_id
-    response = await async_client.post("/players", json=payload)
-    assert response.status_code == 201
-    return response.json()
+    return await create_player(async_client, name, nssz_number, team_id)
 
 
-def _lineup_payload(team_name: str, player_id: str, cap_number: int = 1) -> dict:
+def _lineup_payload(team_id: str, player_id: str, cap_number: int = 1) -> dict:
     return {
-        "team_name": team_name,
+        "team_id": team_id,
+        "team_name": "SZVTK",
         "opponent_name": "Csongrád VVSE",
         "division": "OB II.",
         "cap": "Fehér",
@@ -45,40 +44,58 @@ def _lineup_payload(team_name: str, player_id: str, cap_number: int = 1) -> dict
 
 class TestCreatePlayer:
     async def test_create_player_returns_201(self, async_client: AsyncClient):
+        team = await _create_team(async_client)
         response = await async_client.post(
-            "/players", json={"name": "Test Player", "nssz_number": "MVLSZ001"}
+            "/players",
+            json={
+                "name": "Test Player",
+                "nssz_number": "MVLSZ001",
+                "team_id": team["id"],
+            },
         )
         assert response.status_code == 201
 
     async def test_create_player_returns_correct_fields(
         self, async_client: AsyncClient
     ):
+        team = await _create_team(async_client)
         response = await async_client.post(
-            "/players", json={"name": "Test Player", "nssz_number": "MVLSZ001"}
+            "/players",
+            json={
+                "name": "Test Player",
+                "nssz_number": "MVLSZ001",
+                "team_id": team["id"],
+            },
         )
         data = response.json()
         assert data["name"] == "Test Player"
         assert data["nssz_number"] == "MVLSZ001"
-        assert data["team_id"] is None
+        assert data["team_id"] == team["id"]
         assert "id" in data
 
-    async def test_create_player_with_team_id(self, async_client: AsyncClient):
-        team = await _create_team(async_client)
-        player = await _create_player(async_client, team_id=team["id"])
-        assert player["team_id"] == team["id"]
+    async def test_create_player_requires_a_team(self, async_client: AsyncClient):
+        response = await async_client.post(
+            "/players", json={"name": "Test Player", "nssz_number": "MVLSZ001"}
+        )
+        assert response.status_code == 422
 
     async def test_create_player_empty_name_returns_422(
         self, async_client: AsyncClient
     ):
+        team = await _create_team(async_client)
         response = await async_client.post(
-            "/players", json={"name": "", "nssz_number": "MVLSZ001"}
+            "/players",
+            json={"name": "", "nssz_number": "MVLSZ001", "team_id": team["id"]},
         )
         assert response.status_code == 422
 
     async def test_create_player_missing_nssz_returns_422(
         self, async_client: AsyncClient
     ):
-        response = await async_client.post("/players", json={"name": "Player"})
+        team = await _create_team(async_client)
+        response = await async_client.post(
+            "/players", json={"name": "Player", "team_id": team["id"]}
+        )
         assert response.status_code == 422
 
 
@@ -160,15 +177,21 @@ class TestUpdatePlayer:
         player = await _create_player(async_client, "Old Name", "OLD001")
         response = await async_client.put(
             f"/players/{player['id']}",
-            json={"name": "New Name", "nssz_number": "NEW001"},
+            json={
+                "name": "New Name",
+                "nssz_number": "NEW001",
+                "team_id": player["team_id"],
+            },
         )
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "New Name"
         assert data["nssz_number"] == "NEW001"
 
-    async def test_update_player_sets_team_id(self, async_client: AsyncClient):
-        team = await _create_team(async_client)
+    async def test_update_player_moves_to_another_of_my_teams(
+        self, async_client: AsyncClient
+    ):
+        team = await _create_team(async_client, "Second team")
         player = await _create_player(async_client)
         response = await async_client.put(
             f"/players/{player['id']}",
@@ -180,10 +203,28 @@ class TestUpdatePlayer:
         )
         assert response.json()["team_id"] == team["id"]
 
+    async def test_update_player_to_an_unknown_team_returns_404(
+        self, async_client: AsyncClient
+    ):
+        player = await _create_player(async_client)
+        response = await async_client.put(
+            f"/players/{player['id']}",
+            json={
+                "name": "X",
+                "nssz_number": "Y",
+                "team_id": "00000000-0000-0000-0000-000000000000",
+            },
+        )
+        assert response.status_code == 404
+
     async def test_update_player_not_found_returns_404(self, async_client: AsyncClient):
         response = await async_client.put(
             "/players/00000000-0000-0000-0000-000000000000",
-            json={"name": "X", "nssz_number": "Y"},
+            json={
+                "name": "X",
+                "nssz_number": "Y",
+                "team_id": "00000000-0000-0000-0000-000000000000",
+            },
         )
         assert response.status_code == 404
 
@@ -214,7 +255,8 @@ class TestDeletePlayer:
         player = await _create_player(async_client, "Locked Player", "LOCK001")
         lineup = (
             await async_client.post(
-                "/lineups/saved", json=_lineup_payload("SZVTK", player["id"])
+                "/lineups/saved",
+                json=_lineup_payload(player["team_id"], player["id"]),
             )
         ).json()
 
@@ -226,15 +268,20 @@ class TestDeletePlayer:
         assert get_response.json()["players"][0]["nssz_number"] == "LOCK001"
 
 
-class TestPlayerRepositoryUserFiltering:
-    """User-scoped filtering is exercised directly at the repository layer
-    so that the user-scoped functions are checked with two real user ids."""
+class TestPlayerRepositoryMembership:
+    """Membership scoping is exercised directly at the repository layer so that the
+    functions are checked with real user ids that are, and are not, in the team."""
 
-    async def test_get_player_filters_by_user_id(self, db_session: AsyncSession):
-        user = uuid.uuid4()
-        other = uuid.uuid4()
+    async def _team(self, db_session: AsyncSession, member: uuid.UUID) -> Team:
+        return await team_repo.create_team(
+            db_session, name="T", created_by=member, is_public=True
+        )
+
+    async def test_get_player_only_for_team_members(self, db_session: AsyncSession):
+        user, other = uuid.uuid4(), uuid.uuid4()
+        team = await self._team(db_session, user)
         player = await player_repo.create_player(
-            db_session, name="P", nssz_number="N1", user_id=user, team_id=None
+            db_session, name="P", nssz_number="N1", created_by=user, team_id=team.id
         )
         assert (
             await player_repo.get_player(db_session, player_id=player.id, user_id=user)
@@ -245,14 +292,42 @@ class TestPlayerRepositoryUserFiltering:
             is None
         )
 
-    async def test_list_players_filters_by_user_id(self, db_session: AsyncSession):
-        user = uuid.uuid4()
-        await player_repo.create_player(
-            db_session, name="P1", nssz_number="N1", user_id=user, team_id=None
+    async def test_a_member_who_did_not_create_the_player_can_use_it(
+        self, db_session: AsyncSession
+    ):
+        creator, colleague = uuid.uuid4(), uuid.uuid4()
+        team = await self._team(db_session, creator)
+        db_session.add(TeamMember(team_id=team.id, user_id=colleague, role="member"))
+        await db_session.commit()
+        player = await player_repo.create_player(
+            db_session,
+            name="P",
+            nssz_number="N1",
+            created_by=creator,
+            team_id=team.id,
+        )
+        found = await player_repo.get_player(
+            db_session, player_id=player.id, user_id=colleague
+        )
+        assert found is not None and found.created_by == creator
+
+    async def test_list_players_only_shows_my_teams(self, db_session: AsyncSession):
+        user, other = uuid.uuid4(), uuid.uuid4()
+        mine, theirs = (
+            await self._team(db_session, user),
+            await self._team(db_session, other),
         )
         await player_repo.create_player(
-            db_session, name="P2", nssz_number="N2", user_id=uuid.uuid4(), team_id=None
+            db_session, name="P1", nssz_number="N1", created_by=user, team_id=mine.id
+        )
+        await player_repo.create_player(
+            db_session, name="P2", nssz_number="N2", created_by=other, team_id=theirs.id
         )
         items, total = await player_repo.list_players(db_session, user_id=user)
         assert total == 1
         assert items[0].name == "P1"
+        # filtering by somebody else's team gives nothing, not their players
+        items, total = await player_repo.list_players(
+            db_session, user_id=user, team_id=theirs.id
+        )
+        assert (items, total) == ([], 0)

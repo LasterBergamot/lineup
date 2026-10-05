@@ -60,19 +60,21 @@ export interface paths {
         };
         /**
          * List Saved Lineups
-         * @description List saved lineups, oldest first, optionally only those made for one team
-         *     (`source_team_id`). Paginated: `limit` is 1-200 (default 20), `offset` starts at 0.
+         * @description List the saved lineups of all teams you belong to, oldest first, optionally only those
+         *     saved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:
+         *     `limit` is 1-200 (default 20), `offset` starts at 0.
          */
         get: operations["list_saved_lineups_lineups_saved_get"];
         put?: never;
         /**
          * Create Saved Lineup
-         * @description Save a lineup as a frozen snapshot.
+         * @description Save a lineup as a frozen snapshot in the workspace of `team_id` (a team you belong to).
          *
          *     For the team, the opponent and each player, send either a `source_*_id` (the current name
          *     and NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ
-         *     numbers must be unique within the lineup. Deleting the source team or player later does not
-         *     change a saved lineup.
+         *     numbers must be unique within the lineup. Your own team and players must belong to a team you are in,
+         *     the opponent may also be a team listed in the directory; anything else is a 404. Deleting
+         *     the source team or player later does not change a saved lineup.
          */
         post: operations["create_saved_lineup_lineups_saved_post"];
         delete?: never;
@@ -134,14 +136,16 @@ export interface paths {
         };
         /**
          * List Players
-         * @description List players ordered by creation time, optionally only one team's (`team_id`). Paginated:
-         *     `limit` is 1-200 (default 20), `offset` starts at 0.
+         * @description List the players of all teams you belong to, ordered by creation time, optionally only
+         *     one team's (`team_id`; a team you are not in gives an empty page). Paginated: `limit` is
+         *     1-200 (default 20), `offset` starts at 0.
          */
         get: operations["list_players_players_get"];
         put?: never;
         /**
          * Create Player
-         * @description Create a player, optionally on a team's roster. An unknown `team_id` returns 404.
+         * @description Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a
+         *     member of it.
          */
         post: operations["create_player_players_post"];
         delete?: never;
@@ -159,12 +163,13 @@ export interface paths {
         };
         /**
          * Get Player
-         * @description Get one player by id (404 if unknown).
+         * @description Get one player by id (404 if unknown or on a team you are not in).
          */
         get: operations["get_player_players__player_id__get"];
         /**
          * Update Player
-         * @description Replace a player's name, NSSZ number and team. An unknown player or `team_id` returns 404.
+         * @description Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is
+         *     unknown or not yours.
          */
         put: operations["update_player_players__player_id__put"];
         post?: never;
@@ -187,14 +192,16 @@ export interface paths {
         };
         /**
          * List Teams
-         * @description List teams, ordered by name. Paginated: `limit` is 1-200 (default 20) and `offset`
-         *     starts at 0; the response carries `total` so clients can page.
+         * @description List the teams you belong to, ordered by name, each with your `role`. Paginated: `limit`
+         *     is 1-200 (default 20) and `offset` starts at 0; the response carries `total` so clients
+         *     can page.
          */
         get: operations["list_teams_teams_get"];
         put?: never;
         /**
          * Create Team
-         * @description Create a team. `is_public` (default true) lists it in the opponent pool.
+         * @description Create a team; you become its owner. `is_public` (default true) lists its name in the
+         *     opponent directory, which never reveals anything else about the team.
          */
         post: operations["create_team_teams_post"];
         delete?: never;
@@ -212,8 +219,9 @@ export interface paths {
         };
         /**
          * Search Teams Pool
-         * @description Search the shared opponent pool (sign-in required). Only public teams are returned, and
-         *     only their `id` and `name`. `search` is a literal, case-insensitive substring.
+         * @description Search the opponent directory (sign-in required). Only teams that chose to be listed
+         *     (`is_public`) are returned, and only their `id` and `name`. `search` is a literal,
+         *     case-insensitive substring.
          */
         get: operations["search_teams_pool_teams_pool_get"];
         put?: never;
@@ -233,21 +241,45 @@ export interface paths {
         };
         /**
          * Get Team
-         * @description Get one team by id (404 if unknown).
+         * @description Get one of your teams by id (404 if unknown or you are not a member).
          */
         get: operations["get_team_teams__team_id__get"];
         /**
          * Update Team
-         * @description Rename a team (404 if unknown).
+         * @description Rename a team and/or list or unlist it in the opponent directory (`is_public`, left
+         *     unchanged when omitted). Owners only: 403 for other members, 404 for non-members.
          */
         put: operations["update_team_teams__team_id__put"];
         post?: never;
         /**
          * Delete Team
-         * @description Delete a team. Returns 409 while players are still on its roster; saved lineups that
-         *     mention the team are unaffected because they store copies.
+         * @description Delete a team (owners only: 403 for other members, 404 for non-members). Returns 409 while
+         *     players are on its roster or saved lineups live in it; lineups that merely mention the team
+         *     as their source or opponent are unaffected because they store copies.
          */
         delete: operations["delete_team_teams__team_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{team_id}/opponents/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Opponents
+         * @description Opponent names used in this team's saved lineups, most recent first (no duplicates). Lets
+         *     the lineup form suggest opponents that are not in the directory. 404 unless you are a
+         *     member of the team.
+         */
+        get: operations["recent_opponents_teams__team_id__opponents_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -358,15 +390,18 @@ export interface components {
         /**
          * PlayerCreate
          * @description Body for creating a player. Text is trimmed, must not be blank or contain control
-         *     characters; `team_id` (optional) must be an existing team.
+         *     characters; `team_id` is the roster to add the player to and must be a team you belong to.
          */
         PlayerCreate: {
             /** Name */
             name: string;
             /** Nssz Number */
             nssz_number: string;
-            /** Team Id */
-            team_id?: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
         };
         /**
          * PlayerRequest
@@ -399,26 +434,35 @@ export interface components {
             name: string;
             /** Nssz Number */
             nssz_number: string;
-            /** Team Id */
-            team_id: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
         };
         /**
          * PlayerUpdate
-         * @description Body for replacing a player's data (all fields are overwritten, including `team_id`).
+         * @description Body for replacing a player's data (all fields are overwritten, including `team_id`,
+         *     which may move the player to another team you belong to).
          */
         PlayerUpdate: {
             /** Name */
             name: string;
             /** Nssz Number */
             nssz_number: string;
-            /** Team Id */
-            team_id?: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
         };
         /**
          * SavedLineupCreate
          * @description Body for saving a lineup.
          *
-         *     Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
+         *     `team_id` is the workspace the lineup is saved in (a team you belong to); every member of
+         *     that team can then see it. It is independent of `source_team_id`, which only says where the
+         *     team *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
          *     defaults to "<team> - <opponent>". Blank optional values count as not provided. Cap numbers
          *     must be unique, and no roster player may appear twice.
          */
@@ -450,6 +494,11 @@ export interface components {
             source_opponent_id?: string | null;
             /** Source Team Id */
             source_team_id?: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
             /** Team Leader */
             team_leader?: string | null;
             /** Team Name */
@@ -492,7 +541,8 @@ export interface components {
         /**
          * SavedLineupResponse
          * @description A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`
-         *     fields are soft references and become null if the source is deleted.
+         *     fields are soft references and become null if the source is deleted. `team_id` is the
+         *     workspace the lineup lives in.
          */
         SavedLineupResponse: {
             /** Assistant Coach */
@@ -529,6 +579,11 @@ export interface components {
             source_opponent_id: string | null;
             /** Source Team Id */
             source_team_id: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
             /** Team Leader */
             team_leader: string | null;
             /** Team Name */
@@ -565,7 +620,8 @@ export interface components {
         };
         /**
          * TeamPoolItem
-         * @description Lightweight entry for the shared opponent pool — id + name only.
+         * @description Entry of the shared opponent directory: `id` and `name` and nothing else, on purpose.
+         *     Listing a team must never reveal its roster, members or lineups.
          */
         TeamPoolItem: {
             /**
@@ -578,7 +634,10 @@ export interface components {
         };
         /**
          * TeamResponse
-         * @description A team as returned by the API.
+         * @description A team as returned by the API, from the signed-in caller's point of view.
+         *
+         *     `role` is the caller's role in the team (`owner` or `member`); `created_by` is who created
+         *     it (audit only, it grants nothing). `is_public` means "listed in the opponent directory".
          */
         TeamResponse: {
             /**
@@ -586,6 +645,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Created By
+             * Format: uuid
+             */
+            created_by: string;
             /**
              * Id
              * Format: uuid
@@ -595,17 +659,17 @@ export interface components {
             is_public: boolean;
             /** Name */
             name: string;
-            /**
-             * Owner Id
-             * Format: uuid
-             */
-            owner_id: string;
+            /** Role */
+            role: string;
         };
         /**
          * TeamUpdate
-         * @description Body for renaming a team.
+         * @description Body for updating a team (owners only). `name` is always required; `is_public` lists or
+         *     unlists the team in the opponent directory and is left unchanged when omitted.
          */
         TeamUpdate: {
+            /** Is Public */
+            is_public?: boolean | null;
             /** Name */
             name: string;
         };
@@ -714,6 +778,7 @@ export interface operations {
                 /** @description Max items to return (1-200). */
                 limit?: number;
                 offset?: number;
+                team_id?: string | null;
                 source_team_id?: string | null;
             };
             header?: never;
@@ -1214,6 +1279,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_opponents_teams__team_id__opponents_recent_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
             /** @description Validation Error */

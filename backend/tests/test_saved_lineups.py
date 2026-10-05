@@ -12,8 +12,10 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lineup.db.models import LineupPlayerSnapshot
+from lineup.db.models import LineupPlayerSnapshot, TeamMember
 from lineup.saved_lineups import repository as saved_lineup_repo
+from lineup.teams import repository as team_repo
+from tests.helpers import create_player, ensure_team
 
 FAKE_PDF = b"%PDF-1.4 fake"
 
@@ -29,17 +31,14 @@ async def _create_player(
     name: str = "Török András",
     nssz_number: str = "MVLSZ001",
 ) -> dict:
-    r = await async_client.post(
-        "/players", json={"name": name, "nssz_number": nssz_number}
-    )
-    assert r.status_code == 201
-    return r.json()
+    return await create_player(async_client, name, nssz_number)
 
 
 def _lineup_payload(
     source_team_id: str, source_player_id: str, cap_number: int = 1
 ) -> dict:
     return {
+        "team_id": source_team_id,
         "source_team_id": source_team_id,
         "opponent_name": "Csongrád VVSE",
         "division": "OB II.",
@@ -86,6 +85,7 @@ class TestCreateSavedLineup:
         response = await async_client.post(
             "/lineups/saved",
             json={
+                "team_id": (await ensure_team(async_client))["id"],
                 "team_name": "Home Club",
                 "opponent_name": "Away Club",
                 "division": "OB II.",
@@ -144,6 +144,7 @@ class TestCreateSavedLineup:
         response = await async_client.post(
             "/lineups/saved",
             json={
+                "team_id": player["team_id"],
                 "opponent_name": "Csongrád VVSE",
                 "division": "OB II.",
                 "cap": "Fehér",
@@ -162,6 +163,7 @@ class TestCreateSavedLineup:
         response = await async_client.post(
             "/lineups/saved",
             json={
+                "team_id": team["id"],
                 "source_team_id": team["id"],
                 "division": "OB II.",
                 "cap": "Fehér",
@@ -179,6 +181,7 @@ class TestCreateSavedLineup:
         response = await async_client.post(
             "/lineups/saved",
             json={
+                "team_id": team["id"],
                 "source_team_id": team["id"],
                 "opponent_name": "Csongrád VVSE",
                 "division": "OB II.",
@@ -321,21 +324,26 @@ class TestDataIndependence:
     """Saved lineups are frozen snapshots: deleting their source team or
     source player afterwards must never affect the previously saved data."""
 
-    async def test_lineup_survives_team_deletion(self, async_client: AsyncClient):
-        team = await _create_team(async_client, "SZVTK")
-        player = await _create_player(async_client)
-        lineup = (
-            await async_client.post(
-                "/lineups/saved", json=_lineup_payload(team["id"], player["id"])
-            )
-        ).json()
+    async def test_lineup_survives_source_team_deletion(
+        self, async_client: AsyncClient
+    ):
+        workspace = await ensure_team(async_client, "Workspace")
+        source = await _create_team(async_client, "SZVTK")
+        player = await create_player(async_client, team_id=workspace["id"])
+        payload = {
+            **_lineup_payload(source["id"], player["id"]),
+            "team_id": workspace["id"],
+        }
+        lineup = (await async_client.post("/lineups/saved", json=payload)).json()
 
-        delete_response = await async_client.delete(f"/teams/{team['id']}")
+        delete_response = await async_client.delete(f"/teams/{source['id']}")
         assert delete_response.status_code == 200
 
         response = await async_client.get(f"/lineups/saved/{lineup['id']}")
         assert response.status_code == 200
         assert response.json()["team_name"] == "SZVTK"
+        assert response.json()["source_team_id"] is None
+        assert response.json()["team_id"] == workspace["id"]
 
     async def test_lineup_survives_player_deletion(self, async_client: AsyncClient):
         team = await _create_team(async_client)
@@ -484,11 +492,17 @@ class TestGenerateFromSavedLineup:
         threadpool.assert_awaited_once()
 
 
-class TestSavedLineupRepositoryUserFiltering:
-    """User-scoped filtering is exercised directly at the repository layer
-    so that the user-scoped functions are checked with two real user ids."""
+class TestSavedLineupRepositoryMembership:
+    """Membership scoping is exercised directly at the repository layer so that the
+    functions are checked with real user ids that are, and are not, in the lineup's team."""
 
-    async def _create(self, db_session: AsyncSession, user_id: uuid.UUID):
+    async def _create(self, db_session: AsyncSession, user_id: uuid.UUID, team_id=None):
+        if team_id is None:
+            team_id = (
+                await team_repo.create_team(
+                    db_session, name="T", created_by=user_id, is_public=True
+                )
+            ).id
         snapshot = LineupPlayerSnapshot(
             id=uuid.uuid4(),
             cap_number=1,
@@ -509,22 +523,22 @@ class TestSavedLineupRepositoryUserFiltering:
             assistant_coach=None,
             team_leader=None,
             ball_thrower=None,
-            user_id=user_id,
+            created_by=user_id,
+            team_id=team_id,
             source_team_id=None,
             source_opponent_id=None,
             player_snapshots=[snapshot],
         )
 
-    async def test_get_saved_lineup_filters_by_user_id(self, db_session: AsyncSession):
-        user = uuid.uuid4()
-        other = uuid.uuid4()
+    async def test_get_saved_lineup_only_for_team_members(
+        self, db_session: AsyncSession
+    ):
+        user, other = uuid.uuid4(), uuid.uuid4()
         lineup = await self._create(db_session, user)
-        assert (
-            await saved_lineup_repo.get_saved_lineup(
-                db_session, lineup_id=lineup.id, user_id=user
-            )
-            is not None
+        found = await saved_lineup_repo.get_saved_lineup(
+            db_session, lineup_id=lineup.id, user_id=user
         )
+        assert found is not None
         assert (
             await saved_lineup_repo.get_saved_lineup(
                 db_session, lineup_id=lineup.id, user_id=other
@@ -532,13 +546,38 @@ class TestSavedLineupRepositoryUserFiltering:
             is None
         )
 
-    async def test_list_saved_lineups_filters_by_user_id(
+    async def test_a_colleague_sees_lineups_they_did_not_create(
+        self, db_session: AsyncSession
+    ):
+        creator, colleague = uuid.uuid4(), uuid.uuid4()
+        lineup = await self._create(db_session, creator)
+        db_session.add(
+            TeamMember(team_id=lineup.team_id, user_id=colleague, role="member")
+        )
+        await db_session.commit()
+        found = await saved_lineup_repo.get_saved_lineup(
+            db_session, lineup_id=lineup.id, user_id=colleague
+        )
+        assert found is not None and found.created_by == creator
+
+    async def test_list_saved_lineups_only_shows_my_teams(
         self, db_session: AsyncSession
     ):
         user = uuid.uuid4()
-        await self._create(db_session, user)
+        mine = await self._create(db_session, user)
         await self._create(db_session, uuid.uuid4())
         items, total = await saved_lineup_repo.list_saved_lineups(
             db_session, user_id=user
         )
-        assert total == 1
+        assert (total, [i.id for i in items]) == (1, [mine.id])
+
+    async def test_list_can_be_narrowed_to_one_workspace(
+        self, db_session: AsyncSession
+    ):
+        user = uuid.uuid4()
+        first = await self._create(db_session, user)
+        await self._create(db_session, user)
+        items, total = await saved_lineup_repo.list_saved_lineups(
+            db_session, user_id=user, team_id=first.team_id
+        )
+        assert (total, [i.id for i in items]) == (1, [first.id])

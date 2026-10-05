@@ -48,9 +48,9 @@ planned in `PLAN.md` at the repo root.
 
 ## Multi-tenancy rollout
 
-`user_id`/`owner_id` columns exist on every table and every repository filters on the signed-in
-user's id (`get_current_user_id()` now verifies a Supabase JWT and never yields `None`). Teams as
-shared workspaces (members, invitations, team-scoped access) are the next schema step. The remaining rollout risk is
+Every repository filters on the teams the signed-in user belongs to (`get_current_user_id()` verifies a
+Supabase JWT and never yields `None`; a team is a workspace shared by its members). What is still missing
+is a way to add members: the invitation endpoints. The remaining rollout risk is
 almost entirely on the auth/Supabase side (see [[Roadmap: Backend]]) and the onboarding UI
 (see [[Roadmap: Frontend]]), not on the persistence layer itself.
 

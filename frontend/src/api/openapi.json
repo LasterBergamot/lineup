@@ -229,7 +229,7 @@
         "type": "object"
       },
       "PlayerCreate": {
-        "description": "Body for creating a player. Text is trimmed, must not be blank or contain control\ncharacters; `team_id` (optional) must be an existing team.",
+        "description": "Body for creating a player. Text is trimmed, must not be blank or contain control\ncharacters; `team_id` is the roster to add the player to and must be a team you belong to.",
         "properties": {
           "name": {
             "maxLength": 200,
@@ -244,21 +244,15 @@
             "type": "string"
           },
           "team_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Team Id"
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
           }
         },
         "required": [
           "name",
-          "nssz_number"
+          "nssz_number",
+          "team_id"
         ],
         "title": "PlayerCreate",
         "type": "object"
@@ -315,16 +309,9 @@
             "type": "string"
           },
           "team_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Team Id"
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
           }
         },
         "required": [
@@ -338,7 +325,7 @@
         "type": "object"
       },
       "PlayerUpdate": {
-        "description": "Body for replacing a player's data (all fields are overwritten, including `team_id`).",
+        "description": "Body for replacing a player's data (all fields are overwritten, including `team_id`,\nwhich may move the player to another team you belong to).",
         "properties": {
           "name": {
             "maxLength": 200,
@@ -353,27 +340,21 @@
             "type": "string"
           },
           "team_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Team Id"
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
           }
         },
         "required": [
           "name",
-          "nssz_number"
+          "nssz_number",
+          "team_id"
         ],
         "title": "PlayerUpdate",
         "type": "object"
       },
       "SavedLineupCreate": {
-        "description": "Body for saving a lineup.\n\nTeam and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.",
+        "description": "Body for saving a lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.",
         "properties": {
           "assistant_coach": {
             "anyOf": [
@@ -499,6 +480,11 @@
             ],
             "title": "Source Team Id"
           },
+          "team_id": {
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
+          },
           "team_leader": {
             "anyOf": [
               {
@@ -527,6 +513,7 @@
           }
         },
         "required": [
+          "team_id",
           "division",
           "cap",
           "date",
@@ -634,7 +621,7 @@
         "type": "object"
       },
       "SavedLineupResponse": {
-        "description": "A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`\nfields are soft references and become null if the source is deleted.",
+        "description": "A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`\nfields are soft references and become null if the source is deleted. `team_id` is the\nworkspace the lineup lives in.",
         "properties": {
           "assistant_coach": {
             "anyOf": [
@@ -734,6 +721,11 @@
             ],
             "title": "Source Team Id"
           },
+          "team_id": {
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
+          },
           "team_leader": {
             "anyOf": [
               {
@@ -752,6 +744,7 @@
         },
         "required": [
           "id",
+          "team_id",
           "team_name",
           "opponent_name",
           "match_name",
@@ -818,7 +811,7 @@
         "type": "object"
       },
       "TeamPoolItem": {
-        "description": "Lightweight entry for the shared opponent pool — id + name only.",
+        "description": "Entry of the shared opponent directory: `id` and `name` and nothing else, on purpose.\nListing a team must never reveal its roster, members or lineups.",
         "properties": {
           "id": {
             "format": "uuid",
@@ -838,11 +831,16 @@
         "type": "object"
       },
       "TeamResponse": {
-        "description": "A team as returned by the API.",
+        "description": "A team as returned by the API, from the signed-in caller's point of view.\n\n`role` is the caller's role in the team (`owner` or `member`); `created_by` is who created\nit (audit only, it grants nothing). `is_public` means \"listed in the opponent directory\".",
         "properties": {
           "created_at": {
             "format": "date-time",
             "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
             "type": "string"
           },
           "id": {
@@ -858,25 +856,36 @@
             "title": "Name",
             "type": "string"
           },
-          "owner_id": {
-            "format": "uuid",
-            "title": "Owner Id",
+          "role": {
+            "title": "Role",
             "type": "string"
           }
         },
         "required": [
           "id",
           "name",
-          "owner_id",
+          "created_by",
           "is_public",
-          "created_at"
+          "created_at",
+          "role"
         ],
         "title": "TeamResponse",
         "type": "object"
       },
       "TeamUpdate": {
-        "description": "Body for renaming a team.",
+        "description": "Body for updating a team (owners only). `name` is always required; `is_public` lists or\nunlists the team in the opponent directory and is left unchanged when omitted.",
         "properties": {
+          "is_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Public"
+          },
           "name": {
             "maxLength": 120,
             "minLength": 1,
@@ -1057,7 +1066,7 @@
     },
     "/lineups/saved": {
       "get": {
-        "description": "List saved lineups, oldest first, optionally only those made for one team\n(`source_team_id`). Paginated: `limit` is 1-200 (default 20), `offset` starts at 0.",
+        "description": "List the saved lineups of all teams you belong to, oldest first, optionally only those\nsaved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:\n`limit` is 1-200 (default 20), `offset` starts at 0.",
         "operationId": "list_saved_lineups_lineups_saved_get",
         "parameters": [
           {
@@ -1083,6 +1092,23 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
             }
           },
           {
@@ -1136,7 +1162,7 @@
         ]
       },
       "post": {
-        "description": "Save a lineup as a frozen snapshot.\n\nFor the team, the opponent and each player, send either a `source_*_id` (the current name\nand NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ\nnumbers must be unique within the lineup. Deleting the source team or player later does not\nchange a saved lineup.",
+        "description": "Save a lineup as a frozen snapshot in the workspace of `team_id` (a team you belong to).\n\nFor the team, the opponent and each player, send either a `source_*_id` (the current name\nand NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ\nnumbers must be unique within the lineup. Your own team and players must belong to a team you are in,\nthe opponent may also be a team listed in the directory; anything else is a 404. Deleting\nthe source team or player later does not change a saved lineup.",
         "operationId": "create_saved_lineup_lineups_saved_post",
         "requestBody": {
           "content": {
@@ -1330,7 +1356,7 @@
     },
     "/players": {
       "get": {
-        "description": "List players ordered by creation time, optionally only one team's (`team_id`). Paginated:\n`limit` is 1-200 (default 20), `offset` starts at 0.",
+        "description": "List the players of all teams you belong to, ordered by creation time, optionally only\none team's (`team_id`; a team you are not in gives an empty page). Paginated: `limit` is\n1-200 (default 20), `offset` starts at 0.",
         "operationId": "list_players_players_get",
         "parameters": [
           {
@@ -1409,7 +1435,7 @@
         ]
       },
       "post": {
-        "description": "Create a player, optionally on a team's roster. An unknown `team_id` returns 404.",
+        "description": "Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a\nmember of it.",
         "operationId": "create_player_players_post",
         "requestBody": {
           "content": {
@@ -1496,7 +1522,7 @@
         ]
       },
       "get": {
-        "description": "Get one player by id (404 if unknown).",
+        "description": "Get one player by id (404 if unknown or on a team you are not in).",
         "operationId": "get_player_players__player_id__get",
         "parameters": [
           {
@@ -1543,7 +1569,7 @@
         ]
       },
       "put": {
-        "description": "Replace a player's name, NSSZ number and team. An unknown player or `team_id` returns 404.",
+        "description": "Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is\nunknown or not yours.",
         "operationId": "update_player_players__player_id__put",
         "parameters": [
           {
@@ -1602,7 +1628,7 @@
     },
     "/teams": {
       "get": {
-        "description": "List teams, ordered by name. Paginated: `limit` is 1-200 (default 20) and `offset`\nstarts at 0; the response carries `total` so clients can page.",
+        "description": "List the teams you belong to, ordered by name, each with your `role`. Paginated: `limit`\nis 1-200 (default 20) and `offset` starts at 0; the response carries `total` so clients\ncan page.",
         "operationId": "list_teams_teams_get",
         "parameters": [
           {
@@ -1664,7 +1690,7 @@
         ]
       },
       "post": {
-        "description": "Create a team. `is_public` (default true) lists it in the opponent pool.",
+        "description": "Create a team; you become its owner. `is_public` (default true) lists its name in the\nopponent directory, which never reveals anything else about the team.",
         "operationId": "create_team_teams_post",
         "requestBody": {
           "content": {
@@ -1711,7 +1737,7 @@
     },
     "/teams/pool": {
       "get": {
-        "description": "Search the shared opponent pool (sign-in required). Only public teams are returned, and\nonly their `id` and `name`. `search` is a literal, case-insensitive substring.",
+        "description": "Search the opponent directory (sign-in required). Only teams that chose to be listed\n(`is_public`) are returned, and only their `id` and `name`. `search` is a literal,\ncase-insensitive substring.",
         "operationId": "search_teams_pool_teams_pool_get",
         "parameters": [
           {
@@ -1785,7 +1811,7 @@
     },
     "/teams/{team_id}": {
       "delete": {
-        "description": "Delete a team. Returns 409 while players are still on its roster; saved lineups that\nmention the team are unaffected because they store copies.",
+        "description": "Delete a team (owners only: 403 for other members, 404 for non-members). Returns 409 while\nplayers are on its roster or saved lineups live in it; lineups that merely mention the team\nas their source or opponent are unaffected because they store copies.",
         "operationId": "delete_team_teams__team_id__delete",
         "parameters": [
           {
@@ -1832,7 +1858,7 @@
         ]
       },
       "get": {
-        "description": "Get one team by id (404 if unknown).",
+        "description": "Get one of your teams by id (404 if unknown or you are not a member).",
         "operationId": "get_team_teams__team_id__get",
         "parameters": [
           {
@@ -1879,7 +1905,7 @@
         ]
       },
       "put": {
-        "description": "Rename a team (404 if unknown).",
+        "description": "Rename a team and/or list or unlist it in the opponent directory (`is_public`, left\nunchanged when omitted). Owners only: 403 for other members, 404 for non-members.",
         "operationId": "update_team_teams__team_id__put",
         "parameters": [
           {
@@ -1931,6 +1957,71 @@
           }
         ],
         "summary": "Update Team",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/teams/{team_id}/opponents/recent": {
+      "get": {
+        "description": "Opponent names used in this team's saved lineups, most recent first (no duplicates). Lets\nthe lineup form suggest opponents that are not in the directory. 404 unless you are a\nmember of the team.",
+        "operationId": "recent_opponents_teams__team_id__opponents_recent_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response Recent Opponents Teams  Team Id  Opponents Recent Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Recent Opponents",
         "tags": [
           "teams"
         ]
