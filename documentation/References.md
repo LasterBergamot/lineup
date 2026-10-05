@@ -38,6 +38,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | shadcn/ui | Component conventions (Polaris theme, see `frontend/DESIGN.md`) | [ui.shadcn.com](https://ui.shadcn.com/) |
 | Radix UI | Accessible primitives under shadcn components (`Slot` for `asChild`) | [radix-ui.com](https://www.radix-ui.com/primitives) |
 | React Router | Client-side routes and the navigation links | [reactrouter.com](https://reactrouter.com/) |
+| React Hook Form, Zod | Form state and the validation schema that mirrors the API's limits | [react-hook-form.com](https://react-hook-form.com/) · [zod.dev](https://zod.dev/) |
 | TanStack Query | Data fetching, caching, retries (cold-start handling) | [tanstack.com/query](https://tanstack.com/query) |
 | openapi-typescript, openapi-fetch | Generate the typed API client from the backend's OpenAPI spec | [openapi-ts.dev](https://openapi-ts.dev/) |
 | Fontsource (Google Sans Flex) | The Polaris font, served from our own origin (no Google Fonts request) | [fontsource.org](https://fontsource.org/) |
@@ -139,6 +140,7 @@ Direct dependencies from `frontend/package.json`.
 |---|---|---|
 | `@eslint/js` | dev | [npm](https://www.npmjs.com/package/@eslint/js) |
 | `@fontsource-variable/google-sans-flex` | runtime | [npm](https://www.npmjs.com/package/@fontsource-variable/google-sans-flex) |
+| `@hookform/resolvers` | runtime | [npm](https://www.npmjs.com/package/@hookform/resolvers) |
 | `@radix-ui/react-slot` | runtime | [npm](https://www.npmjs.com/package/@radix-ui/react-slot) |
 | `@tailwindcss/vite` | dev | [npm](https://www.npmjs.com/package/@tailwindcss/vite) |
 | `@tanstack/react-query` | runtime | [npm](https://www.npmjs.com/package/@tanstack/react-query) |
@@ -162,6 +164,7 @@ Direct dependencies from `frontend/package.json`.
 | `prettier` | dev | [npm](https://www.npmjs.com/package/prettier) |
 | `react` | runtime | [npm](https://www.npmjs.com/package/react) |
 | `react-dom` | runtime | [npm](https://www.npmjs.com/package/react-dom) |
+| `react-hook-form` | runtime | [npm](https://www.npmjs.com/package/react-hook-form) |
 | `react-router` | runtime | [npm](https://www.npmjs.com/package/react-router) |
 | `tailwind-merge` | runtime | [npm](https://www.npmjs.com/package/tailwind-merge) |
 | `tailwindcss` | dev | [npm](https://www.npmjs.com/package/tailwindcss) |
@@ -169,6 +172,7 @@ Direct dependencies from `frontend/package.json`.
 | `typescript-eslint` | dev | [npm](https://www.npmjs.com/package/typescript-eslint) |
 | `vite` | dev | [npm](https://www.npmjs.com/package/vite) |
 | `vitest` | dev | [npm](https://www.npmjs.com/package/vitest) |
+| `zod` | runtime | [npm](https://www.npmjs.com/package/zod) |
 
 ### Container image
 

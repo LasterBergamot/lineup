@@ -1,4 +1,11 @@
-import { ApiError, describeError, isTransient, request } from "@/api/errors";
+import {
+  ApiError,
+  describeError,
+  fieldErrors,
+  isTransient,
+  request,
+  requestWithResponse,
+} from "@/api/errors";
 
 const ok = (data: unknown) =>
   Promise.resolve({ data, response: new Response(null, { status: 200 }) });
@@ -59,5 +66,53 @@ describe("describeError", () => {
       "Something went wrong. Please try again.",
     );
     expect(describeError(new ApiError(500, { detail: "secret detail" }))).not.toMatch(/secret/);
+  });
+});
+
+describe("requestWithResponse", () => {
+  it("returns the data together with the response, so callers can read headers", async () => {
+    const response = new Response(null, { status: 200, headers: { "x-test": "1" } });
+    const result = await requestWithResponse(Promise.resolve({ data: "body", response }));
+    expect(result.data).toBe("body");
+    expect(result.response.headers.get("x-test")).toBe("1");
+  });
+});
+
+describe("fieldErrors", () => {
+  it("turns a FastAPI 422 body into dotted field paths and plain messages", () => {
+    const error = new ApiError(422, {
+      detail: [
+        { loc: ["body", "match"], msg: "Field required" },
+        {
+          loc: ["body", "players", 2, "name"],
+          msg: "Value error, must not contain control characters",
+        },
+      ],
+    });
+    expect(fieldErrors(error)).toEqual([
+      { path: "match", message: "Field required" },
+      { path: "players.2.name", message: "must not contain control characters" },
+    ]);
+  });
+
+  it("skips entries that do not point at a body field or are malformed", () => {
+    const error = new ApiError(422, {
+      detail: [
+        { loc: ["query", "format"], msg: "nope" },
+        { loc: ["body"], msg: "whole body" },
+        { loc: "body", msg: "not an array" },
+        { loc: ["body", "x"], msg: 5 },
+      ],
+    });
+    expect(fieldErrors(error)).toEqual([]);
+  });
+
+  it("returns nothing for other statuses, bodies and errors", () => {
+    expect(fieldErrors(new ApiError(500, { detail: [{ loc: ["body", "a"], msg: "x" }] }))).toEqual(
+      [],
+    );
+    expect(fieldErrors(new ApiError(422, { detail: "text" }))).toEqual([]);
+    expect(fieldErrors(new ApiError(422))).toEqual([]);
+    expect(fieldErrors(new Error("x"))).toEqual([]);
   });
 });
