@@ -10,7 +10,7 @@ something it mentions.
 `frontend/package.json`, `backend/Dockerfile`, `.github/workflows/`) by
 `scripts/docs_references.py`. Run `task docs:references` after changing a dependency; CI
 (`task docs:check`) fails if you forget. Version numbers are left out on purpose (Dependabot bumps
-them weekly); look them up in `uv.lock` / `package-lock` / the `Dockerfile`. Every other section is handwritten: when you adopt a
+them weekly); look them up in `uv.lock` / `pnpm-lock.yaml` / the `Dockerfile`. Every other section is handwritten: when you adopt a
 new service, tool, spec or regulation, add a row in the matching table in the same PR.
 
 ## Core technologies
@@ -28,23 +28,31 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | SQLite | Local/test database | [sqlite.org](https://www.sqlite.org/docs.html) |
 | PostgreSQL | Hosted database (via Supabase); row-level security | [postgresql.org/docs](https://www.postgresql.org/docs/current/) · [RLS](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) |
 
-## Frontend (planned, see [[Roadmap: Frontend]])
+## Frontend (see [[Current State: Frontend]])
 
 | Name | What it is for | Link |
 |---|---|---|
 | React + TypeScript | UI framework and language | [react.dev](https://react.dev/) · [typescriptlang.org](https://www.typescriptlang.org/docs/) |
-| Vite | Dev server and bundler | [vite.dev](https://vite.dev/) |
-| Tailwind CSS | Styling | [tailwindcss.com](https://tailwindcss.com/) |
-| shadcn/ui | Component library (Polaris theme, see `frontend/DESIGN.md`) | [ui.shadcn.com](https://ui.shadcn.com/) |
+| Vite | Dev server (with the `/api` proxy) and bundler | [vite.dev](https://vite.dev/) |
+| Tailwind CSS | Styling; the Polaris tokens are CSS variables in `src/index.css` | [tailwindcss.com](https://tailwindcss.com/) |
+| shadcn/ui | Component conventions (Polaris theme, see `frontend/DESIGN.md`) | [ui.shadcn.com](https://ui.shadcn.com/) |
+| Radix UI | Accessible primitives under shadcn components (`Slot` for `asChild`) | [radix-ui.com](https://www.radix-ui.com/primitives) |
+| React Router | Client-side routes and the navigation links | [reactrouter.com](https://reactrouter.com/) |
 | TanStack Query | Data fetching, caching, retries (cold-start handling) | [tanstack.com/query](https://tanstack.com/query) |
-| pdf.js | In-page PDF previews | [mozilla.github.io/pdf.js](https://mozilla.github.io/pdf.js/) |
-| Vitest / Playwright | Unit and browser tests | [vitest.dev](https://vitest.dev/) · [playwright.dev](https://playwright.dev/) |
+| openapi-typescript, openapi-fetch | Generate the typed API client from the backend's OpenAPI spec | [openapi-ts.dev](https://openapi-ts.dev/) |
+| Fontsource (Google Sans Flex) | The Polaris font, served from our own origin (no Google Fonts request) | [fontsource.org](https://fontsource.org/) |
+| Lucide | Icons | [lucide.dev](https://lucide.dev/) |
+| pdf.js | In-page PDF previews (planned) | [mozilla.github.io/pdf.js](https://mozilla.github.io/pdf.js/) |
+| Vitest, Testing Library | Unit and component tests | [vitest.dev](https://vitest.dev/) · [testing-library.com](https://testing-library.com/docs/react-testing-library/intro/) |
+| Playwright | Browser tests (planned) | [playwright.dev](https://playwright.dev/) |
 
 ## Developer tooling
 
 | Name | What it is for | Link |
 |---|---|---|
 | uv | Python dependency and environment manager (`uv.lock`) | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+| pnpm | Frontend package manager (`pnpm-lock.yaml`, frozen in CI) | [pnpm.io](https://pnpm.io/) |
+| ESLint, Prettier | Frontend linting and formatting | [eslint.org](https://eslint.org/docs/latest/) · [prettier.io](https://prettier.io/docs/) |
 | Task (`Taskfile.yml`) | Command runner behind every `task …` command | [taskfile.dev](https://taskfile.dev/) |
 | Ruff | Linter and formatter (including the flake8-bandit `S` security rules) | [docs.astral.sh/ruff](https://docs.astral.sh/ruff/) |
 | pytest, pytest-cov | Test runner and coverage (100% required) | [docs.pytest.org](https://docs.pytest.org/) · [pytest-cov](https://pytest-cov.readthedocs.io/) |
@@ -123,6 +131,45 @@ Direct dependencies from `backend/pyproject.toml`. Exact versions are pinned in 
 | `sqlalchemy` | runtime | [PyPI](https://pypi.org/project/sqlalchemy/) |
 | `uvicorn` | runtime | [PyPI](https://pypi.org/project/uvicorn/) |
 
+### npm packages
+
+Direct dependencies from `frontend/package.json`.
+
+| Package | Group | Link |
+|---|---|---|
+| `@eslint/js` | dev | [npm](https://www.npmjs.com/package/@eslint/js) |
+| `@fontsource-variable/google-sans-flex` | runtime | [npm](https://www.npmjs.com/package/@fontsource-variable/google-sans-flex) |
+| `@radix-ui/react-slot` | runtime | [npm](https://www.npmjs.com/package/@radix-ui/react-slot) |
+| `@tailwindcss/vite` | dev | [npm](https://www.npmjs.com/package/@tailwindcss/vite) |
+| `@tanstack/react-query` | runtime | [npm](https://www.npmjs.com/package/@tanstack/react-query) |
+| `@testing-library/jest-dom` | dev | [npm](https://www.npmjs.com/package/@testing-library/jest-dom) |
+| `@testing-library/react` | dev | [npm](https://www.npmjs.com/package/@testing-library/react) |
+| `@testing-library/user-event` | dev | [npm](https://www.npmjs.com/package/@testing-library/user-event) |
+| `@types/node` | dev | [npm](https://www.npmjs.com/package/@types/node) |
+| `@types/react` | dev | [npm](https://www.npmjs.com/package/@types/react) |
+| `@types/react-dom` | dev | [npm](https://www.npmjs.com/package/@types/react-dom) |
+| `@vitejs/plugin-react` | dev | [npm](https://www.npmjs.com/package/@vitejs/plugin-react) |
+| `class-variance-authority` | runtime | [npm](https://www.npmjs.com/package/class-variance-authority) |
+| `clsx` | runtime | [npm](https://www.npmjs.com/package/clsx) |
+| `eslint` | dev | [npm](https://www.npmjs.com/package/eslint) |
+| `eslint-plugin-react-hooks` | dev | [npm](https://www.npmjs.com/package/eslint-plugin-react-hooks) |
+| `eslint-plugin-react-refresh` | dev | [npm](https://www.npmjs.com/package/eslint-plugin-react-refresh) |
+| `globals` | dev | [npm](https://www.npmjs.com/package/globals) |
+| `jsdom` | dev | [npm](https://www.npmjs.com/package/jsdom) |
+| `lucide-react` | runtime | [npm](https://www.npmjs.com/package/lucide-react) |
+| `openapi-fetch` | runtime | [npm](https://www.npmjs.com/package/openapi-fetch) |
+| `openapi-typescript` | dev | [npm](https://www.npmjs.com/package/openapi-typescript) |
+| `prettier` | dev | [npm](https://www.npmjs.com/package/prettier) |
+| `react` | runtime | [npm](https://www.npmjs.com/package/react) |
+| `react-dom` | runtime | [npm](https://www.npmjs.com/package/react-dom) |
+| `react-router` | runtime | [npm](https://www.npmjs.com/package/react-router) |
+| `tailwind-merge` | runtime | [npm](https://www.npmjs.com/package/tailwind-merge) |
+| `tailwindcss` | dev | [npm](https://www.npmjs.com/package/tailwindcss) |
+| `typescript` | dev | [npm](https://www.npmjs.com/package/typescript) |
+| `typescript-eslint` | dev | [npm](https://www.npmjs.com/package/typescript-eslint) |
+| `vite` | dev | [npm](https://www.npmjs.com/package/vite) |
+| `vitest` | dev | [npm](https://www.npmjs.com/package/vitest) |
+
 ### Container image
 
 From `backend/Dockerfile` (tags and digests are in the file).
@@ -147,9 +194,11 @@ Third-party actions used in `.github/workflows/`.
 | Action | Link |
 |---|---|
 | `actions/checkout` | [GitHub](https://github.com/actions/checkout) |
+| `actions/setup-node` | [GitHub](https://github.com/actions/setup-node) |
 | `aquasecurity/trivy-action` | [GitHub](https://github.com/aquasecurity/trivy-action) |
 | `arduino/setup-task` | [GitHub](https://github.com/arduino/setup-task) |
 | `astral-sh/setup-uv` | [GitHub](https://github.com/astral-sh/setup-uv) |
 | `github/codeql-action` | [GitHub](https://github.com/github/codeql-action) |
+| `pnpm/action-setup` | [GitHub](https://github.com/pnpm/action-setup) |
 
 <!-- END GENERATED: dependencies -->

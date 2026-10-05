@@ -1,9 +1,20 @@
 # Roadmap: Frontend
 
-No frontend exists today (see [[Current State: Frontend]]). This page is the least-detailed
-of the roadmap pages — the backend design docs ([[Current State: Backend]],
-[[Roadmap: Backend]]) only sketch the frontend's role in passing, as a consumer of the
-backend's auth-readiness work. Treat this as a starting sketch, not a spec.
+The frontend skeleton exists (see [[Current State: Frontend]]); this page records the decisions
+behind it and what is still to come. The step-by-step plan, with issue numbers, is `PLAN.md`
+(Phases 2-6); the backend side is in [[Roadmap: Backend]].
+
+## Decisions
+
+| Question | Decision | Why |
+|---|---|---|
+| Stack | React + TypeScript + Vite; Tailwind and shadcn-style components; TanStack Query; React Router; React Hook Form + Zod for forms; pdf.js for previews; Vitest + Playwright for tests | Mainstream choices with the most examples; nothing needs server-side rendering, so a static bundle is enough |
+| API types | Generated from the backend's OpenAPI spec (openapi-typescript + openapi-fetch) | The two sides can't drift silently: CI fails when the generated client is stale |
+| Hosting | Static files on Cloudflare Pages; the API on Fly.io (scale to zero) | Cheap, and a free tier is enough for a dev preview |
+| Repository | Same repo, `frontend/` next to `backend/` | One PR can change an endpoint and its screen; CI treats each side separately |
+| Auth | `@supabase/supabase-js` for Google sign-in only; all data goes through FastAPI, which validates the JWT | Supabase's Data API stays off, so there is one place for access rules |
+| Theme | Polaris (deep teal, amber, square corners, light and dark) | Spec in `frontend/DESIGN.md` |
+| Fonts | Self-hosted (Fontsource), no third-party requests | Google Fonts would send visitors' IPs to Google (GDPR, #97) |
 
 ## Planned OAuth / onboarding flow
 
@@ -48,8 +59,8 @@ there:
 - **Team invitations** — accept/generate invite links once `team_members`/
   `team_invitations` ship on the backend.
 
-## Open questions (not yet decided)
+## Still open
 
-- Framework/stack choice (React, Vue, Svelte, SSR vs. SPA) — nothing has been chosen.
-- Where the frontend will be hosted/deployed relative to the API container.
-- Whether it lives in this repo (e.g. a new `frontend/` directory) or a separate repo.
+- Exact Content-Security-Policy and security headers for Cloudflare Pages (#97).
+- Whether the production API gets a custom domain (and so a same-site frontend) or stays on the
+  provider's hostname.

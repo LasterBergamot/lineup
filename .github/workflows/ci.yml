@@ -93,6 +93,64 @@ jobs:
           uv run alembic upgrade head
         working-directory: backend
 
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    # No path filter on purpose: a filtered-out job would never report, and a job that is
+    # (or later becomes) a required check must report on every PR. It costs about a minute.
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Task
+        uses: arduino/setup-task@v3
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install frontend dependencies (frozen lockfile)
+        run: task fe:install
+
+      - name: Install backend dependencies (to dump the OpenAPI spec)
+        run: uv sync --frozen
+        working-directory: backend
+
+      - name: Lint and format check
+        run: task fe:lint
+
+      - name: Type check
+        run: task fe:typecheck
+
+      - name: Unit tests
+        run: task fe:test
+
+      - name: Build
+        run: task fe:build
+
+      - name: API client matches the backend's OpenAPI spec
+        run: task fe:api:check
+
+      - name: Audit production dependencies (report only)
+        run: pnpm audit --prod
+        working-directory: frontend
+        continue-on-error: true
+
   e2e:
     name: E2E (real PDF conversion)
     runs-on: ubuntu-latest

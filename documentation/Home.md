@@ -28,7 +28,7 @@ saved roster instead of a one-off request payload.
 - [[Current State: Backend]] — API surface, module architecture and request flow, data model,
   database configuration (SQLite vs. Supabase), Alembic workflow, credential recovery,
   portability to other stacks, PDF pipeline
-- [[Current State: Frontend]] — not started yet
+- [[Current State: Frontend]] — React + Vite skeleton: theme, app shell, generated API client
 - [[Current State: Everything Else]] — environment variables, dev workflow, containerization,
   testing philosophy, CI and security tooling
 
