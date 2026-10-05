@@ -41,6 +41,8 @@ Skills that touch GitHub, git or the database still ask before every state-chang
 
 The `documentation/` folder is the source of truth for the project's [GitHub wiki](https://github.com/LasterBergamot/lineup/wiki) content (current-state and roadmap pages, backend/frontend/cross-cutting, plus two reader-oriented pages: the **Newcomer Guide**, a junior-developer walkthrough of the tools, the request flow and how to make a first change, and **References**, the official docs for every library, tool, service, spec and regulation we use). It's mirrored 1:1 into the wiki by `.github/workflows/wiki-sync.yml` on every push to `develop` that touches `documentation/**`. Edit the files here, not the wiki UI directly — direct wiki edits get overwritten by the next sync.
 
+**Keeping the docs current is part of every change, in the code too.** New or changed public code needs a docstring explaining what it is for and why (`task lint` fails on a missing one; tests and migration revisions are exempt).
+
 **Keeping the docs current is part of every change.** A PR that touches code or config (`backend/lineup/`, `Dockerfile`, `compose.yml`, `Taskfile.yml`, workflows, …) must also update `README.md`, `CLAUDE.md` or a page under `documentation/`, or say `No doc impact: <reason>` and carry the `no-docs` label. The `Docs updated` check fails otherwise (run `scripts/check_docs_touched.sh origin/develop HEAD` to try it locally). The dependency tables in `documentation/References.md` are generated: run `task docs:references` after changing a dependency, `Dockerfile` or workflow (`task docs:check` verifies it, and CI runs it).
 
 ## Branches

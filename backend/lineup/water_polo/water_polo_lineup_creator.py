@@ -1,3 +1,9 @@
+"""Writes a `WaterPoloLineupDTO` into the lineup template.
+
+The `INDEX_*`, `COLUMN_*` and `ROW_*` constants are positions in `resources/rajtlista.docx`:
+change the template and these must move with it.
+"""
+
 import logging
 from pathlib import Path
 
@@ -35,7 +41,14 @@ logging.basicConfig(level=logging.INFO)
 
 
 class WaterPoloLineupCreator:
+    """Fills the lineup template from a `WaterPoloLineupDTO`.
+
+    The template is opened once per instance and edited in place, so create a new creator for
+    each document.
+    """
+
     def __init__(self):
+        """Open the template; raises `FileNotFoundError` (logged first) if it is missing."""
         try:
             self.manager = DocumentManager(FILE_NAME)
         except FileNotFoundError:
@@ -43,6 +56,7 @@ class WaterPoloLineupCreator:
             raise
 
     def create_document(self, dto: WaterPoloLineupDTO):
+        """Fill the template and save it to `RESULT_FILE_NAME` (used by the command-line demo)."""
         try:
             self.manager.setup_style()
             self.manager.remove_non_space_tab_stops()
@@ -55,6 +69,7 @@ class WaterPoloLineupCreator:
             raise
 
     def create_document_bytes(self, dto: WaterPoloLineupDTO) -> bytes:
+        """Fill the template and return the `.docx` bytes without touching the disk."""
         try:
             self.manager.setup_style()
             self.manager.remove_non_space_tab_stops()
@@ -66,6 +81,7 @@ class WaterPoloLineupCreator:
             raise
 
     def create_pdf_bytes(self, dto: WaterPoloLineupDTO) -> bytes:
+        """Fill the template and convert it to PDF bytes (needs LibreOffice, so container only)."""
         docx_bytes = self.create_document_bytes(dto)
         return PdfConverter().convert(docx_bytes)
 

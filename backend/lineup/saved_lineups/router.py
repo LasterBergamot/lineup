@@ -1,3 +1,5 @@
+"""HTTP endpoints under `/lineups/saved`: store lineups as snapshots and render them later."""
+
 from __future__ import annotations
 
 import uuid
@@ -31,6 +33,9 @@ async def list_saved_lineups(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID | None = Depends(get_current_user_id),
 ) -> PaginatedSavedLineups:
+    """List saved lineups, oldest first, optionally only those made for one team
+    (`source_team_id`). Paginated: `limit` is 1-200 (default 20), `offset` starts at 0.
+    """
     items, total = await service.list_saved_lineups(
         session,
         user_id=user_id,
@@ -47,6 +52,13 @@ async def create_saved_lineup(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID | None = Depends(get_current_user_id),
 ) -> SavedLineupResponse:
+    """Save a lineup as a frozen snapshot.
+
+    For the team, the opponent and each player, send either a `source_*_id` (the current name
+    and NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ
+    numbers must be unique within the lineup. Deleting the source team or player later does not
+    change a saved lineup.
+    """
     return await service.create_saved_lineup(session, data=body, user_id=user_id)
 
 
@@ -56,6 +68,7 @@ async def get_saved_lineup(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID | None = Depends(get_current_user_id),
 ) -> SavedLineupResponse:
+    """Get one saved lineup by id, with its players ordered by cap number (404 if unknown)."""
     return await service.get_saved_lineup_or_404(
         session, lineup_id=lineup_id, user_id=user_id
     )
@@ -67,6 +80,7 @@ async def delete_saved_lineup(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID | None = Depends(get_current_user_id),
 ) -> None:
+    """Delete a saved lineup (404 if unknown)."""
     await service.delete_saved_lineup(session, lineup_id=lineup_id, user_id=user_id)
 
 

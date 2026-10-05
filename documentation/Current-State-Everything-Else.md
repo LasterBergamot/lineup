@@ -189,7 +189,7 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
   repo level — no code/config here, just a setting.
 - **Static analysis (SAST)**: `ruff`'s `S` rule category (flake8-bandit) is enabled via
-  `[tool.ruff.lint] extend-select = ["S"]` in `pyproject.toml`. `tests/**` gets `S101`
+  `[tool.ruff.lint] extend-select = ["S", "D1"]` in `pyproject.toml` (`D1` is pydocstyle's "missing docstring" family only, so `task lint` fails when a public module, class, function or method has no docstring; `tests/**` and `alembic/versions/*.py` are exempt. The *content* of a docstring is checked in review and by the `update-documentation` skill). `tests/**` gets `S101`
   (`assert`) and `S310` (`urlopen` scheme check against a fixed local constant in the e2e
   test) ignored via `per-file-ignores`, since both are expected patterns in test code, not
   risks. `lineup/document/pdf_converter.py` gets `S603`/`S607` (subprocess call / partial

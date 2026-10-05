@@ -52,6 +52,7 @@ END $$;
 
 
 def find_migrate_url(env_text: str) -> str:
+    """Return `MIGRATE_DATABASE_URL` from the text of `.env.migrate`; raise `ValueError` if it is missing."""
     for line in env_text.splitlines():
         match = _MIGRATE_LINE.match(line)
         if match:
@@ -91,6 +92,12 @@ def rewrite_env(env_text: str, password: str) -> str:
 
 
 async def set_role_password(migrate_url: str, password: str) -> None:
+    """Enable login for `lineup_app` with the given password, using the owner connection.
+
+    Raises `ValueError` if the role does not exist yet (run the migrations first). The password
+    is passed as a bound parameter into a session setting and formatted server-side, so it never
+    appears in the SQL text that an error message could quote.
+    """
     engine = create_async_engine(migrate_url, poolclass=NullPool)
     try:
         async with engine.begin() as conn:
@@ -122,6 +129,11 @@ def _write_atomically(path: Path, content: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Command-line entry point (`task db:create-app-role`); returns the process exit code.
+
+    Computes the new `.env` first, then changes the role, then writes the file, so a failure
+    never leaves the file pointing at a password the database does not have.
+    """
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--migrate-file", type=Path, default=Path(".env.migrate"))

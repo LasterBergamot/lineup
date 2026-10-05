@@ -1,3 +1,9 @@
+"""Database access for saved lineups and their player snapshots.
+
+Lookups return `None` when nothing matches; `user_id` filters apply only when it is not `None`
+(always None until auth exists).
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -26,6 +32,12 @@ async def create_saved_lineup(
     source_opponent_id: uuid.UUID | None,
     player_snapshots: list[LineupPlayerSnapshot],
 ) -> SavedLineup:
+    """Insert a lineup together with its player snapshots and return the reloaded row.
+
+    The reload matters: right after the commit the in-memory snapshots are still in request
+    order, so the relationship is refreshed to apply its cap-number ordering and make the create
+    response match a later GET.
+    """
     lineup = SavedLineup(
         id=uuid.uuid4(),
         team_name=team_name,
@@ -56,6 +68,7 @@ async def get_saved_lineup_by_id(
     session: AsyncSession,
     lineup_id: uuid.UUID,
 ) -> SavedLineup | None:
+    """Fetch a lineup by id regardless of owner (internal use after creating one)."""
     result = await session.execute(
         select(SavedLineup).where(SavedLineup.id == lineup_id)
     )
@@ -67,6 +80,7 @@ async def get_saved_lineup(
     lineup_id: uuid.UUID,
     user_id: uuid.UUID | None,
 ) -> SavedLineup | None:
+    """Fetch one lineup, restricted to `user_id` when given. Returns `None` if not found."""
     query = select(SavedLineup).where(SavedLineup.id == lineup_id)
     if user_id is not None:
         query = query.where(SavedLineup.user_id == user_id)
@@ -81,6 +95,9 @@ async def list_saved_lineups(
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[SavedLineup], int]:
+    """One page of lineups, optionally for one `source_team_id`, ordered by
+    `(created_at, id)` so paging is stable, plus the total count before paging.
+    """
     query = select(SavedLineup)
     if user_id is not None:
         query = query.where(SavedLineup.user_id == user_id)
@@ -102,5 +119,6 @@ async def delete_saved_lineup(
     session: AsyncSession,
     lineup: SavedLineup,
 ) -> None:
+    """Delete a lineup; its player snapshots go with it (`ON DELETE CASCADE`)."""
     await session.delete(lineup)
     await session.commit()

@@ -1,3 +1,5 @@
+"""Request and response shapes for `/players`."""
+
 from __future__ import annotations
 
 import uuid
@@ -9,18 +11,26 @@ from lineup.common.types import CleanStr50, CleanStr200
 
 
 class PlayerCreate(BaseModel):
+    """Body for creating a player. Text is trimmed, must not be blank or contain control
+    characters; `team_id` (optional) must be an existing team.
+    """
+
     name: CleanStr200
     nssz_number: CleanStr50
     team_id: uuid.UUID | None = None
 
 
 class PlayerUpdate(BaseModel):
+    """Body for replacing a player's data (all fields are overwritten, including `team_id`)."""
+
     name: CleanStr200
     nssz_number: CleanStr50
     team_id: uuid.UUID | None = None
 
 
 class PlayerResponse(BaseModel):
+    """A player as returned by the API."""
+
     id: uuid.UUID
     name: str
     nssz_number: str
@@ -31,6 +41,8 @@ class PlayerResponse(BaseModel):
 
 
 class PaginatedPlayers(BaseModel):
+    """One page of players plus the total number of matching players."""
+
     items: list[PlayerResponse]
     total: int
     limit: int

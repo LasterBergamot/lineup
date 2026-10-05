@@ -68,5 +68,10 @@ files, not `documentation/`'s filesystem-safe filenames.
     tool, spec or regulation. `task docs:check` must pass.
 12. A new file in `documentation/` must be added to `PAGE_MAP` in `.github/workflows/wiki-sync.yml`
     and linked from `Home.md`.
-13. If nothing needs documenting, say so explicitly (`No doc impact: <reason>`); the PR must
+13. Docstrings: for every public module, class, function or method the change added or altered
+    in `backend/lineup/`, `app.py` or `main.py`, check that the docstring is present (ruff `D1`
+    enforces that) **and still true**. It should say what the thing is for, the non-obvious why
+    and what it raises or returns, for a junior reader. Pydantic models and route functions
+    show up in `/docs`, so phrase those for an API consumer.
+14. If nothing needs documenting, say so explicitly (`No doc impact: <reason>`); the PR must
     carry that line and the `no-docs` label.

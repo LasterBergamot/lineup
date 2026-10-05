@@ -1,3 +1,5 @@
+"""Request and response shapes for `/teams` (what the API accepts and returns)."""
+
 from __future__ import annotations
 
 import uuid
@@ -9,15 +11,23 @@ from lineup.common.types import CleanStr120
 
 
 class TeamCreate(BaseModel):
+    """Body for creating a team. The name is trimmed and must not be blank or contain control
+    characters.
+    """
+
     name: CleanStr120
     is_public: bool = True
 
 
 class TeamUpdate(BaseModel):
+    """Body for renaming a team."""
+
     name: CleanStr120
 
 
 class TeamResponse(BaseModel):
+    """A team as returned by the API."""
+
     id: uuid.UUID
     name: str
     owner_id: uuid.UUID | None
@@ -28,6 +38,8 @@ class TeamResponse(BaseModel):
 
 
 class TeamDeleteResponse(BaseModel):
+    """Confirmation returned after a team is deleted."""
+
     id: uuid.UUID
     name: str
     deleted: bool
@@ -43,6 +55,8 @@ class TeamPoolItem(BaseModel):
 
 
 class PaginatedTeams(BaseModel):
+    """One page of teams plus the total number of teams."""
+
     items: list[TeamResponse]
     total: int
     limit: int
