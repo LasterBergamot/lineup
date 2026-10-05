@@ -16,6 +16,13 @@ behind it and what is still to come. The step-by-step plan, with issue numbers, 
 | Theme | Polaris (deep teal, amber, square corners, light and dark) | Spec in `frontend/DESIGN.md` |
 | Fonts | Self-hosted (Fontsource), no third-party requests | Google Fonts would send visitors' IPs to Google (GDPR, #97) |
 
+## Where we are
+
+Done: skeleton and tooling, the cold-start-aware data layer, and the first screen, the one-off
+lineup form that calls `POST /lineups` (see [[Current State: Frontend]]). Next (`PLAN.md`): real
+sign-in and onboarding (Phase 3), deployment to Cloudflare Pages (Phase 4), invitations (Phase 5),
+then roster, lineup creator with previews and saved lineups (Phase 6).
+
 ## Planned OAuth / onboarding flow
 
 ```mermaid
