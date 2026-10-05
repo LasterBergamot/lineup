@@ -1,0 +1,14 @@
+import { Moon, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTheme } from "@/lib/theme";
+
+/** Switches between the light and dark Polaris themes. */
+export function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const next = theme === "dark" ? "light" : "dark";
+  return (
+    <Button variant="ghost" size="icon" onClick={toggle} aria-label={`Switch to ${next} theme`}>
+      {theme === "dark" ? <Sun /> : <Moon />}
+    </Button>
+  );
+}

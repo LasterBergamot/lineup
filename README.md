@@ -14,7 +14,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 **Authentication:** every route except `GET /health`, the stateless one-off `POST /lineups` and the API docs requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. Team membership and invitations (shared rosters) are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
 
-**Repo layout:** all the Python lives in `backend/` (a React frontend will get its own `frontend/` directory); the repo root keeps only shared tooling — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`. Python commands must run with `backend/` as the working directory, because Alembic's config, the `resources/` template paths, pytest's rootdir and the default `./lineup.db` are all cwd-relative. The `task` commands handle that for you (they `cd backend`), so you can run them from the repo root.
+**Repo layout:** all the Python lives in `backend/` and the React web app lives in `frontend/` (see [Frontend](#frontend)); the repo root keeps only shared tooling — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`. Python commands must run with `backend/` as the working directory, because Alembic's config, the `resources/` template paths, pytest's rootdir and the default `./lineup.db` are all cwd-relative. The `task` commands handle that for you (they `cd backend`), so you can run them from the repo root.
 
 **A first tour of the code** (paths relative to `backend/`): `app.py` (wires everything together) → `lineup/api/router.py` (the one-off endpoint) → `lineup/water_polo/` (template filling orchestration) → `lineup/document/` (docx + PDF) → `lineup/db/` (engine and models) → `lineup/teams/` as the example of the persistence layering. `tests/` mirrors the modules one-to-one.
 
@@ -53,7 +53,7 @@ There are two environments (dev and prod), so there are two long-lived branches.
 
 Three GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
 
-- **`.github/workflows/ci.yml`** — on every PR (and push) against `develop` or `main`: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
+- **`.github/workflows/ci.yml`** — on every PR (and push) against `develop` or `main`: a `Frontend` job (ESLint + Prettier, type check, Vitest, production build, and a check that the generated API client still matches the backend's OpenAPI spec; it has no path filter, so it reports on every PR), and the backend jobs: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
 - **`.github/workflows/docs-check.yml`** — on every PR: fails if the diff touches code or config without touching `README.md`, `CLAUDE.md` or `documentation/` (escape hatch: the `no-docs` label). `ci.yml` additionally runs `task docs:check`, which fails when the generated part of `documentation/References.md` is stale.
 - **`.github/workflows/wiki-sync.yml`** — on push to `develop` that touches `documentation/**`: mirrors those files into the GitHub wiki (and fails if a file in `documentation/` is missing from its page map).
 
@@ -76,6 +76,7 @@ Required to install and run the project:
 - [Python 3.13+](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — dependency manager
 - [Task](https://taskfile.dev/installation/) — task runner
+- [Node.js](https://nodejs.org/) (current LTS) and [pnpm](https://pnpm.io/installation) — only for the web app in `frontend/`; the version of pnpm is pinned by `packageManager` in `frontend/package.json`
 - [Docker Engine](https://docs.docker.com/engine/) & [Docker Compose](https://docs.docker.com/compose/) — container engine and compose (required for PDF conversion via LibreOffice)
 
 Optional, quality-of-life tools:
@@ -103,6 +104,20 @@ task build && task up   # full API in a container, with PDF conversion
 ```
 
 `task run` writes its output to `backend/resources/modified_rajtlista.docx`. With no configuration, the API uses a local SQLite file (`backend/lineup.db`, because `./lineup.db` is resolved from the `backend/` working directory) and creates its tables on startup, so a fresh clone works out of the box.
+
+## Frontend
+
+The web app (React + TypeScript on Vite, styled with Tailwind and the Polaris theme) lives in `frontend/`. It is a single-page app that talks to the API over HTTP; nothing in the backend changes for it to run.
+
+```bash
+task fe:install   # pnpm install (exact versions from frontend/pnpm-lock.yaml)
+task up           # the API container the app talks to, on :8000
+task fe:dev       # Vite dev server on http://localhost:5173
+```
+
+In dev the browser calls the same-origin `/api/...` and Vite proxies it to the container (`VITE_DEV_API_TARGET`, default `http://localhost:8000`), so no CORS setup is needed locally. Deployed builds set `VITE_API_URL` instead; copy `frontend/.env.example` to `frontend/.env` to change any of these (everything `VITE_*` ends up in the public bundle, so never put a secret there).
+
+The API client in `frontend/src/api/` is **generated** from the backend's OpenAPI spec, so request and response types can't drift from the API. After changing a backend endpoint or schema run `task fe:api` and commit the result; `task fe:api:check` (run by CI) fails when it is stale. `task fe:check` runs everything the CI `Frontend` job does.
 
 ## Environment variables
 
@@ -259,6 +274,16 @@ POST /lineups/saved
 | `task migrate-check` | Apply all migrations to a throwaway SQLite file and fail on model/migration drift |
 | `task migrate:supabase` | Apply migrations to Supabase using `MIGRATE_DATABASE_URL` from `backend/.env.migrate` |
 | `task db:create-app-role` | Create the `lineup_app` login (generated password, written to `backend/.env`, never printed) |
+| `task fe:install` | Install the frontend dependencies with pnpm (frozen lockfile)   |
+| `task fe:dev`   | Start the Vite dev server on :5173 (proxies `/api` to the container) |
+| `task fe:lint`  | ESLint and Prettier check for the frontend                      |
+| `task fe:format` | Format the frontend with Prettier                              |
+| `task fe:typecheck` | TypeScript type check                                       |
+| `task fe:test`  | Run the frontend unit tests (Vitest)                            |
+| `task fe:build` | Type-check and build the production bundle into `frontend/dist` |
+| `task fe:api`   | Regenerate the typed API client from the backend's OpenAPI spec |
+| `task fe:api:check` | Fail if the committed API client is stale (CI runs it)      |
+| `task fe:check` | Everything the CI `Frontend` job runs                           |
 | `task docs:references` | Regenerate the dependency block in `documentation/References.md` |
 | `task docs:check` | Fail if that block is stale (CI runs it)                       |
 
@@ -269,11 +294,23 @@ lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md)
-├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator)
+├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client)
 ├── .github/                         # CI workflows, PR template + Dependabot config
 ├── .claude/                         # Shared Claude Code settings, skills, commands
 ├── PLAN.md  CLAUDE.md               # Working plan and assistant context
-├── frontend/                        # Frontend home (design spec only so far)
+├── frontend/                        # React + TypeScript + Vite web app (pnpm)
+│   ├── DESIGN.md                    # Polaris theme spec
+│   ├── package.json  pnpm-lock.yaml # Dependencies and scripts (packageManager pins pnpm)
+│   ├── vite.config.ts               # Vite + Tailwind + Vitest config, /api dev proxy
+│   ├── .env.example                 # VITE_* settings (public values only)
+│   ├── public/                      # Static files (favicon, theme-init.js)
+│   └── src/
+│       ├── main.tsx  app.tsx        # Entry point, providers and route table
+│       ├── index.css                # Tailwind + Polaris design tokens (light/dark)
+│       ├── api/                     # client.ts + generated openapi.json / schema.d.ts
+│       ├── components/              # App shell (sidebar / bottom nav), theme toggle, ui/ (shadcn-style)
+│       ├── pages/                   # One file per route
+│       └── lib/                     # cn(), theme hook
 └── backend/                         # All Python; the working directory for Python commands
     ├── main.py                          # CLI entry point
     ├── app.py                           # FastAPI application entry point

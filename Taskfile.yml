@@ -136,6 +136,72 @@ tasks:
     desc: Rollback one migration step
     cmd: uv run alembic downgrade -1
 
+  fe:install:
+    dir: frontend
+    desc: Install frontend dependencies (pnpm, exact versions from pnpm-lock.yaml)
+    cmd: pnpm install --frozen-lockfile
+
+  fe:dev:
+    dir: frontend
+    desc: Start the Vite dev server on :5173 (proxies /api to the container from task up)
+    cmd: pnpm dev
+
+  fe:lint:
+    dir: frontend
+    desc: ESLint and Prettier check for the frontend
+    cmds:
+      - pnpm lint
+      - pnpm format:check
+
+  fe:format:
+    dir: frontend
+    desc: Format the frontend with Prettier
+    cmd: pnpm format
+
+  fe:typecheck:
+    dir: frontend
+    desc: TypeScript type check
+    cmd: pnpm typecheck
+
+  fe:test:
+    dir: frontend
+    desc: Run the frontend unit tests (Vitest)
+    cmd: pnpm test
+
+  fe:build:
+    dir: frontend
+    desc: Type-check and build the production bundle into frontend/dist
+    cmd: pnpm build
+
+  fe:check:
+    desc: Everything the frontend CI job runs (lint, typecheck, test, build, API client freshness)
+    cmds:
+      - task: fe:lint
+      - task: fe:test
+      - task: fe:build
+      - task: fe:api:check
+
+  fe:api:
+    desc: Regenerate the typed API client (frontend/src/api) from the backend's OpenAPI spec
+    cmds:
+      - cd backend && uv run python ../scripts/dump_openapi.py > ../frontend/src/api/openapi.json
+      - cd frontend && pnpm run api:types
+
+  fe:api:check:
+    desc: Fail if the committed API client no longer matches the backend's OpenAPI spec (run by CI)
+    silent: true
+    cmd: |
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' EXIT
+      (cd backend && uv run python ../scripts/dump_openapi.py) > "$tmp/openapi.json"
+      (cd frontend && pnpm exec openapi-typescript "$tmp/openapi.json" -o "$tmp/schema.d.ts" > /dev/null)
+      if cmp -s "$tmp/openapi.json" frontend/src/api/openapi.json && cmp -s "$tmp/schema.d.ts" frontend/src/api/schema.d.ts; then
+        echo "API client is up to date."
+      else
+        echo "frontend/src/api is stale: the backend's API changed. Run 'task fe:api' and commit the result." >&2
+        exit 1
+      fi
+
   docs:references:
     desc: Regenerate the dependency block in documentation/References.md
     cmd: python3 scripts/docs_references.py --write

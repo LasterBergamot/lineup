@@ -100,12 +100,12 @@ A subset of M1. The rest of M1 follows at its own pace.
 - [x] #60 Alembic migrations in CI (CD will run them) (PR #111)
 
 ### Phase 2 — Frontend skeleton (can run in parallel with Phase 3)
-- [ ] **new** FE skeleton + tooling + CI: Vite app in `frontend/`, Tailwind + shadcn with the
+- [x] #119 FE skeleton + tooling + CI (PR #123): Vite app in `frontend/`, Tailwind + shadcn with the
       Polaris theme (D11, light + dark), and an app shell (sidebar on desktop, bottom nav on mobile). Also the
       generated API client (a CI check fails if it's stale), `task fe:*` targets, and a CI job
       (lint, typecheck, test, build).
-- [ ] **new** Cold-start-aware data layer (§5): skeleton loaders, a wake-up banner, retry policy.
-- [ ] First screen: a one-off lineup form calling `POST /lineups` against the local container.
+- [ ] #120 Cold-start-aware data layer (§5): skeleton loaders, a wake-up banner, retry policy.
+- [ ] #121 First screen: a one-off lineup form calling `POST /lineups` against the local container.
       This meets #20's acceptance.
 
 ### Phase 3 — Real auth on dev
@@ -400,5 +400,6 @@ Endpoints (amends #51):
 | 2026-10-05 | PR 3 of Phase 1: two-stage Dockerfile pinned by digest, non-root `app` user, tini, `/health` HEALTHCHECK, `libreoffice-writer-nogui` (image 1.16 GB → 870 MB, e2e fidelity unchanged); PDF conversions capped by `PDF_MAX_CONCURRENT` (503 + `Retry-After`), process-group kill on timeout, distinct missing-binary/output errors, cwd-independent template path; Dependabot docker ecosystem added (partly covers #73). | #70, #71, #108 |
 | 2026-10-05 | PR 4 of Phase 1: `alembic upgrade head` + `alembic check` in CI (SQLite, plus a Postgres 17 service job that also asserts RLS/grants and round-trips the migration); Postgres-only migration enabling RLS everywhere, revoking `anon`/`authenticated`, adding the `lineup_enable_rls` event trigger and the `lineup_app` role; `MIGRATE_DATABASE_URL` in a separate `backend/.env.migrate`; `task migrate:supabase`, `task migrate-check`, `task db:create-app-role`. Applying it to dev Supabase and switching the app to `lineup_app` is left to the owner. | #60, #68, #111 |
 | 2026-10-05 | #68 rolled out on the dev Supabase project: migration `8b1f3c2d9a47` applied through the session pooler (the direct host is IPv6-only), `lineup_app` given a password and `backend/.env` pointed at it, `supabase-smoke` passed as `lineup_app` (create, read, generate DOCX, delete). Found on the way: plain `postgresql://` migration URLs failed with `ModuleNotFoundError` (fixed in #115). | #68, #114, #115 |
+| 2026-10-05 | Phase 2, PR 1: Vite + React + TypeScript app in `frontend/` (pnpm, Tailwind v4 with the Polaris tokens in light and dark, self-hosted Google Sans Flex, sidebar / bottom-nav shell, React Router, TanStack Query provider), API client generated offline from the backend's OpenAPI spec with a CI freshness check, `task fe:*` targets, a `Frontend` CI job and a Dependabot `npm` entry. Verified in Chromium at desktop and phone sizes. Sub-issues #119–#121 of epic #20. | #119, #20, PR #123 |
 | 2026-10-05 | Phase 3, PR 1: `get_current_user_id()` verifies the Supabase JWT (ES256/RS256 only, cached JWKS, `iss`/`aud`/`exp`/`nbf`) and returns the `sub` UUID; 401/503 fail closed; repositories take a required user id; saved-lineup create resolves source ids as the caller; `Auth Setup` wiki page. `POST /lineups` stays public until #96. | #101, #47, #122 |
 | 2026-10-05 | Phase 3, PR 2: `team_members` + `team_invitations` (RLS, grants, interim policy), creator inserted as `owner`, owner columns `NOT NULL` (ownerless dev rows deleted by the migration, not backfilled), `supabase-smoke` skill authenticates through `scripts/smoke_auth.py`. Applying the migration to dev Supabase is left to the owner. | #19, #52, #125 |
