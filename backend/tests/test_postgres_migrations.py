@@ -98,6 +98,13 @@ class TestRowLevelSecurity:
         )
         assert rows == [("ddl_command_end",)]
 
+    async def test_the_trigger_function_has_a_pinned_search_path(self, engine):
+        rows = await _rows(
+            engine,
+            "SELECT proconfig FROM pg_proc WHERE proname = 'lineup_enable_rls'",
+        )
+        assert rows == [(['search_path=""'],)]
+
     async def test_a_table_created_later_gets_rls_automatically(self, engine):
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE public.rls_probe (id int)"))
