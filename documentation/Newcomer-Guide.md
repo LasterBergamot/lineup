@@ -68,7 +68,7 @@ Three things in this picture surprise newcomers:
 | **uv** | Fast Python package manager (`uv.lock` pins exact versions) | Reproducible installs | `backend/pyproject.toml` |
 | **React + TypeScript + Vite** | A UI library, typed JavaScript, and the dev server/bundler that serves and builds them | The web app, in `frontend/`, that works on phone and desktop | `frontend/src/` |
 | **Tailwind + shadcn-style components** | Utility CSS classes and a set of copy-in UI components, themed with the Polaris design tokens | Consistent look (square corners, teal/amber, light and dark) without hand-written CSS | `frontend/src/index.css`, `frontend/DESIGN.md` |
-| **TanStack Query** | A library that fetches, caches and retries server data in React | Handles loading states and the slow first request after the hosted API has been idle | `frontend/src/app.tsx` |
+| **TanStack Query** | A library that fetches, caches and retries server data in React | Handles loading states and the slow first request after the hosted API has been idle; `frontend/src/backend-status/` shows a "server is waking up" banner | `frontend/src/api/query-client.ts` |
 | **openapi-typescript / openapi-fetch** | Generate TypeScript types from the API's OpenAPI description and a fetch client that uses them | A renamed field or changed endpoint becomes a compile error, not a runtime surprise | `frontend/src/api/` |
 | **pnpm, ESLint, Prettier, Vitest** | Package manager (`pnpm-lock.yaml` pins versions), linter, formatter and test runner for the frontend | The frontend's counterparts of uv, Ruff and pytest | `task fe:*` |
 | **Task** | A command runner; `Taskfile.yml` lists every command | One way to run things (`task test`), no copy-pasted shell | `Taskfile.yml` |

@@ -2,12 +2,15 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AppRoutes } from "@/app";
+import { BackendStatusProvider } from "@/backend-status/provider";
 
 function renderAt(path: string) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <AppRoutes />
-    </MemoryRouter>,
+    <BackendStatusProvider probe={async () => "ok"}>
+      <MemoryRouter initialEntries={[path]}>
+        <AppRoutes />
+      </MemoryRouter>
+    </BackendStatusProvider>,
   );
 }
 
