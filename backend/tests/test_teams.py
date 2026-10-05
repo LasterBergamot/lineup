@@ -7,9 +7,12 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lineup.db.models import TeamMember
 from lineup.teams import repository as team_repo
+from tests.conftest import CurrentUser
 
 
 async def _create_team(
@@ -58,6 +61,18 @@ class TestCreateTeam:
             "/teams", json={"name": "SZVTK", "is_public": False}
         )
         assert response.json()["is_public"] is False
+
+    async def test_creator_becomes_the_owner_member(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        current_user: CurrentUser,
+    ):
+        team = await _create_team(async_client)
+        members = (await db_session.execute(select(TeamMember))).scalars().all()
+        assert [(str(m.team_id), m.user_id, m.role) for m in members] == [
+            (team["id"], current_user.id, "owner")
+        ]
 
     async def test_create_team_empty_name_returns_422(self, async_client: AsyncClient):
         response = await async_client.post("/teams", json={"name": ""})

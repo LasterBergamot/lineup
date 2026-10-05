@@ -113,12 +113,12 @@ A subset of M1. The rest of M1 follows at its own pace.
       validates the JWT via JWKS and returns `sub`. (Code done in PR #122; still open: the manual
       Google Cloud + Supabase dashboard setup, see `documentation/Auth-Setup.md`.)
 - [x] #47 fail closed (401 without a valid token) (PR #122)
-- [ ] #19 `team_members` / `team_invitations` schema (as amended by §6)
+- [x] #19 `team_members` / `team_invitations` schema (as amended by §6) (PR #125)
 - [ ] #49 team-scoped access for players and saved lineups
 - [ ] #48 IDOR on saved-lineup create
 - [ ] #50 `is_public` semantics (as amended by §6)
-- [ ] #52 NOT NULL owner/user ids. On dev the existing rows can simply be wiped instead of
-      backfilled.
+- [x] #52 NOT NULL owner/user ids. On dev the existing rows can simply be wiped instead of
+      backfilled. (PR #125)
 - [ ] **new** FE: sign-in page, token on every call, onboarding ("no team yet → create one or
       paste an invite link").
 - [ ] Run the `supabase-smoke` skill after the model changes.
@@ -401,3 +401,4 @@ Endpoints (amends #51):
 | 2026-10-05 | PR 4 of Phase 1: `alembic upgrade head` + `alembic check` in CI (SQLite, plus a Postgres 17 service job that also asserts RLS/grants and round-trips the migration); Postgres-only migration enabling RLS everywhere, revoking `anon`/`authenticated`, adding the `lineup_enable_rls` event trigger and the `lineup_app` role; `MIGRATE_DATABASE_URL` in a separate `backend/.env.migrate`; `task migrate:supabase`, `task migrate-check`, `task db:create-app-role`. Applying it to dev Supabase and switching the app to `lineup_app` is left to the owner. | #60, #68, #111 |
 | 2026-10-05 | #68 rolled out on the dev Supabase project: migration `8b1f3c2d9a47` applied through the session pooler (the direct host is IPv6-only), `lineup_app` given a password and `backend/.env` pointed at it, `supabase-smoke` passed as `lineup_app` (create, read, generate DOCX, delete). Found on the way: plain `postgresql://` migration URLs failed with `ModuleNotFoundError` (fixed in #115). | #68, #114, #115 |
 | 2026-10-05 | Phase 3, PR 1: `get_current_user_id()` verifies the Supabase JWT (ES256/RS256 only, cached JWKS, `iss`/`aud`/`exp`/`nbf`) and returns the `sub` UUID; 401/503 fail closed; repositories take a required user id; saved-lineup create resolves source ids as the caller; `Auth Setup` wiki page. `POST /lineups` stays public until #96. | #101, #47, #122 |
+| 2026-10-05 | Phase 3, PR 2: `team_members` + `team_invitations` (RLS, grants, interim policy), creator inserted as `owner`, owner columns `NOT NULL` (ownerless dev rows deleted by the migration, not backfilled), `supabase-smoke` skill authenticates through `scripts/smoke_auth.py`. Applying the migration to dev Supabase is left to the owner. | #19, #52, #125 |

@@ -287,7 +287,8 @@ lineup/
     │   └── versions/
     │       ├── 35ce55ceabf4_initial_schema.py  # teams/players/saved_lineups/lineup_player_snapshots
     │       ├── 8b1f3c2d9a47_rls_and_least_privilege_role.py  # Postgres-only RLS + lineup_app role
-    │       └── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
+    │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
+    │       └── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
