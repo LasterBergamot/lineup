@@ -32,6 +32,9 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
+| `task migrate-check` | Apply all migrations to a throwaway SQLite file, then `alembic check` (fails on model/migration drift). CI runs it |
+| `task migrate:supabase` | Apply migrations to Supabase using `MIGRATE_DATABASE_URL` from `backend/.env.migrate` (owner credentials, kept out of `.env`) |
+| `task db:create-app-role` | Give the `lineup_app` role a generated password and point `backend/.env`'s pooler URL at it (password never printed) |
 | `task docs:references` / `task docs:check` | regenerate / verify the dependency block in `documentation/References.md` (`scripts/docs_references.py`) |
 
 ## Configuration (environment variables)
@@ -163,6 +166,13 @@ Three GitHub Actions workflows (`.github/workflows/`):
   explicit, so a page missing from it would silently never be published: the workflow now
   fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
   checks the same thing on every PR.
+
+`ci.yml` has three jobs. **Lint & test** runs ruff, the tests at 100% coverage, the References check and
+`task migrate-check` (migrations applied to SQLite, then `alembic check`). **Migrations (Postgres)** starts
+a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
+on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
+(`tests/test_postgres_migrations.py`), then `alembic check` with type comparison and a
+`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests.
 
 `ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
 `documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the

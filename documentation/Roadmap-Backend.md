@@ -58,6 +58,9 @@ erDiagram
    This dev cutover is independent of the auth/RLS sequence below: the dev database can be
    used before any of steps 1, 3–5 exist.
 3. **Row Level Security (RLS) in PostgreSQL**
+   - *Done:* RLS is on for every table (deny by default), the `lineup_app` role exists and the
+     API runs as it, with an interim allow-all policy (see [[Current State: Backend]]). The
+     policies below replace that interim one.
    - `teams`: public read for `is_public = true` (powers the opponent pool); read/write
      restricted to `owner_id = auth.uid()` or team members.
    - `players` & `saved_lineups`: restricted to team members / creator

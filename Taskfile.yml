@@ -101,6 +101,31 @@ tasks:
     desc: Apply Alembic migrations (upgrade head)
     cmd: uv run alembic upgrade head
 
+  migrate-check:
+    dir: backend
+    desc: Apply every migration to a throwaway SQLite file, then fail if the models drifted from them
+    cmd: |
+      tmp=$(mktemp -d)
+      trap 'rm -rf "$tmp"' EXIT
+      export DATABASE_URL="sqlite+aiosqlite:///$tmp/check.db"
+      uv run alembic upgrade head
+      uv run alembic check
+
+  migrate:supabase:
+    dir: backend
+    desc: Apply migrations to Supabase using MIGRATE_DATABASE_URL from backend/.env.migrate (direct/session connection)
+    silent: true
+    cmd: |
+      url=$(sed -nE 's/^MIGRATE_DATABASE_URL="?([^"[:space:]]+)"?[[:space:]]*$/\1/p' .env.migrate 2>/dev/null | head -1)
+      [ -n "$url" ] || { echo "MIGRATE_DATABASE_URL is not set in backend/.env.migrate (see .env.example)." >&2; exit 1; }
+      MIGRATE_DATABASE_URL="$url" uv run alembic upgrade head
+
+  db:create-app-role:
+    dir: backend
+    desc: Give the lineup_app role a generated password and point backend/.env DATABASE_URL at it (password never printed)
+    silent: true
+    cmd: uv run python -m lineup.db.app_role
+
   migrate-new:
     dir: backend
     desc: "Auto-generate a new migration. Usage: task migrate-new -- -m 'description'"
