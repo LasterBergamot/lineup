@@ -595,8 +595,11 @@ export interface components {
             is_public: boolean;
             /** Name */
             name: string;
-            /** Owner Id */
-            owner_id: string | null;
+            /**
+             * Owner Id
+             * Format: uuid
+             */
+            owner_id: string;
         };
         /**
          * TeamUpdate
