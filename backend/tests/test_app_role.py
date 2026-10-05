@@ -173,6 +173,20 @@ class TestMain:
             "no temp files left behind"
         )
 
+    def test_a_plain_postgresql_url_is_switched_to_the_asyncpg_driver(self, tmp_path):
+        _, migrate_file, args = _files(tmp_path)
+        migrate_file.write_text(
+            'MIGRATE_DATABASE_URL="postgresql://postgres:ownerpw@db.abcdefgh.supabase.co:5432/postgres"\n'
+        )
+        captured = {}
+
+        async def fake_set(url, password):
+            captured["url"] = url
+
+        with patch.object(app_role, "set_role_password", fake_set):
+            assert app_role.main(args) == 0
+        assert captured["url"].startswith("postgresql+asyncpg://postgres:ownerpw@")
+
     def test_database_failure_leaves_the_file_untouched_and_hides_details(
         self, tmp_path, capsys
     ):

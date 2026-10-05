@@ -31,6 +31,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+from lineup.db.urls import to_asyncpg_url
+
 APP_ROLE = "lineup_app"
 
 _POOLER_LINE = re.compile(
@@ -141,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         env_text = args.env_file.read_text()
-        migrate_url = find_migrate_url(args.migrate_file.read_text())
+        migrate_url = to_asyncpg_url(find_migrate_url(args.migrate_file.read_text()))
         password = secrets.token_hex(24)
         new_env = rewrite_env(env_text, password)
         asyncio.run(set_role_password(migrate_url, password))
