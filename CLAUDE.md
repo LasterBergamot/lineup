@@ -44,7 +44,7 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 - Request body: `LineupRequest` (match, division, team_name, cap, date, coach, doctor, assistant_coach, team_leader, ball_thrower, players)
 - `cap` must be `"Fehér"` or `"Kék"`; players: 1–15, unique cap numbers 1–15
 - Returns binary file with `Content-Disposition: attachment` header (`filename=` ASCII fallback + `filename*=UTF-8''…`)
-- Errors: 422 invalid input, 504 LibreOffice timeout, 500 other rendering failures — shared with `POST /lineups/saved/{id}/generate` via `lineup/api/file_response.py`
+- Errors: 422 invalid input, 503 (+ `Retry-After`) when all PDF conversion slots are busy, 504 LibreOffice timeout, 500 other rendering failures — shared with `POST /lineups/saved/{id}/generate` via `lineup/api/file_response.py`
 
 #### Teams / Players / Saved Lineups
 
@@ -71,7 +71,7 @@ Paths in this table are relative to `backend/`.
 | `lineup/api/router.py` | `POST /lineups` endpoint (builds the DTO, delegates to `build_file_response`) |
 | `lineup/api/file_response.py` | Shared by both generate endpoints: `FileFormat` enum, media types, `content_disposition()` (RFC 6266 `filename*` + ASCII fallback — header values are latin-1, so `ő`/`ű` would crash a plain `filename=`), `build_file_response()` (renders via `run_in_threadpool` so LibreOffice never blocks the event loop; `TimeoutExpired` → 504, other errors → 500) |
 | `lineup/document/document_manager.py` | `.docx` read/write/style logic |
-| `lineup/document/pdf_converter.py` | Converts docx bytes → PDF bytes via `libreoffice --headless` subprocess; uses a private per-call `-env:UserInstallation` profile and a 120s timeout (`CONVERSION_TIMEOUT_SECONDS`) |
+| `lineup/document/pdf_converter.py` | Converts docx bytes → PDF bytes via `libreoffice --headless` subprocess; uses a private per-call `-env:UserInstallation` profile and a 120s timeout (`CONVERSION_TIMEOUT_SECONDS`). Runs under `Popen(start_new_session=True)` and, on timeout, `os.killpg` kills the whole LibreOffice process group (`subprocess.run` would only kill the launcher and leak `soffice.bin`). A module-level `BoundedSemaphore` (`PDF_MAX_CONCURRENT`, default 2) caps parallel conversions; waiting more than `QUEUE_TIMEOUT_SECONDS` (10) raises `ConverterBusyError` → 503 in `file_response.py`. A missing `libreoffice` binary or a missing output PDF raise distinct `RuntimeError`s; stderr is decoded with `errors="replace"` and truncated |
 | `lineup/water_polo/water_polo_lineup_creator.py` | Orchestrates template filling; exposes `create_document_bytes()` and `create_pdf_bytes()` |
 | `lineup/water_polo/water_polo_lineup_dto.py` | `WaterPoloLineupDTO` and nested `WaterPoloLineupDTO.Player` data classes with builder pattern; `build()` requires match/division/team_name/cap/date/coach only — staff fields default to `""` (saved lineups may omit them) |
 | `lineup/db/engine.py` | `DATABASE_URL` env var (default `sqlite+aiosqlite:///./lineup.db`); `get_session()` FastAPI dependency; `enable_sqlite_foreign_keys()` (SQLite-only, no-op on other dialects); `_make_engine_kwargs()` (`NullPool` for Postgres) — see notes below |
@@ -89,11 +89,11 @@ Paths in this table are relative to `backend/`.
 
 ### Container
 
-- `backend/Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps
+- `backend/Dockerfile`: two stages, both `python:3.13-slim` **pinned by digest** (Dependabot's docker ecosystem bumps tag + digest). *builder* installs the deps with the pinned `uv` image (`uv sync --frozen --no-dev`, bytecode-compiled); *runtime* adds `libreoffice-writer-nogui` (no GUI stack; fidelity verified by the e2e suite), `tini` as PID 1 (`ENTRYPOINT ["tini", "--"]`, reaps `soffice.bin` children, instant `docker stop`) and the fonts, then copies the venv in. uv is not in the final image. Runs as the non-root `app` user (uid 10001, owns `/app` so the default SQLite file can be written; `HOME=/home/app`). `HEALTHCHECK` polls `GET /health` (liveness only, so a DB outage doesn't restart the container) with the interpreter, since curl isn't installed. `PYTHONUNBUFFERED=1`. Image size went from ~1.16 GB to ~870 MB
 - Fonts: `--no-install-recommends` is kept, so the metric-compatible font packages are installed explicitly — `fonts-crosextra-carlito` (Calibri/Calibri Light), `fonts-crosextra-caladea` (Cambria), `fonts-liberation2` (Arial/Times/Courier). `backend/docker/fontconfig/99-calibri-carlito.conf` (copied to `/etc/fonts/conf.d/`) forces Calibri → Carlito, and `fc-cache -f` refreshes the cache. These are what make the PDF match the source `.docx`.
 - The Docker build context is `backend/` (`docker build -t lineup backend` in the Taskfile), so repo-root items (`.github/`, `.claude/`, `documentation/`, `frontend/`, `compose.yml`, `Taskfile.yml`) can never enter the image. `backend/.dockerignore` is a security control: the Dockerfile does `COPY . .`, so it must exclude `.env`/`.env.*` (`backend/.env` holds the Supabase credentials and now sits *inside* the context) and `*.db`, alongside tests, `*.md`, caches, `.git`. Add any new secret/local-state file to it. Because `tests/` is excluded the image ships without tests — that's why the e2e suite runs from the host against the running container, not inside the image.
-- `CMD` uses `uv run --no-sync` so the container doesn't re-sync (and install the dev group) at start; deps are installed at build time with `uv sync --frozen --no-dev`.
-- `compose.yml` (repo root): single `api` service using the pre-built `lineup` image (not `build:`). It gets its settings from `env_file: backend/.env` with `required: false` (Compose >= 2.24) — compose's own `.env` interpolation only looks next to `compose.yml`, so it would silently stop seeing `backend/.env`. With no `backend/.env` the container falls back to its in-container SQLite default.
+- `CMD` runs `uvicorn` straight from `/app/.venv/bin` (on `PATH`): no `uv` at runtime, so no writable cache/`HOME` needed for it.
+- `compose.yml` (repo root): single `api` service using the pre-built `lineup` image (not `build:`), with `cap_drop: [ALL]` and `no-new-privileges` (LibreOffice needs neither); the image's `HEALTHCHECK` is inherited, and `task test-e2e` starts it with `docker compose up -d --wait`. It gets its settings from `env_file: backend/.env` with `required: false` (Compose >= 2.24) — compose's own `.env` interpolation only looks next to `compose.yml`, so it would silently stop seeing `backend/.env`. With no `backend/.env` the container falls back to its in-container SQLite default.
 - `task build` / `task rebuild` builds the image; `task up` / `task down` starts/stops it; containers can be monitored using `lazydocker`
 - CI's `e2e` job scans the built `lineup:latest` image with `aquasecurity/trivy-action` (severity `CRITICAL,HIGH`) after `task test-e2e` runs — report-only (`exit-code: "0"`, never fails the build), since the LibreOffice + apt package surface has more CVEs than can realistically be kept at zero. Results go to the job log (table format) and the repo's Security → Code scanning tab (SARIF upload via `github/codeql-action/upload-sarif`).
 
@@ -123,7 +123,7 @@ task docs:references  # regenerate the dependency block in documentation/Referen
 task docs:check   # fail if that block is stale (CI runs it)
 ```
 
-Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
+Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `PDF_MAX_CONCURRENT`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 
@@ -159,7 +159,7 @@ Paths below are relative to `backend/` (run pytest from there — `task test` do
 
 - `pyproject.toml` enforces `fail_under = 100`
 - Every new module needs a corresponding `tests/test_<module>.py`
-- Any code that calls LibreOffice must mock `PdfConverter.convert` — it is not available locally
+- Any code that calls LibreOffice must mock `PdfConverter.convert` — it is not available locally. `tests/test_pdf_converter.py` mocks `subprocess.Popen` (and `shutil.which`); its one real-process test uses a fake `libreoffice` shell script that forks a child, to prove the group kill reaches it (Linux `/proc` only)
 - Tests for API endpoints that trigger PDF conversion use an `autouse` fixture in `test_api.py` (and in `TestGenerateFromSavedLineup` in `test_saved_lineups.py`) that patches `PdfConverter.convert`. To force a rendering failure, patch `lineup.api.file_response.WaterPoloLineupCreator` — that's where both endpoints construct it now
 - `tests/test_pdf_conversion_e2e.py` is the exception: it drives the **real** conversion against the running container. It is marked `e2e` and excluded from `task test` by `addopts = "-m 'not e2e'"` (so it never affects coverage); run it via `task test-e2e`. It talks to the API over HTTP (stdlib `urllib`) and validates layout with `pdfplumber` — asserting a single page, expected text, and that word widths/positions match `expected-rajtlista.pdf`. It does **not** pixel-diff (the reference uses real Calibri, the container uses metric-compatible Carlito).
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite DB per test, with `get_session` and `get_current_user_id` dependency-overridden (`get_current_user_id` always yields `None`, matching pre-Auth production behavior).
@@ -200,7 +200,7 @@ lineup/
     ├── main.py
     ├── pyproject.toml  uv.lock  .python-version
     ├── Dockerfile  .dockerignore
-    ├── .env.example                      # documents DATABASE_URL / ENV / CORS_ORIGINS / SENTRY_DSN (copy to git-ignored backend/.env)
+    ├── .env.example                      # documents DATABASE_URL / ENV / CORS_ORIGINS / PDF_MAX_CONCURRENT / SENTRY_DSN (copy to git-ignored backend/.env)
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf   # Calibri → Carlito mapping, copied into the image

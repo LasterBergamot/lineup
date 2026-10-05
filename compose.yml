@@ -3,6 +3,11 @@ services:
     image: lineup
     ports:
       - "8000:8000"
+    # LibreOffice needs no privileges: drop every capability and forbid gaining new ones.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     # Optional: backend/.env selects Postgres/Supabase etc. Without it the app defaults to in-container SQLite.
     env_file:
       - path: backend/.env

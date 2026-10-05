@@ -124,8 +124,10 @@ follow this four-file pattern, so once you've read `teams/` you can read the oth
 
 Document generation (`lineup/water_polo/` and `lineup/document/`): `WaterPoloLineupCreator` takes
 the DTO, `DocumentManager` writes the values into the template, and for PDFs `PdfConverter` runs
-LibreOffice in a private temporary profile with a 120 second timeout. Both generate endpoints share
-`lineup/api/file_response.py`, which maps failures to HTTP codes (timeout → 504, anything else → 500).
+LibreOffice in a private temporary profile with a 120 second timeout. Only a couple of conversions run
+at once (each is a heavy process), so a request that has to wait too long gets a 503. Both generate
+endpoints share `lineup/api/file_response.py`, which maps failures to HTTP codes (busy → 503,
+timeout → 504, anything else → 500).
 
 ## 6. Why saved lineups are snapshots
 

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from lineup.document.document_manager import (
     DocumentManager,
@@ -9,8 +10,11 @@ from lineup.document.document_manager import (
 from lineup.document.pdf_converter import PdfConverter
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
-FILE_NAME = "resources/rajtlista.docx"
-RESULT_FILE_NAME = "resources/modified_rajtlista.docx"
+# Anchored to this file, not the working directory, so the template is found wherever the
+# process is started from (uvicorn in the container, pytest, the CLI).
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+FILE_NAME = str(BACKEND_DIR / "resources" / "rajtlista.docx")
+RESULT_FILE_NAME = str(BACKEND_DIR / "resources" / "modified_rajtlista.docx")
 
 INDEX_MATCH = 5
 INDEX_DIVISION = 6

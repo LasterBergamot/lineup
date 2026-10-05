@@ -86,7 +86,18 @@ def docker_images(root: Path) -> list[str]:
     text = _dockerfile_text(root)
     images = re.findall(r"^FROM\s+(?:--\S+\s+)*(\S+)", text, flags=re.MULTILINE)
     images += re.findall(r"^COPY\s+--from=(\S+)", text, flags=re.MULTILINE)
-    return sorted({_image_name(image) for image in images if not image.startswith("$")})
+    # `COPY --from=builder` names a stage of this Dockerfile, not an image to link to.
+    stages = {
+        alias.lower()
+        for alias in re.findall(r"^FROM\s+.*?\s+AS\s+(\S+)", text, flags=re.MULTILINE | re.IGNORECASE)
+    }
+    return sorted(
+        {
+            _image_name(image)
+            for image in images
+            if not image.startswith("$") and image.lower() not in stages
+        }
+    )
 
 
 def apt_packages(root: Path) -> list[str]:

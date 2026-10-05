@@ -4,6 +4,8 @@ import subprocess
 import pytest
 from unittest.mock import patch
 
+from lineup.document.pdf_converter import ConverterBusyError
+
 FAKE_PDF = b"%PDF-1.4 fake"
 
 
@@ -174,6 +176,28 @@ def test_create_lineup_conversion_timeout_returns_504(client, valid_payload):
         response = client.post("/lineups", json=valid_payload)
     assert response.status_code == 504
     assert response.json()["detail"] == "PDF conversion timed out"
+
+
+def test_create_lineup_converter_busy_returns_503_with_retry_after(
+    client, valid_payload
+):
+    with patch(
+        "lineup.document.pdf_converter.PdfConverter.convert",
+        side_effect=ConverterBusyError("busy"),
+    ):
+        response = client.post("/lineups", json=valid_payload)
+    assert response.status_code == 503
+    assert response.json()["detail"] == "PDF conversion is busy, try again shortly"
+    assert response.headers["retry-after"] == "5"
+
+
+def test_docx_format_never_waits_for_a_conversion_slot(client, valid_payload):
+    with patch(
+        "lineup.document.pdf_converter.PdfConverter.convert",
+        side_effect=ConverterBusyError("busy"),
+    ):
+        response = client.post("/lineups?format=docx", json=valid_payload)
+    assert response.status_code == 200
 
 
 def test_create_lineup_unexpected_error_returns_500(client, valid_payload):

@@ -79,6 +79,15 @@ so rendering, headers and error handling live in one place:
   accent-stripped ASCII `filename="..."` fallback for older clients.
 - **Errors**: a LibreOffice timeout returns **504** `"PDF conversion timed out"`; any other
   rendering failure returns **500** `"Document generation failed"` (details go to the log).
+- **Concurrency limit**: every PDF is a separate LibreOffice process (a few hundred MB each), so a burst
+  of requests could exhaust a small machine's memory. A semaphore (`PDF_MAX_CONCURRENT`, default 2)
+  lets that many conversions run at once; a request that can't get a slot within 10 s gets **503**
+  `"PDF conversion is busy, try again shortly"` with `Retry-After: 5`. DOCX requests never wait.
+- **Timeouts kill the whole process group**: LibreOffice runs in its own process group, and on the
+  120 s timeout the group is killed with `SIGKILL`. Killing only the launcher (what `subprocess.run`
+  does) would leave `soffice.bin` running and holding its memory after the client already got a 504.
+- **Template path** is resolved from the source file's location, not the working directory, so the
+  template is found whether the process starts in `backend/`, in the container or under pytest.
 - **Staff fields are optional at the document level**: only match, division, team name, cap,
   date and coach are required by `WaterPoloLineupDTOBuilder.build()`; a missing doctor /
   assistant coach / team leader / ball thrower renders as an empty line. `LineupRequest` still
@@ -349,7 +358,7 @@ sequenceDiagram
         Creator-->>Router: .docx bytes
     else format=pdf (default)
         Creator->>PDF: convert(docx_bytes)
-        PDF->>PDF: libreoffice --headless (private profile, 120s timeout)
+        PDF->>PDF: libreoffice --headless (private profile, 120s timeout, process group)
         PDF-->>Creator: PDF bytes
         Creator-->>Router: PDF bytes
     end

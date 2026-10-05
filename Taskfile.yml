@@ -76,7 +76,7 @@ tasks:
     desc: Build+run the container and validate real PDF conversion fidelity
     cmds:
       - docker build -t lineup backend
-      - docker compose up -d
+      - docker compose up -d --wait --wait-timeout 120
       - defer: docker compose down
       - cd backend && uv run pytest -m e2e tests/test_pdf_conversion_e2e.py -v
 

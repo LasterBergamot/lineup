@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from fastapi.responses import Response
 from starlette.concurrency import run_in_threadpool
 
+from lineup.document.pdf_converter import ConverterBusyError
 from lineup.water_polo.water_polo_lineup_creator import WaterPoloLineupCreator
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
@@ -18,6 +19,10 @@ PDF_MEDIA_TYPE = "application/pdf"
 DOCX_MEDIA_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 )
+
+
+# Sent as Retry-After when every conversion slot is busy.
+QUEUE_RETRY_AFTER_SECONDS = 5
 
 
 class FileFormat(str, Enum):
@@ -57,6 +62,13 @@ async def build_file_response(
     """
     try:
         content = await run_in_threadpool(_render, dto, file_format)
+    except ConverterBusyError:
+        logger.warning("PDF conversion rejected: all slots busy")
+        raise HTTPException(
+            status_code=503,
+            detail="PDF conversion is busy, try again shortly",
+            headers={"Retry-After": str(QUEUE_RETRY_AFTER_SECONDS)},
+        )
     except subprocess.TimeoutExpired:
         logger.error("PDF conversion timed out")
         raise HTTPException(status_code=504, detail="PDF conversion timed out")

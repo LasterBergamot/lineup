@@ -24,3 +24,13 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+
+  # Base image (python:3.13-slim, pinned by digest) and the uv image in
+  # backend/Dockerfile.
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
