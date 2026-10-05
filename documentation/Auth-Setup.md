@@ -73,6 +73,22 @@ only for `localhost` (the Supabase CLI). Audience is always `authenticated`.
 If it is unset or invalid, every protected route answers `503 Authentication unavailable`
 (fail closed) and the server log says why.
 
+### Frontend settings
+
+The frontend needs two public values in `frontend/.env` (copy `frontend/.env.example`; on Cloudflare
+Pages later they are build-time environment variables):
+
+```
+VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
+VITE_SUPABASE_ANON_KEY="<the publishable key>"
+```
+
+Both are on **Project Settings → API**. Use the **publishable** key (`sb_publishable_...`, or the
+legacy `anon` key). Everything with a `VITE_` prefix is shipped to every visitor, so the app
+**refuses to start sign-in** if the value is a secret key (`sb_secret_...` or a `service_role` JWT)
+and says why on the sign-in page. The redirect allow-list from section 2 must contain the address the
+app runs on, because Google sends the browser back to `<app>/sign-in`.
+
 ## 4. Who may sign in
 
 | Task | Where | Effect |
@@ -88,6 +104,23 @@ Supabase has no e-mail allowlist for OAuth; the Google list is the gate while th
    `access_token`.
 2. `curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/teams` should return `200`;
    without the header it returns `401`.
+
+## Trying the frontend without Google (local only)
+
+`scripts/smoke_auth.py` is a stand-in for Supabase Auth: it serves a throw-away public key set and
+writes a token for a random user to a file. It does **not** implement the Google redirect, so the
+*Continue with Google* button cannot finish against it, but everything after sign-in can be
+exercised:
+
+1. `uv run --project backend python scripts/smoke_auth.py --port 54399 --token-file /tmp/dev.jwt`
+2. In `backend/`: `SUPABASE_URL=http://127.0.0.1:54399 CORS_ORIGINS=http://localhost:5173 uv run uvicorn app:app --port 8001`
+3. In `frontend/`: `VITE_API_URL=http://127.0.0.1:8001 VITE_SUPABASE_URL=http://127.0.0.1:54399 VITE_SUPABASE_ANON_KEY=sb_publishable_local pnpm dev`
+4. In the browser console on `http://localhost:5173`, store a session for the token (the storage key
+   is `sb-` plus the first part of the Supabase host, here `sb-127-auth-token`), then reload:
+   `localStorage.setItem("sb-127-auth-token", JSON.stringify({access_token: "<token>", refresh_token: "x", token_type: "bearer", expires_in: 3000, expires_at: Math.floor(Date.now()/1000)+3000, user: {id: "<the token's sub>", aud: "authenticated"}}))`
+
+You then land in onboarding (no team yet), can create a team and see the shell. Delete the token
+file afterwards; it is a valid credential for that throw-away key set only.
 
 ## Troubleshooting
 

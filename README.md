@@ -119,7 +119,9 @@ In dev the browser calls the same-origin `/api/...` and Vite proxies it to the c
 
 The API client in `frontend/src/api/` is **generated** from the backend's OpenAPI spec, so request and response types can't drift from the API. After changing a backend endpoint or schema run `task fe:api` and commit the result; `task fe:api:check` (run by CI) fails when it is stale. `task fe:check` runs everything the CI `Frontend` job does.
 
-The first screen is the **one-off lineup form** (`/`): fill in the match, the staff and up to 15 players and download the sheet as PDF or DOCX. It calls `POST /lineups`, stores nothing and needs no sign-in; it validates with the same limits as the API and shows the API's own field errors if one slips through. For PDFs run the API with `task build && task up` (LibreOffice is only in the container), otherwise only DOCX works.
+The whole app sits behind **Google sign-in**: the sign-in page (`/sign-in`) hands over to Supabase Auth (`@supabase/supabase-js`, used for sign-in only, PKCE flow), every API call then carries the access token, and the API answers `401` without one. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `frontend/.env` (the *publishable* key; the app refuses a secret key because `VITE_*` values are public) and do the one-off dashboard setup from `documentation/Auth-Setup.md`; until then the sign-in page says that sign-in is not configured. A signed-in user who is in no team yet is asked to create one (joining by invite link is not built yet, the field is shown disabled); after that the shell shows the current team and a sign-out button.
+
+The first screen is the **one-off lineup form** (`/`): fill in the match, the staff and up to 15 players and download the sheet as PDF or DOCX. It calls `POST /lineups` and stores nothing; it validates with the same limits as the API and shows the API's own field errors if one slips through. For PDFs run the API with `task build && task up` (LibreOffice is only in the container), otherwise only DOCX works.
 
 The hosted API is expected to sleep when idle, so the app asks `GET /health` as soon as it loads and, if the answer takes more than ~1.5 s, shows a non-blocking "server is starting up" banner (set `VITE_COLD_START_NOTICE=false` to turn it off on always-on hosting). Data regions show skeletons meanwhile, and failed requests are retried with backoff only when the failure looks temporary. See *Current State: Frontend* on the wiki.
 
@@ -313,10 +315,12 @@ lineup/
 │   └── src/
 │       ├── main.tsx  app.tsx        # Entry point, providers and route table
 │       ├── index.css                # Tailwind + Polaris design tokens (light/dark)
-│       ├── api/                     # client.ts, errors.ts, query-client.ts + generated openapi.json / schema.d.ts
+│       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
+│       ├── auth/                    # Google sign-in: config check, Supabase client (sign-in only), provider, route guard
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
 │       ├── components/              # App shell (sidebar / bottom nav), theme toggle, query-boundary, ui/ (shadcn-style)
 │       ├── features/lineup/         # One-off lineup form: Zod schema, API call, download, form
+│       ├── features/teams/          # Teams of the signed-in user: list, create (onboarding), team gate
 │       ├── pages/                   # One file per route
 │       └── lib/                     # cn(), theme hook
 └── backend/                         # All Python; the working directory for Python commands

@@ -88,6 +88,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | RFC 6266 (Content-Disposition) | The `filename*=UTF-8''…` download header, so `ő`/`ű` in file names work | [rfc-editor.org/rfc/rfc6266](https://www.rfc-editor.org/rfc/rfc6266) |
 | OpenAPI | The API description FastAPI publishes at `/openapi.json`; the frontend client is generated from it | [spec.openapis.org](https://spec.openapis.org/oas/latest.html) |
 | OAuth 2.0 (RFC 6749) | What "Sign in with Google" is built on | [rfc-editor.org/rfc/rfc6749](https://www.rfc-editor.org/rfc/rfc6749) |
+| PKCE (RFC 7636) | The OAuth variant the web app uses, so the redirect carries a one-time code instead of tokens | [rfc-editor.org/rfc/rfc7636](https://www.rfc-editor.org/rfc/rfc7636) |
 | JWT (RFC 7519) and JWKS (RFC 7517) | The API validates the Supabase access token against the project's public keys | [RFC 7519](https://www.rfc-editor.org/rfc/rfc7519) · [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) |
 | HTTP semantics (RFC 9110) | Status codes used by the API (404, 409, 422, 503, 504, …) | [rfc-editor.org/rfc/rfc9110](https://www.rfc-editor.org/rfc/rfc9110) |
 
@@ -142,6 +143,7 @@ Direct dependencies from `frontend/package.json`.
 | `@fontsource-variable/google-sans-flex` | runtime | [npm](https://www.npmjs.com/package/@fontsource-variable/google-sans-flex) |
 | `@hookform/resolvers` | runtime | [npm](https://www.npmjs.com/package/@hookform/resolvers) |
 | `@radix-ui/react-slot` | runtime | [npm](https://www.npmjs.com/package/@radix-ui/react-slot) |
+| `@supabase/supabase-js` | runtime | [npm](https://www.npmjs.com/package/@supabase/supabase-js) |
 | `@tailwindcss/vite` | dev | [npm](https://www.npmjs.com/package/@tailwindcss/vite) |
 | `@tanstack/react-query` | runtime | [npm](https://www.npmjs.com/package/@tanstack/react-query) |
 | `@testing-library/jest-dom` | dev | [npm](https://www.npmjs.com/package/@testing-library/jest-dom) |

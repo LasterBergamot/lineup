@@ -119,8 +119,9 @@ A subset of M1. The rest of M1 follows at its own pace.
 - [x] #50 `is_public` semantics (as amended by §6) (PR #127)
 - [x] #52 NOT NULL owner/user ids. On dev the existing rows can simply be wiped instead of
       backfilled. (PR #125)
-- [ ] **new** FE: sign-in page, token on every call, onboarding ("no team yet → create one or
-      paste an invite link").
+- [x] #129 FE: sign-in page, token on every call, onboarding ("no team yet → create one or
+      paste an invite link"). (PR #130; the invite-link field is shown disabled until #51. A real
+      Google sign-in can only be tried once the manual console setup of #101 is done.)
 - [ ] Run the `supabase-smoke` skill after the model changes.
 
 ### Phase 4 — Dev deployment + CD
@@ -406,3 +407,4 @@ Endpoints (amends #51):
 | 2026-10-05 | Phase 3, PR 2: `team_members` + `team_invitations` (RLS, grants, interim policy), creator inserted as `owner`, owner columns `NOT NULL` (ownerless dev rows deleted by the migration, not backfilled), `supabase-smoke` skill authenticates through `scripts/smoke_auth.py`. Applying the migration to dev Supabase is left to the owner. | #19, #52, #125 |
 | 2026-10-05 | Phase 3, PR 3: the team is the workspace. `players.team_id` and `saved_lineups.team_id` required, `created_by` audit-only, all access through `team_members` (404 for non-members, 403 for non-owner members on owner actions), source ids resolved as the caller, `is_public` toggle + id/name-only pool, `GET /teams/{id}/opponents/recent`, team delete blocked by saved lineups, FE client regenerated. Applying migrations to dev Supabase + smoke test left to the owner. | #49, #48, #50, #127 |
 | 2026-10-05 | Phase 2, PR 3: the first screen, a one-off lineup form (React Hook Form + a Zod schema that mirrors the API limits) calling `POST /lineups` and downloading the PDF or DOCX; API 422s are mapped onto the fields, a PDF-wait message appears after 5 s, nothing is persisted client-side. Verified in Chromium against a real container: a 15-player PDF and a DOCX downloaded, with `ő`/`ű` in the file name. Decisions for #20 recorded in `Roadmap-Frontend.md`; Phase 2 is complete. | #121, #20, PR #128 |
+| 2026-10-05 | Phase 3, frontend: Google sign-in through `@supabase/supabase-js` (sign-in only, PKCE, publishable key only: a secret key is refused), `AuthProvider` + route guard, the token on every API call except `/health` (a 401 signs out, a 503 shows the retry box, never a sign-in loop), a same-site-only return path, and team onboarding (create a team; invite-link field disabled until #51) with the current team and sign-out in the shell. Unit-tested with a fake auth client; checked in Chromium at phone and desktop sizes against a local backend and the `scripts/smoke_auth.py` stand-in (43 checks: redirect to sign-in, OAuth start URL, onboarding, token header, 401/503 states). The real Google round trip waits for the manual #101 setup. | #129, PR #130 |
