@@ -284,15 +284,18 @@ class TestListSavedLineups:
         assert len(data["items"]) == 3
         assert data["total"] == 5
 
-    async def test_list_lineups_limit_zero_returns_all(self, async_client: AsyncClient):
-        team = await _create_team(async_client)
-        player = await _create_player(async_client)
-        for _ in range(5):
-            await async_client.post(
-                "/lineups/saved", json=_lineup_payload(team["id"], player["id"])
-            )
-        response = await async_client.get("/lineups/saved?limit=0")
-        assert len(response.json()["items"]) == 5
+    @pytest.mark.parametrize("limit", [0, -1, 201])
+    async def test_list_lineups_rejects_out_of_range_limit(
+        self, async_client: AsyncClient, limit: int
+    ):
+        response = await async_client.get(f"/lineups/saved?limit={limit}")
+        assert response.status_code == 422
+
+    async def test_list_lineups_accepts_the_maximum_limit(
+        self, async_client: AsyncClient
+    ):
+        response = await async_client.get("/lineups/saved?limit=200")
+        assert response.status_code == 200
 
 
 class TestGetSavedLineup:

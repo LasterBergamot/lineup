@@ -70,7 +70,7 @@ rm -f /tmp/$M.docx
 ```
 
 If an id is missing because a create failed partway, list and delete by the marker
-instead: `GET /teams?limit=0` and `GET /players?limit=0`, filtered on `$M` with `jq`.
+instead: `GET /teams?limit=200` and `GET /players?limit=200`, filtered on `$M` with `jq` (`limit` is capped at 200, so page with `&offset=` if there are more).
 
 ## 5. Restore and report
 

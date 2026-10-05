@@ -64,6 +64,54 @@ def test_create_lineup_empty_players(client, valid_payload):
     assert response.status_code == 422
 
 
+MAX_LENGTHS = {
+    "match": 200,
+    "division": 100,
+    "team_name": 120,
+    "date": 50,
+    "coach": 200,
+    "doctor": 200,
+    "assistant_coach": 200,
+    "team_leader": 200,
+    "ball_thrower": 200,
+}
+
+
+@pytest.mark.parametrize(("field", "max_length"), MAX_LENGTHS.items())
+def test_create_lineup_field_at_max_length_is_accepted(
+    client, valid_payload, field, max_length
+):
+    valid_payload[field] = "x" * max_length
+    response = client.post("/lineups?format=docx", json=valid_payload)
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize(("field", "max_length"), MAX_LENGTHS.items())
+def test_create_lineup_field_over_max_length_is_rejected(
+    client, valid_payload, field, max_length
+):
+    valid_payload[field] = "x" * (max_length + 1)
+    response = client.post("/lineups", json=valid_payload)
+    assert response.status_code == 422
+    assert field in response.text
+
+
+@pytest.mark.parametrize(("field", "max_length"), [("name", 200), ("nssz_number", 50)])
+def test_create_lineup_player_field_over_max_length_is_rejected(
+    client, valid_payload, field, max_length
+):
+    valid_payload["players"][0][field] = "x" * (max_length + 1)
+    response = client.post("/lineups", json=valid_payload)
+    assert response.status_code == 422
+
+
+def test_create_lineup_player_fields_at_max_length_are_accepted(client, valid_payload):
+    valid_payload["players"][0]["name"] = "x" * 200
+    valid_payload["players"][0]["nssz_number"] = "x" * 50
+    response = client.post("/lineups?format=docx", json=valid_payload)
+    assert response.status_code == 200
+
+
 def test_create_lineup_cap_number_too_high(client, valid_payload):
     payload = copy.deepcopy(valid_payload)
     payload["players"] = [

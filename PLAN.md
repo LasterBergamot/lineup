@@ -89,8 +89,8 @@ replace "new" with the number here.
 ### Phase 1 — Backend prerequisites for a browser UI and a public URL
 A subset of M1. The rest of M1 follows at its own pace.
 - [x] #104 Docs tooling first (PR 0): README/docs gate (CLAUDE.md rule, `create-pr` gate, `docs-check` CI job), Newcomer Guide and References wiki pages (generated dependency block, `task docs:references`). (PR #105)
-- [ ] #69 `GET /health` (+ `?db=1`): used by Fly, CD, the cron and the FE wake-up banner.
-- [ ] #56 CORS (origins from an env var) + input limits.
+- [x] #69 `GET /health` (+ `?db=1`): used by Fly, CD, the cron and the FE wake-up banner. (PR #106)
+- [x] #56 CORS (origins from an env var) + input limits. (PR #106)
 - [ ] #53 unknown `team_id` → 500
 - [ ] #54 control characters / whitespace-only strings
 - [ ] #55 stable ordering (UI lists)
@@ -394,3 +394,4 @@ Endpoints (amends #51):
 | 2026-10-04 | Compliance audit (GDPR + OWASP): epic #92 with gap issues #93–#98, compliance sections added to #19/#51/#25/#13, and the `compliance-audit` skill (full + quick per-feature mode) with its compliance gate before Phase 4. Merged in PR #99. | #92, #99 |
 | 2026-10-04 | Phase 0 finished: #13, #17, #8, #20, #19, #49, #50, #51 and #39 amended to the plan (decision sections appended), new issues #100 (prod CD from `main`, M2) and #101 (Google OAuth + JWKS on dev, M3), milestones renamed to "M2 – Prod" and "M3 – Dev preview" with the dev-preview issues moved into M3. Repo bookkeeping in PR #103. | #100, #101, #102, #103 |
 | 2026-10-04 | Phase 1 planned as 5 PRs: docs tooling (#104), then API surface (#69, #56), input hardening (#53–#55), container + PDF (#70, #71), DB/CI (#60, #68). Decisions: drop `limit=0` (cap 200), unknown `team_id` → 404, RLS/role switch last. PR 0 adds the docs gate, Newcomer Guide and References page. | #104, #105 |
+| 2026-10-05 | PR 1 of Phase 1: `GET /health` (+ `?db=1`), `CORS_ORIGINS` allowlist, `max_length` on the one-off request, `limit` capped at 1–200 (`limit=0` dropped), literal `%`/`_` in the pool search. #69 moved to M1. | #69, #56, #106 |

@@ -110,6 +110,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 |----------|---------|---------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name |
+| `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
 | `SENTRY_DSN` | unset | Enables Sentry error reporting. Leave unset locally, in CI and in tests |
 
 `task up` (Docker Compose, via `env_file: backend/.env` in `compose.yml`) and `task serve` both load `backend/.env` automatically; it lives in `backend/` beside `backend/.env.example` so it is kept out of the image by `backend/.dockerignore`. `task migrate` and `task migrate-new` deliberately do **not**: they target local SQLite unless you pass `DATABASE_URL` for that one run, so a migration never hits Supabase by accident.
@@ -143,9 +144,13 @@ task up
 
 Starts the API server at `http://127.0.0.1:8000`. Interactive docs are available at `http://127.0.0.1:8000/docs`. You can monitor and manage containers using [lazydocker](https://github.com/jesseduffield/lazydocker).
 
+### `GET /health`
+
+Health probe for the container, deploys and uptime checks. `GET /health` answers `200 {"status":"ok"}` without touching the database (liveness). `GET /health?db=1` also runs `SELECT 1` (readiness) and answers `503 {"status":"unavailable"}` when the database can't be reached; the body never contains driver error text.
+
 ### `POST /lineups`
 
-Generates a lineup document from the provided data.
+Generates a lineup document from the provided data. Every text field has a maximum length (match, name and staff fields 200, team name 120, division 100, date 50, NSSZ number 50 characters); longer values are rejected with `422`.
 
 **Query parameters:**
 
@@ -195,12 +200,12 @@ The header carries the name twice. HTTP headers are latin-1, so a team name with
 
 ### Teams, Players & Saved Lineups
 
-Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup.db` for local dev via `task serve`, swappable to Supabase Postgres via `DATABASE_URL` — see [Environment variables](#environment-variables)). All list endpoints are paginated: `?limit=20&offset=0`, where `limit=0` returns everything, in the envelope `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
+Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup.db` for local dev via `task serve`, swappable to Supabase Postgres via `DATABASE_URL` — see [Environment variables](#environment-variables)). All list endpoints are paginated: `?limit=20&offset=0` (`limit` is 1–200; there is no "return everything" mode, page with `offset`), in the envelope `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
 
 | Method | Path | Description |
 |--------|------|--------------|
 | `GET`/`POST` | `/teams` | List / create teams |
-| `GET` | `/teams/pool?search=&limit=` | Search the shared pool of public teams (for opponent selection) — plain list, not paginated |
+| `GET` | `/teams/pool?search=&limit=` | Search the shared pool of public teams (for opponent selection) — plain list, not paginated. `search` is a literal, case-insensitive substring (`%` and `_` are not wildcards), max 120 characters |
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename / delete a team. Delete returns **409** if the team still has players on its roster |
 | `GET`/`POST` | `/players` | List (optionally `?team_id=`) / create players |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |

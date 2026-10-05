@@ -55,9 +55,7 @@ async def list_teams(
     total: int = (
         await session.scalar(select(func.count()).select_from(query.subquery())) or 0
     )
-    if limit > 0:
-        query = query.limit(limit)
-    query = query.offset(offset)
+    query = query.limit(limit).offset(offset)
     items = list((await session.execute(query)).scalars().all())
     return items, total
 
@@ -69,7 +67,7 @@ async def search_teams_pool(
 ) -> list[Team]:
     query = select(Team).where(Team.is_public.is_(True))
     if search:
-        query = query.where(Team.name.ilike(f"%{search}%"))
+        query = query.where(Team.name.icontains(search, autoescape=True))
     query = query.order_by(Team.name).limit(limit)
     return list((await session.execute(query)).scalars().all())
 

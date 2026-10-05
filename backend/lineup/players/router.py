@@ -22,7 +22,7 @@ router = APIRouter(prefix="/players", tags=["players"])
 @router.get("", response_model=PaginatedPlayers)
 async def list_players(
     limit: Annotated[
-        int, Query(ge=0, description="Max items to return. 0 = no limit.")
+        int, Query(ge=1, le=200, description="Max items to return (1-200).")
     ] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     team_id: uuid.UUID | None = None,

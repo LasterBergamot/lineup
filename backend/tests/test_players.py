@@ -4,6 +4,7 @@ Tests for GET/POST /players and GET/PUT/DELETE /players/{id}.
 
 import uuid
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,11 +103,18 @@ class TestListPlayers:
         assert len(data["items"]) == 2
         assert data["total"] == 5
 
-    async def test_list_players_limit_zero_returns_all(self, async_client: AsyncClient):
-        for i in range(5):
-            await _create_player(async_client, f"Player {i}", f"MVLSZ{i:03d}")
-        response = await async_client.get("/players?limit=0")
-        assert len(response.json()["items"]) == 5
+    @pytest.mark.parametrize("limit", [0, -1, 201])
+    async def test_list_players_rejects_out_of_range_limit(
+        self, async_client: AsyncClient, limit: int
+    ):
+        response = await async_client.get(f"/players?limit={limit}")
+        assert response.status_code == 422
+
+    async def test_list_players_accepts_the_maximum_limit(
+        self, async_client: AsyncClient
+    ):
+        response = await async_client.get("/players?limit=200")
+        assert response.status_code == 200
 
     async def test_list_players_pagination_offset(self, async_client: AsyncClient):
         for i in range(5):
