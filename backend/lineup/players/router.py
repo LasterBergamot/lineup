@@ -31,8 +31,9 @@ async def list_players(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PaginatedPlayers:
-    """List players ordered by creation time, optionally only one team's (`team_id`). Paginated:
-    `limit` is 1-200 (default 20), `offset` starts at 0.
+    """List the players of all teams you belong to, ordered by creation time, optionally only
+    one team's (`team_id`; a team you are not in gives an empty page). Paginated: `limit` is
+    1-200 (default 20), `offset` starts at 0.
     """
     items, total = await service.list_players(
         session, user_id=user_id, team_id=team_id, limit=limit, offset=offset
@@ -51,7 +52,8 @@ async def create_player(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
-    """Create a player, optionally on a team's roster. An unknown `team_id` returns 404."""
+    """Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a
+    member of it."""
     player = await service.create_player(
         session,
         name=body.name,
@@ -68,7 +70,7 @@ async def get_player(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
-    """Get one player by id (404 if unknown)."""
+    """Get one player by id (404 if unknown or on a team you are not in)."""
     player = await service.get_player_or_404(
         session, player_id=player_id, user_id=user_id
     )
@@ -82,7 +84,8 @@ async def update_player(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
-    """Replace a player's name, NSSZ number and team. An unknown player or `team_id` returns 404."""
+    """Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is
+    unknown or not yours."""
     player = await service.update_player(
         session,
         player_id=player_id,

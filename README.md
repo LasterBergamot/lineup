@@ -12,7 +12,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 **Persistence layer** (`/teams`, `/players`, `/lineups/saved`): so a lineup can be built from a saved roster instead of retyping everything. Each module (`backend/lineup/teams/`, `backend/lineup/players/`, `backend/lineup/saved_lineups/`) has the same four files: `router.py` (HTTP), `schemas.py` (validation), `service.py` (business rules) and `repository.py` (SQL). Data is stored with SQLAlchemy (async) in a database chosen by the `DATABASE_URL` environment variable: local SQLite by default, Supabase Postgres when configured. Schema changes are managed by Alembic migrations. A saved lineup is a *frozen snapshot* (names copied as text), so deleting a team or player later never alters history.
 
-**Authentication:** every route except `GET /health`, the stateless one-off `POST /lineups` and the API docs requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. Team membership and invitations (shared rosters) are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
+**Authentication:** every route except `GET /health`, the stateless one-off `POST /lineups` and the API docs requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. A team is a workspace: its members share its roster and saved lineups; invitation links to add members are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
 
 **Repo layout:** all the Python lives in `backend/` and the React web app lives in `frontend/` (see [Frontend](#frontend)); the repo root keeps only shared tooling — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`. Python commands must run with `backend/` as the working directory, because Alembic's config, the `resources/` template paths, pytest's rootdir and the default `./lineup.db` are all cwd-relative. The `task` commands handle that for you (they `cd backend`), so you can run them from the repo root.
 
@@ -228,20 +228,22 @@ Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup
 
 | Method | Path | Description |
 |--------|------|--------------|
-| `GET`/`POST` | `/teams` | List / create teams |
-| `GET` | `/teams/pool?search=&limit=` | Search the shared pool of public teams (for opponent selection) — plain list, not paginated. `search` is a literal, case-insensitive substring (`%` and `_` are not wildcards), max 120 characters |
-| `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename / delete a team. Delete returns **409** if the team still has players on its roster |
-| `GET`/`POST` | `/players` | List (optionally `?team_id=`) / create players. An unknown `team_id` returns **404** `Team not found` |
-| `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (an unknown `team_id` is a **404** here too) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
-| `GET`/`POST` | `/lineups/saved` | List (optionally `?source_team_id=`) / create saved lineups |
+| `GET`/`POST` | `/teams` | List the teams you belong to (each with your `role`) / create a team (you become its owner) |
+| `GET` | `/teams/pool?search=&limit=` | Search the opponent directory (teams that chose to be listed; only `id` + `name` are exposed) — plain list, not paginated. `search` is a literal, case-insensitive substring (`%` and `_` are not wildcards), max 120 characters |
+| `GET` | `/teams/{id}/opponents/recent?limit=` | Opponent names used in this team's saved lineups, newest first (for the opponent combobox) |
+| `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename and list-or-unlist (`is_public`) / delete a team. Update and delete are owner-only (**403** for other members). Delete returns **409** while the team has players or saved lineups |
+| `GET`/`POST` | `/players` | List the players of your teams (optionally `?team_id=`) / add a player to a team's roster (`team_id` is required and must be a team you belong to, else **404** `Team not found`) |
+| `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (moving to a team you're not in is a **404**) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
+| `GET`/`POST` | `/lineups/saved` | List the saved lineups of your teams (optionally `?team_id=` or `?source_team_id=`) / create one in a team's workspace (`team_id`, required) |
 | `GET`/`DELETE` | `/lineups/saved/{id}` | Get / delete a saved lineup |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Generate a PDF/DOCX from a previously saved lineup |
 
-A saved lineup freezes team/opponent names and each player's name/NSSZ number as text at creation time. Team, opponent, and each player can be specified either by referencing an existing record (`source_team_id`, `source_opponent_id`, `source_player_id` — the current name/NSSZ is copied in) or by free text (`team_name`, `opponent_name`, player `name`/`nssz_number`); **exactly one** of the two must be given per field (sending both is a `422`, so it is never ambiguous which value wins). The same NSSZ number can't appear twice in one lineup (`422`), on either endpoint. Once saved, deleting the source team or player has no effect on the lineup.
+A saved lineup freezes team/opponent names and each player's name/NSSZ number as text at creation time. Team, opponent, and each player can be specified either by referencing an existing record (`source_team_id`, `source_opponent_id`, `source_player_id` — the current name/NSSZ is copied in) or by free text (`team_name`, `opponent_name`, player `name`/`nssz_number`); **exactly one** of the two must be given per field (sending both is a `422`, so it is never ambiguous which value wins). The same NSSZ number can't appear twice in one lineup (`422`), on either endpoint. Once saved, deleting the source team or player has no effect on the lineup. Everything is looked up **as you**: ids of teams or players outside your teams are a `404` (an opponent may also be a team listed in the directory).
 
 ```json
 POST /lineups/saved
 {
+  "team_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "source_team_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "opponent_name": "Csongrád VVSE",
   "division": "OB II.",
@@ -331,7 +333,8 @@ lineup/
     │       ├── 35ce55ceabf4_initial_schema.py  # teams/players/saved_lineups/lineup_player_snapshots
     │       ├── 8b1f3c2d9a47_rls_and_least_privilege_role.py  # Postgres-only RLS + lineup_app role
     │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
-    │       └── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
+    │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
+    │       └── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)

@@ -45,7 +45,7 @@ def test_timestamp_defaults_are_naive(model, column):
 
 
 async def _team(db_session: AsyncSession) -> Team:
-    team = Team(id=uuid.uuid4(), name="T", owner_id=uuid.uuid4(), is_public=True)
+    team = Team(id=uuid.uuid4(), name="T", created_by=uuid.uuid4(), is_public=True)
     db_session.add(team)
     await db_session.commit()
     return team

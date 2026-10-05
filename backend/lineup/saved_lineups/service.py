@@ -34,8 +34,8 @@ async def _resolve_team_name(
 ) -> str:
     """Name of the referenced team, or `explicit_name` for free text.
 
-    The referenced team must be the caller's own; with `allow_listed` (opponents) a team listed
-    in the opponent directory also qualifies. Anything else is 404, the same as a missing id, so
+    The referenced team must be one the caller belongs to; with `allow_listed` (opponents) a team
+    listed in the opponent directory also qualifies. Anything else is 404, the same as a missing id, so
     the API never confirms that someone else's team exists.
     """
     if source_id is None:
@@ -46,7 +46,8 @@ async def _resolve_team_name(
             session, team_id=source_id, user_id=user_id
         )
     else:
-        team = await team_repo.get_team(session, team_id=source_id, owner_id=user_id)
+        found = await team_repo.get_team(session, team_id=source_id, user_id=user_id)
+        team = None if found is None else found[0]
     if team is None:
         raise HTTPException(status_code=404, detail=not_found_detail)
     return team.name
@@ -94,6 +95,7 @@ def _ensure_unique_nssz(snapshots: list[LineupPlayerSnapshot]) -> None:
 def _build_response(lineup: SavedLineup) -> SavedLineupResponse:
     return SavedLineupResponse(
         id=lineup.id,
+        team_id=lineup.team_id,
         team_name=lineup.team_name,
         opponent_name=lineup.opponent_name,
         match_name=lineup.match_name,
@@ -120,12 +122,15 @@ async def create_saved_lineup(
     data: SavedLineupCreate,
     user_id: uuid.UUID,
 ) -> SavedLineupResponse:
-    """Save a lineup as a snapshot and return it.
+    """Save a lineup as a snapshot in the workspace of `data.team_id` and return it.
 
-    Resolves team and opponent names (404 if a source id is unknown), defaults the match name to
+    The caller must belong to that team (404 "Team not found" otherwise). Resolves team and opponent names (404 if a source id is unknown), defaults the match name to
     "<team> - <opponent>", builds the player snapshots (404 if a source player is unknown) and
     rejects duplicate NSSZ numbers with 422, checked on the resolved values.
     """
+    workspace = await team_repo.get_team(session, team_id=data.team_id, user_id=user_id)
+    if workspace is None:
+        raise HTTPException(status_code=404, detail="Team not found")
     team_name = await _resolve_team_name(
         session, data.source_team_id, data.team_name, "Team not found", user_id, False
     )
@@ -157,7 +162,8 @@ async def create_saved_lineup(
         assistant_coach=data.assistant_coach,
         team_leader=data.team_leader,
         ball_thrower=data.ball_thrower,
-        user_id=user_id,
+        created_by=user_id,
+        team_id=data.team_id,
         source_team_id=data.source_team_id,
         source_opponent_id=data.source_opponent_id,
         player_snapshots=player_snapshots,
@@ -183,14 +189,17 @@ async def list_saved_lineups(
     session: AsyncSession,
     user_id: uuid.UUID,
     source_team_id: uuid.UUID | None,
+    team_id: uuid.UUID | None,
     limit: int,
     offset: int,
 ) -> tuple[list[SavedLineupResponse], int]:
-    """One page of lineups (optionally for one source team) and the total count."""
+    """One page of the lineups of the caller's teams (optionally for one workspace or one
+    source team) and the total count."""
     lineups, total = await repository.list_saved_lineups(
         session,
         user_id=user_id,
         source_team_id=source_team_id,
+        team_id=team_id,
         limit=limit,
         offset=offset,
     )

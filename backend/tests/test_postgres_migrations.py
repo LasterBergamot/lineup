@@ -168,7 +168,7 @@ class TestAppRole:
             await conn.execute(text("SET LOCAL ROLE lineup_app"))
             await conn.execute(
                 text(
-                    "INSERT INTO teams (id, name, owner_id, is_public, created_at) "
+                    "INSERT INTO teams (id, name, created_by, is_public, created_at) "
                     "VALUES (gen_random_uuid(), 'RLS probe', gen_random_uuid(), true, now())"
                 )
             )
@@ -185,7 +185,7 @@ class TestAppRole:
             await conn.execute(text("SET LOCAL ROLE lineup_app"))
             await conn.execute(
                 text(
-                    "INSERT INTO teams (id, name, owner_id, is_public, created_at) "
+                    "INSERT INTO teams (id, name, created_by, is_public, created_at) "
                     "VALUES ('00000000-0000-0000-0000-000000000001', 'T', "
                     "gen_random_uuid(), true, now())"
                 )

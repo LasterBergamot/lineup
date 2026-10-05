@@ -10,13 +10,24 @@ import pytest
 from httpx import AsyncClient
 
 from lineup.common.types import blank_to_none, reject_unsafe_characters
+from tests.helpers import create_player, ensure_team
 
 UNSAFE = ["a\x00b", "a\tb", "a\nb", "a\x7fb", "a\x85b"]
 BLANK = ["", "   ", "\t \n"]
 
 
+_WORKSPACE: dict[str, str] = {}
+
+
+@pytest.fixture
+async def _workspace(async_client: AsyncClient):
+    """Every saved lineup needs a team to live in; tests get the caller's default team."""
+    _WORKSPACE["team_id"] = (await ensure_team(async_client))["id"]
+
+
 def _saved_payload(**overrides) -> dict:
     payload = {
+        "team_id": _WORKSPACE["team_id"],
         "team_name": "Home Club",
         "opponent_name": "Away Club",
         "division": "OB II.",
@@ -38,9 +49,7 @@ async def _create_team(client: AsyncClient, name: str = "SZVTK") -> dict:
 async def _create_player(
     client: AsyncClient, name: str = "Player", nssz: str = "MVLSZ001"
 ) -> dict:
-    response = await client.post("/players", json={"name": name, "nssz_number": nssz})
-    assert response.status_code == 201
-    return response.json()
+    return await create_player(client, name, nssz)
 
 
 class TestSharedStringType:
@@ -62,6 +71,7 @@ class TestSharedStringType:
         assert blank_to_none(7) == 7
 
 
+@pytest.mark.usefixtures("_workspace")
 class TestControlCharactersAndBlanks:
     @pytest.mark.parametrize("value", [*UNSAFE, *BLANK])
     async def test_team_name_rejected_on_create_and_update(
@@ -79,7 +89,9 @@ class TestControlCharactersAndBlanks:
     async def test_player_fields_rejected_on_create_and_update(
         self, async_client: AsyncClient, field, value
     ):
-        body = {"name": "Player", "nssz_number": "MVLSZ001", field: value}
+        team_id = _WORKSPACE["team_id"]
+        body = {"name": "Player", "nssz_number": "MVLSZ001", "team_id": team_id}
+        body[field] = value
         assert (await async_client.post("/players", json=body)).status_code == 422
         player = await _create_player(async_client)
         response = await async_client.put(f"/players/{player['id']}", json=body)
@@ -183,6 +195,7 @@ class TestControlCharactersAndBlanks:
         assert "team_name" in response.text
 
 
+@pytest.mark.usefixtures("_workspace")
 class TestSourceIdOrFreeTextNotBoth:
     async def test_player_with_source_id_and_name_is_rejected(
         self, async_client: AsyncClient
@@ -246,6 +259,7 @@ class TestSourceIdOrFreeTextNotBoth:
         assert response.json()["team_name"] == "Roster Team"
 
 
+@pytest.mark.usefixtures("_workspace")
 class TestDuplicateNsszNumbers:
     def test_one_off_lineup_rejects_duplicates_ignoring_case(
         self, client, valid_payload
@@ -320,7 +334,7 @@ class TestUnknownTeamId:
         )
         assert response.status_code == 404
         unchanged = (await async_client.get(f"/players/{player['id']}")).json()
-        assert unchanged["team_id"] is None
+        assert unchanged["team_id"] == player["team_id"]
 
     async def test_known_team_is_accepted_on_create_and_update(
         self, async_client: AsyncClient
@@ -389,6 +403,7 @@ class TestStableOrdering:
             ["Player 4"],
         ]
 
+    @pytest.mark.usefixtures("_workspace")
     async def test_saved_lineups_are_paged_in_creation_order(
         self, async_client: AsyncClient
     ):
@@ -403,6 +418,7 @@ class TestStableOrdering:
             pages.append([x["match_name"] for x in response.json()["items"]])
         assert pages == [["Match 0", "Match 1"], ["Match 2", "Match 3"], ["Match 4"]]
 
+    @pytest.mark.usefixtures("_workspace")
     async def test_create_returns_players_in_the_same_order_as_get(
         self, async_client: AsyncClient
     ):

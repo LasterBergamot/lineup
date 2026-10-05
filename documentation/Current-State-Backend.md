@@ -117,22 +117,23 @@ so rendering, headers and error handling live in one place:
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/teams` | Paginated CRUD |
+| `GET`/`POST` | `/teams` | `GET`: paginated list of the teams **you belong to**, each with your `role`. `POST`: create a team, you become its `owner` |
 | `GET` | `/teams/pool?search=&limit=` | Shared opponent pool (sign-in required) — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
-| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `DELETE` returns **409** if the team still has roster players (app-level check, not DB-level) |
+| `GET` | `/teams/{id}/opponents/recent?limit=` | Distinct opponent names from this team's saved lineups, newest first (`limit` 1–50). Members only. Together with the pool and free text it feeds the opponent combobox |
+| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, and `is_public` to list/unlist in the pool) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
 
 ### Players
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/players` | `team_id` optional on create/update, filterable on list. An unknown `team_id` is a **404** `Team not found` on both create and update |
+| `GET`/`POST` | `/players` | `GET` lists the players of all your teams (filterable by `team_id`; a team you're not in gives an empty page). `POST`/`PUT` require `team_id`, which must be a team you belong to, otherwise **404** `Team not found` (unknown and foreign ids look the same) |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | `DELETE` is **unconditionally safe (204)** — saved lineups are frozen snapshots, not live references, so deleting a player never blocks or breaks anything |
 
 ### Saved Lineups
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/lineups/saved` | A saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time |
+| `GET`/`POST` | `/lineups/saved` | A saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. It lives in a team's workspace: `POST` requires `team_id` (a team you belong to), `GET` lists the lineups of all your teams and can filter by `team_id` or `source_team_id` |
 | `GET`/`DELETE` | `/lineups/saved/{id}` | |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Renders the document from the snapshot (same rendering/headers/errors as `POST /lineups`, see above) |
 
@@ -142,7 +143,7 @@ this rule, free text silently overrode the roster value, which hid typos. The sa
 appear twice in a lineup (`422`); on saved lineups this is checked on the *resolved* numbers, since a
 roster player's number is only known after the lookup. Deleting the source team/player afterwards
 never changes an already-saved lineup. The ids are looked up **as the caller**: `source_team_id` and
-`source_player_id` must be the caller's own rows, and `source_opponent_id` the caller's own team or
+`source_player_id` must belong to a team the caller is a member of, and `source_opponent_id` to such a team or
 one listed in the opponent pool (`is_public`). Anything else is the same `404` as an unknown id, so
 the API never confirms that someone else's row exists (otherwise anyone who knew a UUID could copy
 another user's team name or a player's name and NSSZ number into their own lineup).
@@ -192,6 +193,7 @@ erDiagram
     TEAMS ||--o{ PLAYERS : "has active roster (team_id)"
     TEAMS ||--|{ TEAM_MEMBERS : "has members (CASCADE)"
     TEAMS ||--o{ TEAM_INVITATIONS : "has invite links (CASCADE)"
+    TEAMS ||--o{ SAVED_LINEUPS : "workspace (team_id)"
     TEAMS ||--o{ SAVED_LINEUPS : "soft ref: our team / opponent"
     SAVED_LINEUPS ||--|{ LINEUP_PLAYER_SNAPSHOTS : "contains frozen slots"
     PLAYERS ||--o{ LINEUP_PLAYER_SNAPSHOTS : "soft ref (source_player_id)"
@@ -199,7 +201,7 @@ erDiagram
     TEAMS {
         uuid id PK
         string name
-        uuid owner_id "the Supabase user id (sub)"
+        uuid created_by "Supabase user id of the creator, audit only"
         boolean is_public "true for opponent pool"
     }
     TEAM_MEMBERS {
@@ -222,12 +224,15 @@ erDiagram
         uuid id PK
         string name
         string nssz_number
-        uuid team_id FK "nullable, ondelete RESTRICT"
+        uuid team_id FK "required, ondelete RESTRICT"
+        uuid created_by "audit only"
     }
     SAVED_LINEUPS {
         uuid id PK
         string team_name "frozen snapshot"
         string opponent_name "frozen snapshot"
+        uuid team_id FK "the workspace, required, ondelete RESTRICT"
+        uuid created_by "audit only"
         uuid source_team_id "nullable, ondelete SET NULL"
         uuid source_opponent_id "nullable, ondelete SET NULL"
     }
@@ -247,8 +252,8 @@ erDiagram
 freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` →
 `players.id` (`ondelete="SET NULL"`). Rendering a lineup relies **only** on the frozen
 fields — no joins to live tables — so editing or deleting master data never breaks history.
-`Player.team_id` → `teams.id` uses `ondelete="RESTRICT"` at the DB level, but team deletion
-is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never
+`Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"` at the DB level, but team
+deletion is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never
 fires in practice.
 
 **Teams, members and invitations**: `team_members` says who belongs to a team (composite primary
@@ -260,10 +265,19 @@ is stored (`invite_code_hash`), so a database leak hands out no working invitati
 at `expires_at` or once `revoked_at` is set. Both tables go when their team does (`ON DELETE CASCADE`).
 The endpoints that use them come later (see [[Roadmap: Backend]]).
 
-**Owner columns are required**: `teams.owner_id`, `players.user_id` and `saved_lineups.user_id` are
-`NOT NULL`. The migration that made them so deleted the rows from before sign-in existed (they had no
-owner, so nobody could ever see them again). That was acceptable only because the dev project was the
-single database holding such rows; it is not a pattern for data that matters.
+**The team is the workspace.** Who may see a row is decided by `team_members`, never by who created
+it: a player or saved lineup belongs to a team (`players.team_id`, `saved_lineups.team_id`, both required)
+and every member of that team can read and change it. `teams.created_by`, `players.created_by` and
+`saved_lineups.created_by` (`NOT NULL`) only record who made the row. The access rule is a single
+subquery, `teams.repository.member_team_ids(user_id)`, used by every repository, which keeps the code, the
+tests and the later RLS policies on one rule. `saved_lineups.team_id` is unrelated to the soft
+`source_team_id` / `source_opponent_id` references, which only say where the frozen names came from.
+
+The migrations that introduced this (`a3d5f7c91e26`, `e5b8c2d41f70`) *deleted* rows that could no longer
+be reached (no owner, player without a team, lineup whose creator is in no team) and moved every other
+saved lineup into the team it was made for, or else its creator's oldest team. That was acceptable only
+because the dev project was the single database holding pre-auth rows; it is not a pattern for data that
+matters.
 
 **Async loading gotcha**: `Team.players` and `SavedLineup.player_snapshots` are
 `relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships
@@ -502,8 +516,9 @@ never `None`, so repositories take a *required* `user_id` and there is no "skip 
 branch. Local SQLite development can still run everything: tests override the dependency, and
 `task serve` with `SUPABASE_URL` pointing at the dev project works with real tokens.
 
-Owner columns (`teams.owner_id`, `players.user_id`, `saved_lineups.user_id`) hold that `sub`. They
-are still nullable in the schema until the migration that makes them `NOT NULL` lands (see
-[[Roadmap: Backend]]); the API never writes `NULL` any more. Team membership (several users sharing
-one roster) is not implemented yet: access is still "rows you created". Using Supabase Postgres for
-the database is independent of this. Setup steps for Google and Supabase: [[Auth Setup]].
+That `sub` is the user id stored in `team_members.user_id` and the `created_by` columns. Access is
+**team membership**: the caller must have a `team_members` row for the row's team. A team you're not in
+is a `404` (indistinguishable from an unknown id, so the API never confirms it exists); a member without
+the `owner` role gets `403` for owner-only actions (rename, list/unlist, delete). Members are added by
+invitation links, which are the next step (see [[Roadmap: Backend]]). Using Supabase Postgres for the
+database is independent of this. Setup steps for Google and Supabase: [[Auth Setup]].

@@ -8,6 +8,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from lineup.common.types import CleanStr120
+from lineup.db.models import Team
 
 
 class TeamCreate(BaseModel):
@@ -20,21 +21,38 @@ class TeamCreate(BaseModel):
 
 
 class TeamUpdate(BaseModel):
-    """Body for renaming a team."""
+    """Body for updating a team (owners only). `name` is always required; `is_public` lists or
+    unlists the team in the opponent directory and is left unchanged when omitted."""
 
     name: CleanStr120
+    is_public: bool | None = None
 
 
 class TeamResponse(BaseModel):
-    """A team as returned by the API."""
+    """A team as returned by the API, from the signed-in caller's point of view.
+
+    `role` is the caller's role in the team (`owner` or `member`); `created_by` is who created
+    it (audit only, it grants nothing). `is_public` means "listed in the opponent directory".
+    """
 
     id: uuid.UUID
     name: str
-    owner_id: uuid.UUID
+    created_by: uuid.UUID
     is_public: bool
     created_at: datetime
+    role: str
 
-    model_config = {"from_attributes": True}
+    @classmethod
+    def from_team(cls, team: Team, role: str) -> "TeamResponse":
+        """Build the response from an ORM team and the caller's role in it."""
+        return cls(
+            id=team.id,
+            name=team.name,
+            created_by=team.created_by,
+            is_public=team.is_public,
+            created_at=team.created_at,
+            role=role,
+        )
 
 
 class TeamDeleteResponse(BaseModel):
@@ -46,7 +64,8 @@ class TeamDeleteResponse(BaseModel):
 
 
 class TeamPoolItem(BaseModel):
-    """Lightweight entry for the shared opponent pool — id + name only."""
+    """Entry of the shared opponent directory: `id` and `name` and nothing else, on purpose.
+    Listing a team must never reveal its roster, members or lineups."""
 
     id: uuid.UUID
     name: str

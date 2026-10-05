@@ -246,7 +246,9 @@ the service if a rule applies, tests for the new behaviour, and the docs.
   latin-1 and names like `ő`/`ű` would crash a plain `filename=`.
 - **Every data route needs a signed-in user.** `get_current_user_id()` checks the Supabase access
   token (`Authorization: Bearer <jwt>`) and returns the user's id; a repository function always
-  takes that id as a *required* argument, so there is no code path that "forgets" to filter. In
+  takes that id as a *required* argument and limits itself to the teams that user belongs to (a team is a
+  workspace shared by its members), so there is no code path that "forgets" to filter. Players and saved
+  lineups must be created inside a team; in tests use `tests/helpers.py` (`ensure_team`, `create_player`). In
   tests the dependency is overridden (`current_user` fixture), so you don't need a token. To run
   the API locally against real sign-in, set `SUPABASE_URL` (see [[Auth Setup]]); without it the
   protected routes answer `503` on purpose.

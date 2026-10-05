@@ -65,7 +65,7 @@ TEAM=$(curl -sf -X POST $B/teams -H "$A" -H 'content-type: application/json' -d 
 PLAYER=$(curl -sf -X POST $B/players -H "$A" -H 'content-type: application/json' \
   -d "{\"name\":\"$M player\",\"nssz_number\":\"SMOKE1\",\"team_id\":\"$TEAM\"}" | jq -r .id)
 LINEUP=$(curl -sf -X POST $B/lineups/saved -H "$A" -H 'content-type: application/json' -d "{
-  \"source_team_id\":\"$TEAM\",\"opponent_name\":\"$M opponent\",\"division\":\"OB II.\",
+  \"team_id\":\"$TEAM\",\"source_team_id\":\"$TEAM\",\"opponent_name\":\"$M opponent\",\"division\":\"OB II.\",
   \"cap\":\"Fehér\",\"date\":\"2026. 01. 01.\",\"coach\":\"Smoke Coach\",
   \"players\":[{\"source_player_id\":\"$PLAYER\",\"cap_number\":1}]}" | jq -r .id)
 curl -sf -H "$A" "$B/lineups/saved/$LINEUP" | jq '{team_name, players: [.players[].name]}'
@@ -79,7 +79,7 @@ the GET shows the frozen names, and generate returns 200 with a wordprocessingml
 ## 4. Clean up (always, even if step 3 failed)
 
 Delete the lineup first, then the player, then the team, because the team delete returns
-409 while the player is still on it:
+409 while a saved lineup or a player is still in it:
 
 ```bash
 curl -s -H "$A" -o /dev/null -w 'del lineup %{http_code}\n' -X DELETE "$B/lineups/saved/$LINEUP"   # 204
