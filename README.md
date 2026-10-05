@@ -119,6 +119,8 @@ In dev the browser calls the same-origin `/api/...` and Vite proxies it to the c
 
 The API client in `frontend/src/api/` is **generated** from the backend's OpenAPI spec, so request and response types can't drift from the API. After changing a backend endpoint or schema run `task fe:api` and commit the result; `task fe:api:check` (run by CI) fails when it is stale. `task fe:check` runs everything the CI `Frontend` job does.
 
+The hosted API is expected to sleep when idle, so the app asks `GET /health` as soon as it loads and, if the answer takes more than ~1.5 s, shows a non-blocking "server is starting up" banner (set `VITE_COLD_START_NOTICE=false` to turn it off on always-on hosting). Data regions show skeletons meanwhile, and failed requests are retried with backoff only when the failure looks temporary. See *Current State: Frontend* on the wiki.
+
 ## Environment variables
 
 Configuration is through environment variables, all optional. `backend/.env.example` documents each one; copy it to `backend/.env` (git-ignored, never commit it) and uncomment what you need.
@@ -309,8 +311,9 @@ lineup/
 │   └── src/
 │       ├── main.tsx  app.tsx        # Entry point, providers and route table
 │       ├── index.css                # Tailwind + Polaris design tokens (light/dark)
-│       ├── api/                     # client.ts + generated openapi.json / schema.d.ts
-│       ├── components/              # App shell (sidebar / bottom nav), theme toggle, ui/ (shadcn-style)
+│       ├── api/                     # client.ts, errors.ts, query-client.ts + generated openapi.json / schema.d.ts
+│       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
+│       ├── components/              # App shell (sidebar / bottom nav), theme toggle, query-boundary, ui/ (shadcn-style)
 │       ├── pages/                   # One file per route
 │       └── lib/                     # cn(), theme hook
 └── backend/                         # All Python; the working directory for Python commands

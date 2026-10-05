@@ -1,5 +1,6 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
@@ -26,10 +27,40 @@ const buttonVariants = cva(
 );
 
 type ButtonProps = ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & { asChild?: boolean };
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+    /** Shows a spinner and disables the button, so a slow request can't be submitted twice. */
+    loading?: boolean;
+  };
 
 /** shadcn-style button. Use `variant="default"` for the one primary action per view. */
-export function Button({ className, variant, size, asChild = false, ...props }: ButtonProps) {
-  const Comp = asChild ? Slot : "button";
-  return <Comp className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+export function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  loading = false,
+  children,
+  disabled,
+  ...props
+}: ButtonProps) {
+  const classes = cn(buttonVariants({ variant, size }), className);
+  if (asChild) {
+    return (
+      <Slot className={classes} {...props}>
+        {children}
+      </Slot>
+    );
+  }
+  return (
+    <button
+      className={classes}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...props}
+    >
+      {loading && <Loader2 className="animate-spin" />}
+      {children}
+    </button>
+  );
 }

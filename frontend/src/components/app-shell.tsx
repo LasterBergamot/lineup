@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router";
+import { BackendStatusBanner } from "@/backend-status/banner";
 import { NAV_ITEMS } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -15,7 +16,7 @@ function Brand() {
 /**
  * Static page frame: a sidebar from the `md` breakpoint up, a top bar plus bottom navigation
  * below it. It renders without waiting for any API call, so a cold-starting backend never
- * blanks the screen; routed pages fill the `<main>` area.
+ * blanks the screen; routed pages fill the `<main>` area, under the backend status banner.
  */
 export function AppShell() {
   return (
@@ -53,6 +54,7 @@ export function AppShell() {
           <Brand />
           <ThemeToggle />
         </header>
+        <BackendStatusBanner />
         <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:p-8 md:pb-8">
           <Outlet />
         </main>

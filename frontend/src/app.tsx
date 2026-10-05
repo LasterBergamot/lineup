@@ -1,6 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
+import { createQueryClient } from "@/api/query-client";
+import { BackendStatusProvider } from "@/backend-status/provider";
 import { AppShell } from "@/components/app-shell";
 import { LineupPage } from "@/pages/lineup-page";
 import { NotFoundPage } from "@/pages/not-found-page";
@@ -21,14 +23,20 @@ export function AppRoutes() {
   );
 }
 
-/** Root component: data-fetching provider, then the browser router. */
+/**
+ * Root component. Order matters: the backend status check starts first thing on load (waking
+ * a sleeping API while the shell already renders), the query client supplies retries to every
+ * data region, and the router sits inside both so every page can use them.
+ */
 export function App() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(createQueryClient);
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <BackendStatusProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </BackendStatusProvider>
   );
 }
