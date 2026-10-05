@@ -4,8 +4,10 @@ from contextlib import asynccontextmanager
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 
 from lineup.api.router import router as lineup_router
+from lineup.common.errors import handle_integrity_error
 from lineup.db.base import Base
 from lineup.db.engine import engine
 from lineup.health.router import router as health_router
@@ -62,6 +64,8 @@ if cors_origins:
         expose_headers=["Content-Disposition"],
         allow_credentials=False,
     )
+
+app.add_exception_handler(IntegrityError, handle_integrity_error)
 
 app.include_router(health_router)
 app.include_router(lineup_router)

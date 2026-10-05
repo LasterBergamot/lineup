@@ -6,18 +6,32 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from lineup.common.types import (
+    CleanStr50,
+    CleanStr100,
+    CleanStr200,
+    OptionalCleanStr50,
+    OptionalCleanStr120,
+    OptionalCleanStr200,
+)
+
 
 class SavedLineupPlayerCreate(BaseModel):
     """One player slot: reference an existing roster player (whose current
-    name/NSSZ number is frozen at save time) or supply free text directly."""
+    name/NSSZ number is frozen at save time) or supply free text directly, never both."""
 
     source_player_id: uuid.UUID | None = None
-    name: str | None = Field(None, max_length=200)
-    nssz_number: str | None = Field(None, max_length=50)
+    name: OptionalCleanStr200 = None
+    nssz_number: OptionalCleanStr50 = None
     cap_number: int = Field(..., ge=1, le=15)
 
     @model_validator(mode="after")
     def require_identity(self) -> "SavedLineupPlayerCreate":
+        free_text = self.name is not None or self.nssz_number is not None
+        if self.source_player_id is not None and free_text:
+            raise ValueError(
+                "Send either source_player_id or name and nssz_number, not both"
+            )
         if self.source_player_id is None and not (self.name and self.nssz_number):
             raise ValueError(
                 "Either source_player_id or both name and nssz_number must be provided"
@@ -27,18 +41,18 @@ class SavedLineupPlayerCreate(BaseModel):
 
 class SavedLineupCreate(BaseModel):
     source_team_id: uuid.UUID | None = None
-    team_name: str | None = Field(None, max_length=120)
+    team_name: OptionalCleanStr120 = None
     source_opponent_id: uuid.UUID | None = None
-    opponent_name: str | None = Field(None, max_length=120)
-    match_name: str | None = Field(None, max_length=200)
-    division: str = Field(..., min_length=1, max_length=100)
+    opponent_name: OptionalCleanStr120 = None
+    match_name: OptionalCleanStr200 = None
+    division: CleanStr100
     cap: Literal["Fehér", "Kék"]
-    date: str = Field(..., min_length=1, max_length=50)
-    coach: str = Field(..., min_length=1, max_length=200)
-    doctor: str | None = Field(None, max_length=200)
-    assistant_coach: str | None = Field(None, max_length=200)
-    team_leader: str | None = Field(None, max_length=200)
-    ball_thrower: str | None = Field(None, max_length=200)
+    date: CleanStr50
+    coach: CleanStr200
+    doctor: OptionalCleanStr200 = None
+    assistant_coach: OptionalCleanStr200 = None
+    team_leader: OptionalCleanStr200 = None
+    ball_thrower: OptionalCleanStr200 = None
     players: list[SavedLineupPlayerCreate] = Field(..., min_length=1, max_length=15)
 
     @field_validator("players")
@@ -65,12 +79,18 @@ class SavedLineupCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_team_identity(self) -> "SavedLineupCreate":
-        if self.source_team_id is None and not self.team_name:
-            raise ValueError("Either source_team_id or team_name must be provided")
-        if self.source_opponent_id is None and not self.opponent_name:
-            raise ValueError(
-                "Either source_opponent_id or opponent_name must be provided"
-            )
+        for source_id, name, label in (
+            (self.source_team_id, self.team_name, "team"),
+            (self.source_opponent_id, self.opponent_name, "opponent"),
+        ):
+            if source_id is None and name is None:
+                raise ValueError(
+                    f"Either source_{label}_id or {label}_name must be provided"
+                )
+            if source_id is not None and name is not None:
+                raise ValueError(
+                    f"Send either source_{label}_id or {label}_name, not both"
+                )
         return self
 
 

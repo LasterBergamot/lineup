@@ -30,7 +30,11 @@ def valid_payload():
         "team_leader": "Török András",
         "ball_thrower": "Török András",
         "players": [
-            {"cap_number": i, "name": "Török András", "nssz_number": "MVLSZ123456789"}
+            {
+                "cap_number": i,
+                "name": "Török András",
+                "nssz_number": f"MVLSZ{123456788 + i}",
+            }
             for i in range(1, 16)
         ],
     }

@@ -103,7 +103,7 @@ so rendering, headers and error handling live in one place:
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/players` | `team_id` optional on create/update, filterable on list |
+| `GET`/`POST` | `/players` | `team_id` optional on create/update, filterable on list. An unknown `team_id` is a **404** `Team not found` on both create and update |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | `DELETE` is **unconditionally safe (204)** — saved lineups are frozen snapshots, not live references, so deleting a player never blocks or breaks anything |
 
 ### Saved Lineups
@@ -115,8 +115,33 @@ so rendering, headers and error handling live in one place:
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Renders the document from the snapshot (same rendering/headers/errors as `POST /lineups`, see above) |
 
 Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster
-at save time) or as free text — at least one of the two is required per field. Deleting the
-source team/player afterwards never changes an already-saved lineup.
+at save time) or as free text — **exactly one** of the two per field. Sending both is a `422`: before
+this rule, free text silently overrode the roster value, which hid typos. The same NSSZ number can't
+appear twice in a lineup (`422`); on saved lineups this is checked on the *resolved* numbers, since a
+roster player's number is only known after the lookup. Deleting the source team/player afterwards
+never changes an already-saved lineup.
+
+### Input rules
+
+All text goes through the shared types in `lineup/common/types.py`:
+
+- trimmed, not empty after trimming, and capped in length;
+- no control characters. python-docx refuses them (that was a 500 on `/lineups`, and a saved lineup
+  that could be stored but never generated), and a tab or newline would be written into the document
+  as a real tab or line break, shifting the layout;
+- optional fields treat a blank value as "not provided" (`None`) rather than storing an empty string.
+
+If a constraint violation still slips past the service checks (for example the team is deleted between
+the existence check and the commit), `lineup/common/errors.py` turns the `IntegrityError` into a `409`
+instead of a 500. It logs only exception class names: SQLAlchemy's message contains the SQL parameters,
+which are names and NSSZ numbers.
+
+### Ordering
+
+Page boundaries only mean something if the order is deterministic, and Postgres doesn't promise a row
+order without `ORDER BY`. Teams (and the pool) are ordered by `(name, id)`, players and saved lineups by
+`(created_at, id)`. A saved lineup's players are always sorted by cap number, including on the response
+to `POST` (the ORM's identity map would otherwise hand back the request order).
 
 All paginated list endpoints (everything except `/teams/pool`) return the envelope
 `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`. `limit` must be 1–200 (default 20):

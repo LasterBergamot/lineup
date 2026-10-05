@@ -51,8 +51,10 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 - `GET/POST /teams`, `GET/PUT/DELETE /teams/{id}` — CRUD, paginated list (`?limit=&offset=`, `limit` 1–200, default 20; no "all" mode)
 - `GET /teams/pool?search=&limit=` — shared opponent pool: public teams (`is_public=True`) only, plain list (not the paginated envelope), `limit` 1–100, `search` is a literal substring (`icontains(..., autoescape=True)`, max 120 chars). Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
 - `DELETE /teams/{id}` returns **409** if the team still has roster players assigned (`Player.team_id`); otherwise 200. This check is app-level, not DB-level.
-- `GET/POST /players`, `GET/PUT/DELETE /players/{id}` — CRUD; `team_id` is optional on create/update and filterable on list. `DELETE /players/{id}` is **unconditionally** safe (204) — it never blocks, because saved lineups store frozen snapshots, not live references.
-- `GET/POST /lineups/saved`, `GET/DELETE /lineups/saved/{id}`, `POST /lineups/saved/{id}/generate?format=pdf|docx` — a saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster at save time) or as free text — at least one of the two is required per field (enforced by Pydantic `model_validator`s in `lineup/saved_lineups/schemas.py`). Deleting the source team/player afterwards never changes an already-saved lineup.
+- `GET/POST /players`, `GET/PUT/DELETE /players/{id}` — CRUD; `team_id` is optional on create/update and filterable on list; an unknown `team_id` → **404** `Team not found` (checked in `players/service.py`, ownership-aware via `team_repo.get_team`). `DELETE /players/{id}` is **unconditionally** safe (204) — it never blocks, because saved lineups store frozen snapshots, not live references.
+- `GET/POST /lineups/saved`, `GET/DELETE /lineups/saved/{id}`, `POST /lineups/saved/{id}/generate?format=pdf|docx` — a saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster at save time) or as free text — **exactly one** of the two per field (`model_validator`s in `lineup/saved_lineups/schemas.py`; sending both is 422, so there is no "free text silently wins"). Duplicate NSSZ numbers in one lineup → 422 (`LineupRequest` validator; `_ensure_unique_nssz` in the saved-lineup service, on the resolved values, case-insensitive). Deleting the source team/player afterwards never changes an already-saved lineup.
+- Text input: every string field uses the shared types in `lineup/common/types.py` (`CleanStr50/100/120/200`, `OptionalCleanStr*`): stripped, non-empty, length-capped, and no control characters (`Cc`, surrogates, U+FFFE/FFFF) because python-docx raises on them and tabs/newlines would shift the layout. Optional fields turn a blank into `None`. New text fields must use these types.
+- Lists are ordered deterministically (`teams`: name, id; `players`/`saved_lineups`: created_at, id; pool: name, id) and saved-lineup snapshots by cap number (also on the create response: `repository.create_saved_lineup` refreshes the relationship).
 - Pagination envelope: `{ "items": [...], "total": ..., "limit": ..., "offset": ... }` for all paginated list endpoints except `/teams/pool`.
 
 ### Key modules
@@ -64,6 +66,7 @@ Paths in this table are relative to `backend/`.
 | `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers the 5 routers (health, lineups, teams, players, saved lineups); adds `CORSMiddleware` only when `CORS_ORIGINS` is set (`parse_cors_origins()`: explicit origins, `*` refused, exposes `Content-Disposition`, no credentials); initializes Sentry at import time if `SENTRY_DSN` is set (errors only, `traces_sample_rate=0.0`) |
 | `main.py` | CLI entry point |
 | `lineup/api/models.py` | Pydantic request models (`LineupRequest`, `PlayerRequest`); every string has `min_length=1` and a `max_length` matching the saved-lineup schemas (match/name/staff 200, division 100, team 120, date 50, NSSZ 50) |
+| `lineup/common/types.py`, `lineup/common/errors.py` | Shared `CleanStr*` / `OptionalCleanStr*` input types (see Text input above); `handle_integrity_error` turns a stray `IntegrityError` (e.g. a team deleted between the service check and the commit) into `409` instead of 500, logging only exception class names because SQLAlchemy's message embeds names and NSSZ numbers. Registered in `app.py` |
 | `lineup/health/router.py` | `GET /health` (liveness, no DB) and `GET /health?db=1` (readiness, `SELECT 1`). A failure is *returned* as `503 {"status":"unavailable"}`, not raised, so no driver text reaches the client and Sentry is not flooded. Used by the container healthcheck, CD and the keep-alive cron |
 | `lineup/api/router.py` | `POST /lineups` endpoint (builds the DTO, delegates to `build_file_response`) |
 | `lineup/api/file_response.py` | Shared by both generate endpoints: `FileFormat` enum, media types, `content_disposition()` (RFC 6266 `filename*` + ASCII fallback — header values are latin-1, so `ő`/`ű` would crash a plain `filename=`), `build_file_response()` (renders via `run_in_threadpool` so LibreOffice never blocks the event loop; `TimeoutExpired` → 504, other errors → 500) |
@@ -225,6 +228,9 @@ lineup/
     │   │   └── models.py     # Team, Player, SavedLineup, LineupPlayerSnapshot
     │   ├── auth/
     │   │   └── dependencies.py   # get_current_user_id() — None pre-Auth
+    │   ├── common/
+    │   │   ├── types.py      # CleanStr* / OptionalCleanStr* input types
+    │   │   └── errors.py     # IntegrityError -> 409 handler
     │   ├── health/
     │   │   └── router.py     # GET /health, /health?db=1
     │   ├── teams/
@@ -256,6 +262,7 @@ lineup/
         ├── test_water_polo_lineup_dto.py
         ├── test_auth_dependencies.py
         ├── test_health.py                 # /health liveness + readiness
+        ├── test_input_hardening.py        # control chars/blanks, unknown team_id, source-or-text, duplicate NSSZ, ordering
         ├── test_docs_tooling.py           # scripts/ (References generator, docs gate) + wiki PAGE_MAP completeness
         ├── test_db_engine.py
         ├── test_db_models.py

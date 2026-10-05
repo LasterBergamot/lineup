@@ -4,24 +4,26 @@ from typing import List, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from lineup.common.types import CleanStr50, CleanStr100, CleanStr120, CleanStr200
+
 
 class PlayerRequest(BaseModel):
     cap_number: int = Field(..., ge=1, le=15)
-    name: str = Field(..., min_length=1, max_length=200)
-    nssz_number: str = Field(..., min_length=1, max_length=50)
+    name: CleanStr200
+    nssz_number: CleanStr50
 
 
 class LineupRequest(BaseModel):
-    match: str = Field(..., min_length=1, max_length=200)
-    division: str = Field(..., min_length=1, max_length=100)
-    team_name: str = Field(..., min_length=1, max_length=120)
+    match: CleanStr200
+    division: CleanStr100
+    team_name: CleanStr120
     cap: Literal["Fehér", "Kék"]
-    date: str = Field(..., min_length=1, max_length=50)
-    coach: str = Field(..., min_length=1, max_length=200)
-    doctor: str = Field(..., min_length=1, max_length=200)
-    assistant_coach: str = Field(..., min_length=1, max_length=200)
-    team_leader: str = Field(..., min_length=1, max_length=200)
-    ball_thrower: str = Field(..., min_length=1, max_length=200)
+    date: CleanStr50
+    coach: CleanStr200
+    doctor: CleanStr200
+    assistant_coach: CleanStr200
+    team_leader: CleanStr200
+    ball_thrower: CleanStr200
     players: List[PlayerRequest] = Field(..., min_length=1, max_length=15)
 
     @field_validator("players")
@@ -30,4 +32,12 @@ class LineupRequest(BaseModel):
         cap_numbers = [p.cap_number for p in players]
         if len(cap_numbers) != len(set(cap_numbers)):
             raise ValueError("Player cap numbers must be unique")
+        return players
+
+    @field_validator("players")
+    @classmethod
+    def nssz_numbers_unique(cls, players: List[PlayerRequest]) -> List[PlayerRequest]:
+        nssz_numbers = [p.nssz_number.casefold() for p in players]
+        if len(nssz_numbers) != len(set(nssz_numbers)):
+            raise ValueError("Player NSSZ numbers must be unique")
         return players

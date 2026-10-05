@@ -3,16 +3,18 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from lineup.common.types import CleanStr120
 
 
 class TeamCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120)
+    name: CleanStr120
     is_public: bool = True
 
 
 class TeamUpdate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=120)
+    name: CleanStr120
 
 
 class TeamResponse(BaseModel):

@@ -3,18 +3,20 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from lineup.common.types import CleanStr50, CleanStr200
 
 
 class PlayerCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    nssz_number: str = Field(..., min_length=1, max_length=50)
+    name: CleanStr200
+    nssz_number: CleanStr50
     team_id: uuid.UUID | None = None
 
 
 class PlayerUpdate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    nssz_number: str = Field(..., min_length=1, max_length=50)
+    name: CleanStr200
+    nssz_number: CleanStr50
     team_id: uuid.UUID | None = None
 
 

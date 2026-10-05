@@ -24,18 +24,19 @@ async def _resolve_team_name(
     not_found_detail: str,
 ) -> str:
     if source_id is None:
-        # Guaranteed non-None by SavedLineupCreate.require_team_identity
+        # Exactly one of the two is set: SavedLineupCreate.require_team_identity
         return explicit_name  # type: ignore[return-value]
     team = await team_repo.get_team_by_id(session, team_id=source_id)
     if team is None:
         raise HTTPException(status_code=404, detail=not_found_detail)
-    return explicit_name or team.name
+    return team.name
 
 
 async def _build_player_snapshot(
     session: AsyncSession,
     entry: SavedLineupPlayerCreate,
 ) -> LineupPlayerSnapshot:
+    # Exactly one of source_player_id / free text is set: require_identity
     name = entry.name
     nssz_number = entry.nssz_number
     if entry.source_player_id is not None:
@@ -47,8 +48,8 @@ async def _build_player_snapshot(
                 status_code=404,
                 detail=f"Player {entry.source_player_id} not found",
             )
-        name = name or player.name
-        nssz_number = nssz_number or player.nssz_number
+        name = player.name
+        nssz_number = player.nssz_number
     return LineupPlayerSnapshot(
         id=uuid.uuid4(),
         cap_number=entry.cap_number,
@@ -56,6 +57,17 @@ async def _build_player_snapshot(
         nssz_number=nssz_number,  # type: ignore[arg-type]
         source_player_id=entry.source_player_id,
     )
+
+
+def _ensure_unique_nssz(snapshots: list[LineupPlayerSnapshot]) -> None:
+    """Checked on the resolved values, because a roster player's NSSZ number is only known
+    after the lookup (and could equal a free-text one)."""
+    numbers = [s.nssz_number.casefold() for s in snapshots]
+    if len(numbers) != len(set(numbers)):
+        raise HTTPException(
+            status_code=422,
+            detail="A player's NSSZ number cannot appear more than once in a lineup",
+        )
 
 
 def _build_response(lineup: SavedLineup) -> SavedLineupResponse:
@@ -98,6 +110,7 @@ async def create_saved_lineup(
     player_snapshots = [
         await _build_player_snapshot(session, entry) for entry in data.players
     ]
+    _ensure_unique_nssz(player_snapshots)
 
     lineup = await repository.create_saved_lineup(
         session,

@@ -7,6 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lineup.db.models import Player
 from lineup.players import repository
+from lineup.teams import repository as team_repo
+
+
+async def _ensure_team_exists(
+    session: AsyncSession, team_id: uuid.UUID | None, user_id: uuid.UUID | None
+) -> None:
+    """Without this an unknown team_id fails the FK at commit time as a 500."""
+    if team_id is None:
+        return
+    team = await team_repo.get_team(session, team_id=team_id, owner_id=user_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
 
 
 async def create_player(
@@ -16,6 +28,7 @@ async def create_player(
     user_id: uuid.UUID | None,
     team_id: uuid.UUID | None,
 ) -> Player:
+    await _ensure_team_exists(session, team_id, user_id)
     return await repository.create_player(
         session, name=name, nssz_number=nssz_number, user_id=user_id, team_id=team_id
     )
@@ -53,6 +66,7 @@ async def update_player(
     user_id: uuid.UUID | None,
 ) -> Player:
     player = await get_player_or_404(session, player_id=player_id, user_id=user_id)
+    await _ensure_team_exists(session, team_id, user_id)
     return await repository.update_player(
         session, player=player, name=name, nssz_number=nssz_number, team_id=team_id
     )
