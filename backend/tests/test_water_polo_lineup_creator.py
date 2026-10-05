@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from lineup.water_polo.water_polo_lineup_creator import WaterPoloLineupCreator
@@ -69,6 +71,14 @@ def test_create_document_bytes_kek_cap():
     )
     result = WaterPoloLineupCreator().create_document_bytes(dto_kek)
     assert isinstance(result, bytes)
+
+
+def test_template_is_found_whatever_the_working_directory(tmp_path, monkeypatch):
+    import lineup.water_polo.water_polo_lineup_creator as creator_module
+
+    monkeypatch.chdir(tmp_path)
+    assert Path(creator_module.FILE_NAME).is_absolute()
+    assert WaterPoloLineupCreator().manager is not None
 
 
 def test_creator_raises_on_missing_template(tmp_path, monkeypatch):

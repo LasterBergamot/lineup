@@ -59,7 +59,7 @@ If you're editing the workflow YAML files themselves, `yamllint` and `actionlint
 
 ### Security tooling
 
-- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`) and GitHub Actions dependencies; security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
+- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies; security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
 - **Secret scanning:** GitHub secret scanning + push protection are enabled at the repo level (no code/config in this repo).
 - **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`.
 - **Container scanning:** Trivy scans the built image in CI (report-only, see above).
@@ -111,6 +111,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
+| `PDF_MAX_CONCURRENT` | `2` | How many LibreOffice conversions may run at once. Each is a separate process of a few hundred MB; extra requests wait up to 10 s, then get `503` with `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error reporting. Leave unset locally, in CI and in tests |
 
 `task up` (Docker Compose, via `env_file: backend/.env` in `compose.yml`) and `task serve` both load `backend/.env` automatically; it lives in `backend/` beside `backend/.env.example` so it is kept out of the image by `backend/.dockerignore`. `task migrate` and `task migrate-new` deliberately do **not**: they target local SQLite unless you pass `DATABASE_URL` for that one run, so a migration never hits Supabase by accident.
@@ -196,7 +197,7 @@ Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"; 
 
 The header carries the name twice. HTTP headers are latin-1, so a team name with `ő`/`ű` can't go into plain `filename="..."`. The real UTF-8 name goes in `filename*` (RFC 6266), which browsers prefer; `filename` is an accent-stripped ASCII fallback (`Szőreg` → `Szoreg`).
 
-**Errors:** `422` for invalid input, `504` if LibreOffice doesn't finish the PDF conversion within 120 s, `500` for any other rendering failure. The same rendering, headers and errors apply to `POST /lineups/saved/{id}/generate`. Conversion runs in a worker thread, so a slow PDF never blocks the other endpoints.
+**Errors:** `422` for invalid input, `503` (with `Retry-After`) if every PDF conversion slot stays busy for 10 s (see `PDF_MAX_CONCURRENT`), `504` if LibreOffice doesn't finish the PDF conversion within 120 s (the whole LibreOffice process group is then killed), `500` for any other rendering failure. The same rendering, headers and errors apply to `POST /lineups/saved/{id}/generate`. Conversion runs in a worker thread, so a slow PDF never blocks the other endpoints.
 
 ### Teams, Players & Saved Lineups
 

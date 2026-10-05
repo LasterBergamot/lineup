@@ -55,7 +55,7 @@ RUN apt-get update \\
     && rm -rf /var/lib/apt/lists/*
 COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/uv
 COPY --from=someorg/tool:1 /x /x
-COPY --from=builder /a /a
+COPY --from=base /a /a
 FROM $BASE_IMAGE
 """
 
@@ -103,14 +103,13 @@ class TestDocsReferences:
         )
         assert refs.npm_packages(fake_root) == [("react", "runtime"), ("vite", "dev")]
 
-    def test_docker_images_drop_tags_and_digests_and_skip_comments_and_build_args(
+    def test_docker_images_drop_tags_digests_comments_build_args_and_stage_names(
         self, fake_root
     ):
         (fake_root / "backend/Dockerfile").write_text(
             DOCKERFILE + "FROM debian@sha256:abc\n"
         )
         assert refs.docker_images(fake_root) == [
-            "builder",
             "debian",
             "ghcr.io/astral-sh/uv",
             "python",

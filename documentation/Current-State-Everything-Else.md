@@ -45,6 +45,7 @@ external services.
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
 | `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
+| `PDF_MAX_CONCURRENT` | `2` | Max parallel LibreOffice conversions; extra requests wait 10 s, then get `503` + `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
 
 `task up` (Docker Compose, through `env_file: backend/.env` in the root `compose.yml`) passes these into the container;
@@ -55,7 +56,24 @@ git-ignored.
 
 ## Containerization
 
-- `backend/Dockerfile`: `python:3.13-slim` + LibreOffice via `apt` + `uv` for deps.
+- `backend/Dockerfile` is a two-stage build. Both stages start from `python:3.13-slim`, **pinned by
+  digest** so a rebuild can't silently change the base (the Dependabot docker ecosystem opens the
+  bump PRs). The *builder* stage installs the Python dependencies with the pinned `uv` image
+  (`uv sync --frozen --no-dev`, bytecode-compiled). The *runtime* stage adds LibreOffice and the fonts
+  and copies the finished virtualenv in, so `uv` isn't in the image that runs.
+- **Least privilege**: the container runs as the unprivileged `app` user (uid 10001) that owns `/app`
+  (the default SQLite file is created there), and Compose drops all Linux capabilities and sets
+  `no-new-privileges`. LibreOffice needs none of them. Check with `docker run --rm lineup id -u`
+  (anything but `0`).
+- **tini** is PID 1. LibreOffice leaves `soffice.bin` child processes behind, and PID 1 is responsible
+  for reaping orphans; without an init process they pile up as zombies. tini also forwards signals, so
+  `docker stop` returns immediately instead of waiting out the 10 s kill timeout.
+- **Healthcheck**: the image polls `GET /health` (liveness only: a database outage must not make an
+  orchestrator restart a healthy API). curl isn't installed, so it uses the Python interpreter.
+  `docker compose up --wait` (used by `task test-e2e`) blocks until it reports healthy.
+- **Smaller image**: `libreoffice-writer-nogui` instead of the full `libreoffice` metapackage drops the
+  GUI toolkits and the other office apps; the e2e fidelity tests still pass. The image went from about
+  1.16 GB to 870 MB.
 - **Font fidelity**: the template is authored in Calibri/Calibri Light (proprietary).
   `--no-install-recommends` is kept, so the metric-compatible substitutes are installed
   explicitly: `fonts-crosextra-carlito` (Calibri/Calibri Light), `fonts-crosextra-caladea`
@@ -71,9 +89,8 @@ git-ignored.
   `*.db` (local SQLite data), plus tests, `*.md`, caches and `.git`. Check it whenever a new
   secret or local-state file appears in `backend/`. The image ships without tests, which is why the
   e2e suite runs from the host against the running container rather than inside the image.
-- The container starts with `uv run --no-sync uvicorn ...`: dependencies were installed at
-  build time with `uv sync --frozen --no-dev`, and `--no-sync` stops `uv run` from re-syncing
-  (and pulling the dev group) at every start.
+- The container starts `uvicorn` straight from the virtualenv's `bin` directory (which is on `PATH`):
+  the dependencies were installed at build time, so nothing is resolved or synced at start.
 - `compose.yml` (repo root) uses `image: lineup` (not `build:`), so `task build`/`task rebuild` is
   always required before `task up`. It takes its settings from `env_file: backend/.env`
   (`required: false`, Compose >= 2.24) — Compose's own `.env` lookup only checks next to
@@ -155,7 +172,8 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 ### Security & observability tooling
 
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
-  ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`) and the `github-actions` ecosystem (the two workflow
+  ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`), the `docker` ecosystem (`backend/Dockerfile`: the
+  digest-pinned base image and the `uv` image) and the `github-actions` ecosystem (the workflow
   files). Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the

@@ -48,6 +48,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | Task (`Taskfile.yml`) | Command runner behind every `task …` command | [taskfile.dev](https://taskfile.dev/) |
 | Ruff | Linter and formatter (including the flake8-bandit `S` security rules) | [docs.astral.sh/ruff](https://docs.astral.sh/ruff/) |
 | pytest, pytest-cov | Test runner and coverage (100% required) | [docs.pytest.org](https://docs.pytest.org/) · [pytest-cov](https://pytest-cov.readthedocs.io/) |
+| tini | Minimal init process (PID 1) that reaps LibreOffice's child processes | [github.com/krallin/tini](https://github.com/krallin/tini) |
 | Docker, Docker Compose | Container image and local run | [docs.docker.com](https://docs.docker.com/) · [Compose](https://docs.docker.com/compose/) |
 | Mermaid | Diagrams in these wiki pages | [mermaid.js.org](https://mermaid.js.org/) |
 | Claude Code | AI assistant used on this repo (`CLAUDE.md`, `.claude/skills/`) | [docs.claude.com/claude-code](https://docs.claude.com/en/docs/claude-code/overview) |
@@ -135,7 +136,8 @@ From `backend/Dockerfile` (tags and digests are in the file).
 | `fonts-crosextra-caladea` | [packages.debian.org](https://packages.debian.org/search?keywords=fonts-crosextra-caladea&searchon=names) |
 | `fonts-crosextra-carlito` | [packages.debian.org](https://packages.debian.org/search?keywords=fonts-crosextra-carlito&searchon=names) |
 | `fonts-liberation2` | [packages.debian.org](https://packages.debian.org/search?keywords=fonts-liberation2&searchon=names) |
-| `libreoffice` | [packages.debian.org](https://packages.debian.org/search?keywords=libreoffice&searchon=names) |
+| `libreoffice-writer-nogui` | [packages.debian.org](https://packages.debian.org/search?keywords=libreoffice-writer-nogui&searchon=names) |
+| `tini` | [packages.debian.org](https://packages.debian.org/search?keywords=tini&searchon=names) |
 
 ### GitHub Actions
 
