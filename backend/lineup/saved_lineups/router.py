@@ -31,7 +31,7 @@ async def list_saved_lineups(
     offset: Annotated[int, Query(ge=0)] = 0,
     source_team_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PaginatedSavedLineups:
     """List saved lineups, oldest first, optionally only those made for one team
     (`source_team_id`). Paginated: `limit` is 1-200 (default 20), `offset` starts at 0.
@@ -50,7 +50,7 @@ async def list_saved_lineups(
 async def create_saved_lineup(
     body: SavedLineupCreate,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> SavedLineupResponse:
     """Save a lineup as a frozen snapshot.
 
@@ -66,7 +66,7 @@ async def create_saved_lineup(
 async def get_saved_lineup(
     lineup_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> SavedLineupResponse:
     """Get one saved lineup by id, with its players ordered by cap number (404 if unknown)."""
     return await service.get_saved_lineup_or_404(
@@ -78,7 +78,7 @@ async def get_saved_lineup(
 async def delete_saved_lineup(
     lineup_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> None:
     """Delete a saved lineup (404 if unknown)."""
     await service.delete_saved_lineup(session, lineup_id=lineup_id, user_id=user_id)
@@ -92,7 +92,7 @@ async def generate_from_saved_lineup(
         Query(alias="format", description="Output format: pdf or docx"),
     ] = FileFormat.PDF,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response:
     """Generate a document from a previously saved lineup."""
     lineup_response = await service.get_saved_lineup_or_404(

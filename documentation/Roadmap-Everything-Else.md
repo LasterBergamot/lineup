@@ -48,10 +48,9 @@ planned in `PLAN.md` at the repo root.
 
 ## Multi-tenancy rollout
 
-`user_id`/`owner_id` columns already exist on every table and every repository already
-applies conditional `WHERE user_id = :user_id` filtering — this was built in from day one
-specifically so that turning on real multi-tenancy later is a dependency swap
-(`get_current_user_id()`), not a schema or query rewrite. The remaining rollout risk is
+`user_id`/`owner_id` columns exist on every table and every repository filters on the signed-in
+user's id (`get_current_user_id()` now verifies a Supabase JWT and never yields `None`). Teams as
+shared workspaces (members, invitations, team-scoped access) are the next schema step. The remaining rollout risk is
 almost entirely on the auth/Supabase side (see [[Roadmap: Backend]]) and the onboarding UI
 (see [[Roadmap: Frontend]]), not on the persistence layer itself.
 

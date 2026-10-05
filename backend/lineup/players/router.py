@@ -29,7 +29,7 @@ async def list_players(
     offset: Annotated[int, Query(ge=0)] = 0,
     team_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PaginatedPlayers:
     """List players ordered by creation time, optionally only one team's (`team_id`). Paginated:
     `limit` is 1-200 (default 20), `offset` starts at 0.
@@ -49,7 +49,7 @@ async def list_players(
 async def create_player(
     body: PlayerCreate,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
     """Create a player, optionally on a team's roster. An unknown `team_id` returns 404."""
     player = await service.create_player(
@@ -66,7 +66,7 @@ async def create_player(
 async def get_player(
     player_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
     """Get one player by id (404 if unknown)."""
     player = await service.get_player_or_404(
@@ -80,7 +80,7 @@ async def update_player(
     player_id: uuid.UUID,
     body: PlayerUpdate,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
     """Replace a player's name, NSSZ number and team. An unknown player or `team_id` returns 404."""
     player = await service.update_player(
@@ -98,7 +98,7 @@ async def update_player(
 async def delete_player(
     player_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> None:
     """Delete a player. Always succeeds (204): saved lineups keep their own copy of the data."""
     await service.delete_player(session, player_id=player_id, user_id=user_id)

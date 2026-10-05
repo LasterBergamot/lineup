@@ -937,6 +937,13 @@
         "title": "ValidationError",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "description": "Supabase access token (JWT) of the signed-in user.",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -1125,6 +1132,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Saved Lineups",
         "tags": [
           "saved-lineups"
@@ -1165,6 +1177,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Saved Lineup",
         "tags": [
           "saved-lineups"
@@ -1202,6 +1219,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Saved Lineup",
         "tags": [
           "saved-lineups"
@@ -1244,6 +1266,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Saved Lineup",
         "tags": [
           "saved-lineups"
@@ -1297,6 +1324,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Generate From Saved Lineup",
         "tags": [
           "saved-lineups"
@@ -1373,6 +1405,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Players",
         "tags": [
           "players"
@@ -1413,6 +1450,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Player",
         "tags": [
           "players"
@@ -1450,6 +1492,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Player",
         "tags": [
           "players"
@@ -1492,6 +1539,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Player",
         "tags": [
           "players"
@@ -1544,6 +1596,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Player",
         "tags": [
           "players"
@@ -1603,6 +1660,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Teams",
         "tags": [
           "teams"
@@ -1643,6 +1705,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Team",
         "tags": [
           "teams"
@@ -1651,7 +1718,7 @@
     },
     "/teams/pool": {
       "get": {
-        "description": "Search the shared opponent pool. Only public teams are returned, and only their\n`id` and `name`. `search` is a literal, case-insensitive substring.",
+        "description": "Search the shared opponent pool (sign-in required). Only public teams are returned, and\nonly their `id` and `name`. `search` is a literal, case-insensitive substring.",
         "operationId": "search_teams_pool_teams_pool_get",
         "parameters": [
           {
@@ -1712,6 +1779,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Search Teams Pool",
         "tags": [
           "teams"
@@ -1756,6 +1828,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Delete Team",
         "tags": [
           "teams"
@@ -1798,6 +1875,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Team",
         "tags": [
           "teams"
@@ -1850,6 +1932,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Update Team",
         "tags": [
           "teams"

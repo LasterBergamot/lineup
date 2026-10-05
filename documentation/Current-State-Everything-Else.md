@@ -48,6 +48,7 @@ external services.
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
 | `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
+| `SUPABASE_URL` | unset | Supabase project URL; the API derives the token issuer and JWKS address from it. Unset = protected routes answer `503` (see [[Auth Setup]]) |
 | `PDF_MAX_CONCURRENT` | `2` | Max parallel LibreOffice conversions; extra requests wait 10 s, then get `503` + `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
 
@@ -119,12 +120,15 @@ git-ignored.
   **not** pixel-diff, since the reference uses real Calibri and the container uses
   metric-compatible Carlito.
 - DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite
-  DB per test, with `get_session` and `get_current_user_id` dependency-overridden. CI never
+  DB per test, with `get_session` and `get_current_user_id` dependency-overridden (the
+  `current_user` fixture holds the signed-in user's id; assign a new one mid-test to act as a
+  second user, see `tests/test_tenant_isolation.py`). The real token check is tested in
+  `tests/test_auth_dependencies.py` with throw-away generated keys and no network. CI never
   talks to a real Postgres: the Postgres-specific engine branches are tested by constructing
   (lazy, never-connecting) engines, and tests ignore any local `backend/.env`.
-- The `owner_id`/`user_id`-scoped filtering branches can't be reached through the API yet
-  (since `get_current_user_id()` always returns `None`) — they're tested directly against
-  the `db_session` fixture with real non-`None` IDs instead.
+- The `owner_id`/`user_id`-scoped filtering is tested both through the API with two users
+  (`tests/test_tenant_isolation.py`) and directly against the `db_session` fixture in the
+  repository tests.
 
 ### The coverage/greenlet gotcha
 

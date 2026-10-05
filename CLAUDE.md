@@ -31,13 +31,15 @@ PDF conversion uses LibreOffice headless, which is only available inside the con
 
 The template is authored in Calibri/Calibri Light (proprietary). The container ships the libre metric-compatible substitutes (Carlito etc.) so the PDF layout matches the source `.docx`; without them LibreOffice substitutes a differently-sized font and the tab-stop/table layout drifts.
 
-There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAlchemy async ORM + Alembic, running on in-memory/file SQLite locally and swappable to Postgres (Supabase) via `DATABASE_URL`. It's pre-Auth: `user_id`/`owner_id` columns exist everywhere but always resolve to `None` until real auth is wired in. See `documentation/Current-State-Backend.md` for the design rationale (snapshot vs. soft-reference strategy, ERD) and `documentation/Roadmap-Backend.md` for the Supabase/OAuth roadmap.
+There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAlchemy async ORM + Alembic, running on in-memory/file SQLite locally and swappable to Postgres (Supabase) via `DATABASE_URL`. Every data route requires a signed-in user (Supabase JWT, see Auth below): `user_id`/`owner_id` columns hold the token's `sub`. See `documentation/Current-State-Backend.md` for the design rationale (snapshot vs. soft-reference strategy, ERD) and `documentation/Roadmap-Backend.md` for the Supabase/OAuth roadmap.
 
 ---
 
 ## Architecture
 
 ### API
+
+**Auth:** every route needs `Authorization: Bearer <Supabase access token>` (else `401 {"detail":"Not authenticated"}`) except `GET /health`, the API docs and the stateless one-off `POST /lineups` (it starts LibreOffice, so it needs rate limiting / a login before any public deploy: #96). `lineup/auth/dependencies.py:get_current_user_id()` returns a `UUID`, never `None`: `401` for a missing/invalid token, `503` when `SUPABASE_URL` is unset or the signing keys can't be loaded (fail closed). `tests/test_auth_dependencies.py` walks all registered routes and fails if one outside the public list is reachable without a token. Repositories take a *required* user id; there is no skip-the-filter branch. Setup: `documentation/Auth-Setup.md`.
 
 - `GET /health[?db=1]` — liveness / readiness probe; `200 {"status":"ok"}` or `503 {"status":"unavailable"}`
 - `POST /lineups?format=pdf|docx` — fills the template, converts to PDF (or returns DOCX), streams the file back
@@ -50,10 +52,10 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 #### Teams / Players / Saved Lineups
 
 - `GET/POST /teams`, `GET/PUT/DELETE /teams/{id}` — CRUD, paginated list (`?limit=&offset=`, `limit` 1–200, default 20; no "all" mode)
-- `GET /teams/pool?search=&limit=` — shared opponent pool: public teams (`is_public=True`) only, plain list (not the paginated envelope), `limit` 1–100, `search` is a literal substring (`icontains(..., autoescape=True)`, max 120 chars). Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
+- `GET /teams/pool?search=&limit=` — shared opponent pool (sign-in required): public teams (`is_public=True`) only, plain list (not the paginated envelope), `limit` 1–100, `search` is a literal substring (`icontains(..., autoescape=True)`, max 120 chars). Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
 - `DELETE /teams/{id}` returns **409** if the team still has roster players assigned (`Player.team_id`); otherwise 200. This check is app-level, not DB-level.
 - `GET/POST /players`, `GET/PUT/DELETE /players/{id}` — CRUD; `team_id` is optional on create/update and filterable on list; an unknown `team_id` → **404** `Team not found` (checked in `players/service.py`, ownership-aware via `team_repo.get_team`). `DELETE /players/{id}` is **unconditionally** safe (204) — it never blocks, because saved lineups store frozen snapshots, not live references.
-- `GET/POST /lineups/saved`, `GET/DELETE /lineups/saved/{id}`, `POST /lineups/saved/{id}/generate?format=pdf|docx` — a saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster at save time) or as free text — **exactly one** of the two per field (`model_validator`s in `lineup/saved_lineups/schemas.py`; sending both is 422, so there is no "free text silently wins"). Duplicate NSSZ numbers in one lineup → 422 (`LineupRequest` validator; `_ensure_unique_nssz` in the saved-lineup service, on the resolved values, case-insensitive). Deleting the source team/player afterwards never changes an already-saved lineup.
+- `GET/POST /lineups/saved`, `GET/DELETE /lineups/saved/{id}`, `POST /lineups/saved/{id}/generate?format=pdf|docx` — a saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster at save time, **as the caller**: own team/player only, opponent = own team or a listed one; foreign ids are 404, never 403) or as free text — **exactly one** of the two per field (`model_validator`s in `lineup/saved_lineups/schemas.py`; sending both is 422, so there is no "free text silently wins"). Duplicate NSSZ numbers in one lineup → 422 (`LineupRequest` validator; `_ensure_unique_nssz` in the saved-lineup service, on the resolved values, case-insensitive). Deleting the source team/player afterwards never changes an already-saved lineup.
 - Text input: every string field uses the shared types in `lineup/common/types.py` (`CleanStr50/100/120/200`, `OptionalCleanStr*`): stripped, non-empty, length-capped, and no control characters (`Cc`, surrogates, U+FFFE/FFFF) because python-docx raises on them and tabs/newlines would shift the layout. Optional fields turn a blank into `None`. New text fields must use these types.
 - Lists are ordered deterministically (`teams`: name, id; `players`/`saved_lineups`: created_at, id; pool: name, id) and saved-lineup snapshots by cap number (also on the create response: `repository.create_saved_lineup` refreshes the relationship).
 - Pagination envelope: `{ "items": [...], "total": ..., "limit": ..., "offset": ... }` for all paginated list endpoints except `/teams/pool`.
@@ -77,7 +79,7 @@ Paths in this table are relative to `backend/`.
 | `lineup/water_polo/water_polo_lineup_dto.py` | `WaterPoloLineupDTO` and nested `WaterPoloLineupDTO.Player` data classes with builder pattern; `build()` requires match/division/team_name/cap/date/coach only — staff fields default to `""` (saved lineups may omit them) |
 | `lineup/db/engine.py` | `DATABASE_URL` env var (default `sqlite+aiosqlite:///./lineup.db`); `get_session()` FastAPI dependency; `enable_sqlite_foreign_keys()` (SQLite-only, no-op on other dialects); `_make_engine_kwargs()` (`NullPool` for Postgres) — see notes below |
 | `lineup/db/models.py` | `Team`, `Player`, `SavedLineup`, `LineupPlayerSnapshot` — see Data model note below |
-| `lineup/auth/dependencies.py` | `get_current_user_id()` — always returns `None` pre-Auth; post-Auth, replace its body to extract the JWT `sub` claim, zero router/service changes needed |
+| `lineup/auth/dependencies.py`, `lineup/auth/tokens.py` | `get_current_user_id()` (`HTTPBearer`, 401/503) over `verify_token()`: only `ES256`/`RS256`, `kid` lookup in a `JwksCache` (TTL 10 min, refetch on unknown `kid` at most every 30 s, stale keys never used, fetched with async `httpx`), checks `iss`/`aud=authenticated`/`exp`/`nbf` (10 s leeway) and a UUID `sub`. Issuer and JWKS URL derive from `SUPABASE_URL`. Failures log a fixed reason code, never the token |
 | `lineup/teams/*.py`, `lineup/players/*.py`, `lineup/saved_lineups/*.py` | Standard `schemas.py`/`repository.py`/`service.py`/`router.py` layering per module |
 
 **Data model** (see `documentation/Current-State-Backend.md` for the full ERD and rationale): `Team.players` and `SavedLineup.player_snapshots` are `relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships synchronously (raises `MissingGreenlet`), so eager `selectin` loading is required. A `SavedLineup` freezes `team_name`/`opponent_name`/`match_name` as plain text plus nullable soft FKs `source_team_id`/`source_opponent_id` → `teams.id` (`ondelete="SET NULL"`); each `LineupPlayerSnapshot` freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` → `players.id` (`ondelete="SET NULL"`). `Player.team_id` → `teams.id` uses `ondelete="RESTRICT"` at the DB level, but team deletion is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never fires in practice.
@@ -147,7 +149,7 @@ React 19 + TypeScript + Vite (pnpm; the version is pinned by `packageManager` in
 - **TypeScript is pinned to 6.0 (`~6.0.3`)**: typescript-eslint doesn't support 7.x yet; lift the pin when it does.
 - CI's `Frontend` job (in `ci.yml`, no path filter so it reports on every PR) runs `task fe:install`, `fe:lint`, `fe:typecheck`, `fe:test`, `fe:build`, `fe:api:check` and a report-only `pnpm audit --prod`. It is not (yet) a required check in branch protection. Dependabot has an `npm` entry for `/frontend` (minor/patch grouped).
 
-Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `PDF_MAX_CONCURRENT`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
+Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SUPABASE_URL`, `PDF_MAX_CONCURRENT`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 
@@ -186,8 +188,8 @@ Paths below are relative to `backend/` (run pytest from there — `task test` do
 - Any code that calls LibreOffice must mock `PdfConverter.convert` — it is not available locally. `tests/test_pdf_converter.py` mocks `subprocess.Popen` (and `shutil.which`); its one real-process test uses a fake `libreoffice` shell script that forks a child, to prove the group kill reaches it (Linux `/proc` only)
 - Tests for API endpoints that trigger PDF conversion use an `autouse` fixture in `test_api.py` (and in `TestGenerateFromSavedLineup` in `test_saved_lineups.py`) that patches `PdfConverter.convert`. To force a rendering failure, patch `lineup.api.file_response.WaterPoloLineupCreator` — that's where both endpoints construct it now
 - `tests/test_pdf_conversion_e2e.py` is the exception: it drives the **real** conversion against the running container. It is marked `e2e` and excluded from `task test` by `addopts = "-m 'not e2e'"` (so it never affects coverage); run it via `task test-e2e`. It talks to the API over HTTP (stdlib `urllib`) and validates layout with `pdfplumber` — asserting a single page, expected text, and that word widths/positions match `expected-rajtlista.pdf`. It does **not** pixel-diff (the reference uses real Calibri, the container uses metric-compatible Carlito).
-- DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite DB per test, with `get_session` and `get_current_user_id` dependency-overridden (`get_current_user_id` always yields `None`, matching pre-Auth production behavior).
-- The `owner_id`/`user_id`-scoped filtering branches in `teams/players/saved_lineups` repositories can't be reached through the API yet (since `get_current_user_id()` always returns `None`) — they're tested directly against the `db_session` fixture instead, calling repository functions with real non-`None` IDs.
+- DB tests use the `async_client` fixture (`tests/conftest.py`) — a fresh in-memory SQLite DB per test, with `get_session` and `get_current_user_id` dependency-overridden to the `current_user` fixture's id (assign `current_user.id = uuid.uuid4()` mid-test to act as a second user). `tests/test_tenant_isolation.py` uses that to prove one user can't reach another's rows (404) through the API; the repository tests also call the user-scoped functions directly with real ids.
+- `tests/test_auth_dependencies.py` tests the real token check with throw-away keys generated in the test (ES256 and RS256), a fake JWKS fetch function and a fake clock: no network, no Supabase. Keep it that way.
 - `[tool.coverage.run]` in `pyproject.toml` sets `concurrency = ["greenlet", "thread"]` — required for accurate coverage of any code that calls SQLAlchemy's async ORM. Don't remove it; without it, coverage under-reports on lines following an `await session.commit()`/`.refresh()`/etc. even though they actually ran.
 - `tests/test_postgres_migrations.py` asserts RLS/role/grant behaviour against a real Postgres; it is **skipped** unless `POSTGRES_TEST_URL` is set (a throwaway, empty DB — CI's `Migrations (Postgres)` job sets it; locally run a `postgres:17` container). `tests/test_app_role.py` covers the password/`.env` rewriting with a fake engine (no DB).
 - `tests/test_app.py` covers both branches of `app.py`'s Sentry init (`SENTRY_DSN` set/unset) by mocking `sentry_sdk.init` and `importlib.reload`-ing the `app` module under each env state. Safe to reload freely: `tests/conftest.py` imports `app` once at collection time and keeps its own reference, so a later reload elsewhere doesn't retroactively affect the `client`/`async_client` fixtures. Note `[tool.coverage.run] source = ["lineup"]` doesn't include `app.py`, so this file's coverage isn't actually gated by `fail_under = 100` — the tests exist for correctness, not the coverage requirement.
@@ -216,7 +218,7 @@ lineup/
 ├── README.md  CLAUDE.md
 ├── .github/                          # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                          # settings.json, skills/, commands/
-├── documentation/                    # mirrored into the GitHub wiki by CI (incl. Newcomer-Guide.md, References.md)
+├── documentation/                    # mirrored into the GitHub wiki by CI (incl. Newcomer-Guide.md, References.md, Auth-Setup.md)
 ├── scripts/                          # check_docs_touched.sh (docs gate), docs_references.py (generates References.md block), dump_openapi.py (OpenAPI spec for the FE client)
 ├── frontend/                         # React + TS + Vite app (pnpm); run commands with this as cwd
 │   ├── DESIGN.md                     # Polaris theme spec (shadcn tokens)
@@ -266,7 +268,8 @@ lineup/
     │   │   ├── urls.py       # to_asyncpg_url(): plain postgresql:// -> postgresql+asyncpg://
     │   │   └── models.py     # Team, Player, SavedLineup, LineupPlayerSnapshot
     │   ├── auth/
-    │   │   └── dependencies.py   # get_current_user_id() — None pre-Auth
+    │   │   ├── dependencies.py   # get_current_user_id(): Bearer JWT -> user UUID, 401/503
+    │   │   └── tokens.py         # verify_token(), JwksCache, load_config() (SUPABASE_URL)
     │   ├── common/
     │   │   ├── types.py      # CleanStr* / OptionalCleanStr* input types
     │   │   └── errors.py     # IntegrityError -> 409 handler
@@ -299,7 +302,8 @@ lineup/
         ├── test_pdf_conversion_e2e.py     # e2e: real conversion vs the running container
         ├── test_water_polo_lineup_creator.py
         ├── test_water_polo_lineup_dto.py
-        ├── test_auth_dependencies.py
+        ├── test_auth_dependencies.py      # JWT verification, JWKS cache, 401 on every protected route
+        ├── test_tenant_isolation.py       # two users can't reach each other's rows (404)
         ├── test_health.py                 # /health liveness + readiness
         ├── test_db_urls.py                # to_asyncpg_url()
         ├── test_app_role.py               # lineup.db.app_role (password + .env rewrite, fake engine)

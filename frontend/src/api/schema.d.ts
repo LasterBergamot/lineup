@@ -212,8 +212,8 @@ export interface paths {
         };
         /**
          * Search Teams Pool
-         * @description Search the shared opponent pool. Only public teams are returned, and only their
-         *     `id` and `name`. `search` is a literal, case-insensitive substring.
+         * @description Search the shared opponent pool (sign-in required). Only public teams are returned, and
+         *     only their `id` and `name`. `search` is a literal, case-insensitive substring.
          */
         get: operations["search_teams_pool_teams_pool_get"];
         put?: never;

@@ -486,9 +486,9 @@ class TestGenerateFromSavedLineup:
 
 class TestSavedLineupRepositoryUserFiltering:
     """User-scoped filtering is exercised directly at the repository layer
-    since the auth dependency always yields user_id=None pre-Auth."""
+    so that the user-scoped functions are checked with two real user ids."""
 
-    async def _create(self, db_session: AsyncSession, user_id: uuid.UUID | None):
+    async def _create(self, db_session: AsyncSession, user_id: uuid.UUID):
         snapshot = LineupPlayerSnapshot(
             id=uuid.uuid4(),
             cap_number=1,
