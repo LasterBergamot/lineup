@@ -91,9 +91,9 @@ A subset of M1. The rest of M1 follows at its own pace.
 - [x] #104 Docs tooling first (PR 0): README/docs gate (CLAUDE.md rule, `create-pr` gate, `docs-check` CI job), Newcomer Guide and References wiki pages (generated dependency block, `task docs:references`). (PR #105)
 - [x] #69 `GET /health` (+ `?db=1`): used by Fly, CD, the cron and the FE wake-up banner. (PR #106)
 - [x] #56 CORS (origins from an env var) + input limits. (PR #106)
-- [ ] #53 unknown `team_id` → 500
-- [ ] #54 control characters / whitespace-only strings
-- [ ] #55 stable ordering (UI lists)
+- [x] #53 unknown `team_id` → 500 (PR #107)
+- [x] #54 control characters / whitespace-only strings (PR #107)
+- [x] #55 stable ordering (UI lists) (PR #107)
 - [ ] #70 Dockerfile hardening (non-root before going public)
 - [ ] #71 PDF pipeline robustness (concurrent conversions on a small machine)
 - [ ] #68 least-privilege DB role + RLS as migrations
@@ -395,3 +395,4 @@ Endpoints (amends #51):
 | 2026-10-04 | Phase 0 finished: #13, #17, #8, #20, #19, #49, #50, #51 and #39 amended to the plan (decision sections appended), new issues #100 (prod CD from `main`, M2) and #101 (Google OAuth + JWKS on dev, M3), milestones renamed to "M2 – Prod" and "M3 – Dev preview" with the dev-preview issues moved into M3. Repo bookkeeping in PR #103. | #100, #101, #102, #103 |
 | 2026-10-04 | Phase 1 planned as 5 PRs: docs tooling (#104), then API surface (#69, #56), input hardening (#53–#55), container + PDF (#70, #71), DB/CI (#60, #68). Decisions: drop `limit=0` (cap 200), unknown `team_id` → 404, RLS/role switch last. PR 0 adds the docs gate, Newcomer Guide and References page. | #104, #105 |
 | 2026-10-05 | PR 1 of Phase 1: `GET /health` (+ `?db=1`), `CORS_ORIGINS` allowlist, `max_length` on the one-off request, `limit` capped at 1–200 (`limit=0` dropped), literal `%`/`_` in the pool search. #69 moved to M1. | #69, #56, #106 |
+| 2026-10-05 | PR 2 of Phase 1: shared `CleanStr` input types (trim, no control chars, blank optional → `None`), unknown `team_id` → 404 (+ stray `IntegrityError` → 409), source id xor free text, duplicate NSSZ → 422, deterministic list ordering and cap-sorted snapshots on create. | #53, #54, #55, #107 |

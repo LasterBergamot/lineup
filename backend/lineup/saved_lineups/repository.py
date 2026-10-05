@@ -46,6 +46,9 @@ async def create_saved_lineup(
     )
     session.add(lineup)
     await session.commit()
+    # The snapshots are still in request order in the identity map; reloading applies the
+    # relationship's order_by (cap number) so POST returns the same order as GET.
+    await session.refresh(lineup, ["player_snapshots"])
     return await get_saved_lineup_by_id(session, lineup.id)
 
 
@@ -86,7 +89,11 @@ async def list_saved_lineups(
     total: int = (
         await session.scalar(select(func.count()).select_from(query.subquery())) or 0
     )
-    query = query.limit(limit).offset(offset)
+    query = (
+        query.order_by(SavedLineup.created_at, SavedLineup.id)
+        .limit(limit)
+        .offset(offset)
+    )
     items = list((await session.execute(query)).scalars().all())
     return items, total
 

@@ -200,20 +200,20 @@ The header carries the name twice. HTTP headers are latin-1, so a team name with
 
 ### Teams, Players & Saved Lineups
 
-Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup.db` for local dev via `task serve`, swappable to Supabase Postgres via `DATABASE_URL` — see [Environment variables](#environment-variables)). All list endpoints are paginated: `?limit=20&offset=0` (`limit` is 1–200; there is no "return everything" mode, page with `offset`), in the envelope `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
+Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup.db` for local dev via `task serve`, swappable to Supabase Postgres via `DATABASE_URL` — see [Environment variables](#environment-variables)). Text input is checked everywhere the same way: values are trimmed, must not be empty or whitespace-only, and must not contain control characters (tabs, newlines, NUL…), all with `422`. Optional fields treat a blank value as "not provided". Lists come back in a stable order (teams by name, players and saved lineups by creation time, with the id as tie-breaker) so pages never repeat or skip rows, and a saved lineup's players are always sorted by cap number. All list endpoints are paginated: `?limit=20&offset=0` (`limit` is 1–200; there is no "return everything" mode, page with `offset`), in the envelope `{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
 
 | Method | Path | Description |
 |--------|------|--------------|
 | `GET`/`POST` | `/teams` | List / create teams |
 | `GET` | `/teams/pool?search=&limit=` | Search the shared pool of public teams (for opponent selection) — plain list, not paginated. `search` is a literal, case-insensitive substring (`%` and `_` are not wildcards), max 120 characters |
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename / delete a team. Delete returns **409** if the team still has players on its roster |
-| `GET`/`POST` | `/players` | List (optionally `?team_id=`) / create players |
-| `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
+| `GET`/`POST` | `/players` | List (optionally `?team_id=`) / create players. An unknown `team_id` returns **404** `Team not found` |
+| `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (an unknown `team_id` is a **404** here too) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
 | `GET`/`POST` | `/lineups/saved` | List (optionally `?source_team_id=`) / create saved lineups |
 | `GET`/`DELETE` | `/lineups/saved/{id}` | Get / delete a saved lineup |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Generate a PDF/DOCX from a previously saved lineup |
 
-A saved lineup freezes team/opponent names and each player's name/NSSZ number as text at creation time. Team, opponent, and each player can be specified either by referencing an existing record (`source_team_id`, `source_opponent_id`, `source_player_id` — the current name/NSSZ is copied in) or by free text (`team_name`, `opponent_name`, player `name`/`nssz_number`); at least one of the two must be given per field. Once saved, deleting the source team or player has no effect on the lineup.
+A saved lineup freezes team/opponent names and each player's name/NSSZ number as text at creation time. Team, opponent, and each player can be specified either by referencing an existing record (`source_team_id`, `source_opponent_id`, `source_player_id` — the current name/NSSZ is copied in) or by free text (`team_name`, `opponent_name`, player `name`/`nssz_number`); **exactly one** of the two must be given per field (sending both is a `422`, so it is never ambiguous which value wins). The same NSSZ number can't appear twice in one lineup (`422`), on either endpoint. Once saved, deleting the source team or player has no effect on the lineup.
 
 ```json
 POST /lineups/saved
