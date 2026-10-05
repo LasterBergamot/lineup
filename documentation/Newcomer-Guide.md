@@ -196,6 +196,10 @@ the service if a rule applies, tests for the new behaviour, and the docs.
   coverage under-reports lines after an `await session.commit()`.
 - **FastAPI routers:** don't use `from __future__ import annotations` in router files (it breaks
   query-parameter detection) and declare query parameters with `Annotated[..., Query(...)]`.
+- **A browser on another origin is blocked unless you allow it.** The frontend dev server
+  (`http://localhost:5173`) is a different origin from the API (`:8000`), so set `CORS_ORIGINS` in
+  `backend/.env`. With it unset the API sends no CORS headers (curl and the docs page still work).
+- **Lists have no "give me everything" mode.** `limit` is 1-200; page with `offset`.
 - **Download file names** go through `content_disposition()` because HTTP header values are
   latin-1 and names like `ő`/`ű` would crash a plain `filename=`.
 - **Nobody is logged in yet.** `get_current_user_id()` returns `None`, so ownership filters exist

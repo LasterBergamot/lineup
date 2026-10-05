@@ -24,7 +24,7 @@ router = APIRouter(prefix="/lineups/saved", tags=["saved-lineups"])
 @router.get("", response_model=PaginatedSavedLineups)
 async def list_saved_lineups(
     limit: Annotated[
-        int, Query(ge=0, description="Max items to return. 0 = no limit.")
+        int, Query(ge=1, le=200, description="Max items to return (1-200).")
     ] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     source_team_id: uuid.UUID | None = None,

@@ -5,6 +5,7 @@ Each test gets a fresh in-memory SQLite DB via the async_client fixture.
 
 import uuid
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -100,11 +101,19 @@ class TestListTeams:
         assert len(data["items"]) == 2
         assert data["offset"] == 3
 
-    async def test_list_teams_limit_zero_returns_all(self, async_client: AsyncClient):
-        for i in range(5):
-            await _create_team(async_client, f"Team {i}")
-        response = await async_client.get("/teams?limit=0")
-        assert len(response.json()["items"]) == 5
+    @pytest.mark.parametrize("limit", [0, -1, 201])
+    async def test_list_teams_rejects_out_of_range_limit(
+        self, async_client: AsyncClient, limit: int
+    ):
+        response = await async_client.get(f"/teams?limit={limit}")
+        assert response.status_code == 422
+
+    async def test_list_teams_accepts_the_maximum_limit(
+        self, async_client: AsyncClient
+    ):
+        response = await async_client.get("/teams?limit=200")
+        assert response.status_code == 200
+        assert response.json()["limit"] == 200
 
 
 class TestGetTeam:
@@ -210,6 +219,26 @@ class TestTeamsPool:
         response = await async_client.get("/teams/pool?search=csong")
         names = [t["name"] for t in response.json()]
         assert names == ["Csongrád VVSE"]
+
+    async def test_pool_search_treats_percent_as_a_literal(
+        self, async_client: AsyncClient
+    ):
+        for name in ("100% Club", "Alpha", "Beta"):
+            await _create_team(async_client, name)
+        response = await async_client.get("/teams/pool?search=%25")
+        assert [t["name"] for t in response.json()] == ["100% Club"]
+
+    async def test_pool_search_treats_underscore_as_a_literal(
+        self, async_client: AsyncClient
+    ):
+        for name in ("A_B", "AxB"):
+            await _create_team(async_client, name)
+        response = await async_client.get("/teams/pool?search=A_B")
+        assert [t["name"] for t in response.json()] == ["A_B"]
+
+    async def test_pool_search_rejects_overlong_term(self, async_client: AsyncClient):
+        response = await async_client.get(f"/teams/pool?search={'a' * 121}")
+        assert response.status_code == 422
 
     async def test_pool_respects_limit(self, async_client: AsyncClient):
         for i in range(5):

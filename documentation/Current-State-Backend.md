@@ -84,6 +84,13 @@ so rendering, headers and error handling live in one place:
   assistant coach / team leader / ball thrower renders as an empty line. `LineupRequest` still
   requires them for the one-off endpoint, but saved lineups may omit them.
 
+### Health
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/health` | Liveness: `200 {"status":"ok"}`, never touches the database. Used by the container healthcheck, CD and the frontend's "server is waking up" banner |
+| `GET` | `/health?db=1` | Readiness: also runs `SELECT 1`. A failure returns `503 {"status":"unavailable"}` (no driver text, so hostnames never leak). It is returned rather than raised, so a down database does not flood Sentry |
+
 ### Teams
 
 | Method | Path | Notes |
@@ -112,7 +119,20 @@ at save time) or as free text — at least one of the two is required per field.
 source team/player afterwards never changes an already-saved lineup.
 
 All paginated list endpoints (everything except `/teams/pool`) return the envelope
-`{ "items": [...], "total": ..., "limit": ..., "offset": ... }`.
+`{ "items": [...], "total": ..., "limit": ..., "offset": ... }`. `limit` must be 1–200 (default 20):
+an unbounded list is a cheap way to make the API dump a whole table, so there is no "all" mode.
+Page with `offset` instead. The pool's `search` term is matched literally (`%` and `_` are escaped),
+so typing `100%` finds "100% Club" rather than everything.
+
+**Input limits**: every string on `POST /lineups` has a `max_length` (match/name/staff 200, team 120,
+division 100, date 50, NSSZ 50), the same limits the saved-lineup schemas already used.
+
+**CORS**: a browser only lets a page call this API from another origin if the API allows it. Set
+`CORS_ORIGINS` to a comma-separated list of exact origins (the Vite dev server, the deployed
+frontend). Unset means no CORS headers at all. `*` is refused at startup, credentials are off (the
+future sign-in uses an `Authorization` header, not cookies), and only `GET/POST/PUT/DELETE` plus the
+`Authorization` and `Content-Type` headers are allowed. `Content-Disposition` is exposed so the
+frontend can read the download file name.
 
 ## Data model
 

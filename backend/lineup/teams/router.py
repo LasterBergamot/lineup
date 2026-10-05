@@ -24,7 +24,7 @@ router = APIRouter(prefix="/teams", tags=["teams"])
 @router.get("", response_model=PaginatedTeams)
 async def list_teams(
     limit: Annotated[
-        int, Query(ge=0, description="Max items to return. 0 = no limit.")
+        int, Query(ge=1, le=200, description="Max items to return (1-200).")
     ] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     session: AsyncSession = Depends(get_session),
@@ -56,7 +56,10 @@ async def create_team(
 # Registered before /{team_id} so "pool" isn't swallowed as a team_id path param
 @router.get("/pool", response_model=list[TeamPoolItem])
 async def search_teams_pool(
-    search: Annotated[str | None, Query(description="Filter by team name")] = None,
+    search: Annotated[
+        str | None,
+        Query(max_length=120, description="Filter by team name (literal match)"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     session: AsyncSession = Depends(get_session),
 ) -> list[TeamPoolItem]:

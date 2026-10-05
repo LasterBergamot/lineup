@@ -38,6 +38,7 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 
 ### API
 
+- `GET /health[?db=1]` — liveness / readiness probe; `200 {"status":"ok"}` or `503 {"status":"unavailable"}`
 - `POST /lineups?format=pdf|docx` — fills the template, converts to PDF (or returns DOCX), streams the file back
 - `format` query param defaults to `pdf`; `docx` skips LibreOffice conversion entirely
 - Request body: `LineupRequest` (match, division, team_name, cap, date, coach, doctor, assistant_coach, team_leader, ball_thrower, players)
@@ -47,8 +48,8 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 
 #### Teams / Players / Saved Lineups
 
-- `GET/POST /teams`, `GET/PUT/DELETE /teams/{id}` — CRUD, paginated list (`?limit=&offset=`, `limit=0` = all)
-- `GET /teams/pool?search=&limit=` — shared opponent pool: public teams (`is_public=True`) only, plain list (not the paginated envelope), `limit` 1–100. Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
+- `GET/POST /teams`, `GET/PUT/DELETE /teams/{id}` — CRUD, paginated list (`?limit=&offset=`, `limit` 1–200, default 20; no "all" mode)
+- `GET /teams/pool?search=&limit=` — shared opponent pool: public teams (`is_public=True`) only, plain list (not the paginated envelope), `limit` 1–100, `search` is a literal substring (`icontains(..., autoescape=True)`, max 120 chars). Registered **before** `/teams/{id}` in the router so `"pool"` doesn't get swallowed as a `team_id` path param.
 - `DELETE /teams/{id}` returns **409** if the team still has roster players assigned (`Player.team_id`); otherwise 200. This check is app-level, not DB-level.
 - `GET/POST /players`, `GET/PUT/DELETE /players/{id}` — CRUD; `team_id` is optional on create/update and filterable on list. `DELETE /players/{id}` is **unconditionally** safe (204) — it never blocks, because saved lineups store frozen snapshots, not live references.
 - `GET/POST /lineups/saved`, `GET/DELETE /lineups/saved/{id}`, `POST /lineups/saved/{id}/generate?format=pdf|docx` — a saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster at save time) or as free text — at least one of the two is required per field (enforced by Pydantic `model_validator`s in `lineup/saved_lineups/schemas.py`). Deleting the source team/player afterwards never changes an already-saved lineup.
@@ -60,9 +61,10 @@ Paths in this table are relative to `backend/`.
 
 | File | Responsibility |
 |------|---------------|
-| `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers all 4 routers; initializes Sentry at import time if `SENTRY_DSN` is set (errors only, `traces_sample_rate=0.0`) |
+| `app.py` | FastAPI app entry point; lifespan calls `Base.metadata.create_all` unless `ENV=production` (Alembic handles DDL in prod); registers the 5 routers (health, lineups, teams, players, saved lineups); adds `CORSMiddleware` only when `CORS_ORIGINS` is set (`parse_cors_origins()`: explicit origins, `*` refused, exposes `Content-Disposition`, no credentials); initializes Sentry at import time if `SENTRY_DSN` is set (errors only, `traces_sample_rate=0.0`) |
 | `main.py` | CLI entry point |
-| `lineup/api/models.py` | Pydantic request models (`LineupRequest`, `PlayerRequest`) |
+| `lineup/api/models.py` | Pydantic request models (`LineupRequest`, `PlayerRequest`); every string has `min_length=1` and a `max_length` matching the saved-lineup schemas (match/name/staff 200, division 100, team 120, date 50, NSSZ 50) |
+| `lineup/health/router.py` | `GET /health` (liveness, no DB) and `GET /health?db=1` (readiness, `SELECT 1`). A failure is *returned* as `503 {"status":"unavailable"}`, not raised, so no driver text reaches the client and Sentry is not flooded. Used by the container healthcheck, CD and the keep-alive cron |
 | `lineup/api/router.py` | `POST /lineups` endpoint (builds the DTO, delegates to `build_file_response`) |
 | `lineup/api/file_response.py` | Shared by both generate endpoints: `FileFormat` enum, media types, `content_disposition()` (RFC 6266 `filename*` + ASCII fallback — header values are latin-1, so `ő`/`ű` would crash a plain `filename=`), `build_file_response()` (renders via `run_in_threadpool` so LibreOffice never blocks the event loop; `TimeoutExpired` → 504, other errors → 500) |
 | `lineup/document/document_manager.py` | `.docx` read/write/style logic |
@@ -118,7 +120,7 @@ task docs:references  # regenerate the dependency block in documentation/Referen
 task docs:check   # fail if that block is stale (CI runs it)
 ```
 
-Environment variables (`DATABASE_URL`, `ENV`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
+Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 
@@ -195,7 +197,7 @@ lineup/
     ├── main.py
     ├── pyproject.toml  uv.lock  .python-version
     ├── Dockerfile  .dockerignore
-    ├── .env.example                      # documents DATABASE_URL / ENV / SENTRY_DSN (copy to git-ignored backend/.env)
+    ├── .env.example                      # documents DATABASE_URL / ENV / CORS_ORIGINS / SENTRY_DSN (copy to git-ignored backend/.env)
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf   # Calibri → Carlito mapping, copied into the image
@@ -223,6 +225,8 @@ lineup/
     │   │   └── models.py     # Team, Player, SavedLineup, LineupPlayerSnapshot
     │   ├── auth/
     │   │   └── dependencies.py   # get_current_user_id() — None pre-Auth
+    │   ├── health/
+    │   │   └── router.py     # GET /health, /health?db=1
     │   ├── teams/
     │   │   ├── schemas.py
     │   │   ├── repository.py
@@ -251,6 +255,7 @@ lineup/
         ├── test_water_polo_lineup_creator.py
         ├── test_water_polo_lineup_dto.py
         ├── test_auth_dependencies.py
+        ├── test_health.py                 # /health liveness + readiness
         ├── test_docs_tooling.py           # scripts/ (References generator, docs gate) + wiki PAGE_MAP completeness
         ├── test_db_engine.py
         ├── test_db_models.py

@@ -44,6 +44,7 @@ external services.
 |---|---|---|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
 | `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
+| `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
 
 `task up` (Docker Compose, through `env_file: backend/.env` in the root `compose.yml`) passes these into the container;
