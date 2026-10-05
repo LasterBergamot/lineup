@@ -18,12 +18,13 @@ behind it and what is still to come. The step-by-step plan, with issue numbers, 
 
 ## Where we are
 
-Done: skeleton and tooling, the cold-start-aware data layer, and the first screen, the one-off
-lineup form that calls `POST /lineups` (see [[Current State: Frontend]]). Next (`PLAN.md`): real
-sign-in and onboarding (Phase 3), deployment to Cloudflare Pages (Phase 4), invitations (Phase 5),
-then roster, lineup creator with previews and saved lineups (Phase 6).
+Done: skeleton and tooling, the cold-start-aware data layer, the one-off lineup form that calls
+`POST /lineups`, and sign-in with team onboarding (see [[Current State: Frontend]]); the real Google
+sign-in still waits for the console setup in [[Auth Setup]]. Next (`PLAN.md`): deployment to
+Cloudflare Pages (Phase 4), invitations (Phase 5), then roster, lineup creator with previews and
+saved lineups (Phase 6).
 
-## Planned OAuth / onboarding flow
+## OAuth / onboarding flow (built)
 
 ```mermaid
 sequenceDiagram
@@ -42,12 +43,11 @@ sequenceDiagram
         FE->>User: prompt for Team Name
         User->>FE: submits team name
         FE->>API: POST /teams {name}
-        API-->>FE: team created, owner_id = user_id
-        FE->>FE: store team as default (localStorage / profile)
+        API-->>FE: team created, caller is its owner
     else user has a team
-        API-->>FE: existing team(s)
+        API-->>FE: existing team(s) with the caller's role
     end
-    FE->>User: show lineup creator, pre-selected default team + roster
+    FE->>User: app shell showing the current team (the first one by name until team switching exists)
 ```
 
 ## Anticipated UI surfaces
@@ -63,8 +63,9 @@ there:
   matches each player's `source_player_id` against the current roster: still-present
   players get pre-selected, deleted ones fall back to the frozen snapshot name/NSSZ as free
   text with a "no longer on roster" hint.
-- **Team invitations** — accept/generate invite links once `team_members`/
-  `team_invitations` ship on the backend.
+- **Team invitations** — accept/generate invite links (Phase 5, #51). The onboarding screen
+  already shows the "join with an invite link" field, disabled, and the `/join/:code` page has to
+  survive the Google sign-in round trip (the sign-in page already forwards to a remembered path).
 
 ## Still open
 

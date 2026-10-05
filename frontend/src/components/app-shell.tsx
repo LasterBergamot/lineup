@@ -1,22 +1,18 @@
 import { NavLink, Outlet } from "react-router";
 import { BackendStatusBanner } from "@/backend-status/banner";
+import { SignOutButton, TeamLabel } from "@/components/account-panel";
+import { Brand } from "@/components/brand";
 import { NAV_ITEMS } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { TeamGate } from "@/features/teams/team-gate";
 import { cn } from "@/lib/utils";
-
-function Brand() {
-  return (
-    <div className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-      <img src="/favicon.svg" alt="" className="size-6" />
-      Lineup
-    </div>
-  );
-}
 
 /**
  * Static page frame: a sidebar from the `md` breakpoint up, a top bar plus bottom navigation
  * below it. It renders without waiting for any API call, so a cold-starting backend never
- * blanks the screen; routed pages fill the `<main>` area, under the backend status banner.
+ * blanks the screen; routed pages fill the `<main>` area (behind the team gate, which shows the
+ * onboarding screen to a user with no team), under the backend status banner. The account block
+ * shows the current team and signs out.
  */
 export function AppShell() {
   return (
@@ -44,7 +40,9 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t p-3">
+        <div className="flex flex-col gap-2 border-t p-3">
+          <TeamLabel className="min-w-0 px-3" />
+          <SignOutButton />
           <ThemeToggle />
         </div>
       </aside>
@@ -52,11 +50,17 @@ export function AppShell() {
       <div className="flex min-w-0 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-sidebar px-4 py-2 md:hidden">
           <Brand />
-          <ThemeToggle />
+          <div className="flex min-w-0 items-center gap-1">
+            <TeamLabel className="max-w-32 min-w-0 text-right" />
+            <SignOutButton compact />
+            <ThemeToggle />
+          </div>
         </header>
         <BackendStatusBanner />
         <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:p-8 md:pb-8">
-          <Outlet />
+          <TeamGate>
+            <Outlet />
+          </TeamGate>
         </main>
       </div>
 

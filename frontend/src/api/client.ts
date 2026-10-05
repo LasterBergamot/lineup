@@ -1,4 +1,7 @@
-import createClient from "openapi-fetch";
+import createClient, { type Middleware } from "openapi-fetch";
+import { createAuthMiddleware } from "@/api/auth-middleware";
+import { notifyUnauthorized } from "@/auth/events";
+import { getAccessToken } from "@/auth/supabase";
 import type { paths } from "./schema";
 
 /**
@@ -23,13 +26,24 @@ export function fetchWithTimeout(timeoutMs: number): (request: Request) => Promi
     );
 }
 
-/** Builds a typed fetch client; request and response types come from the backend's OpenAPI spec. */
-export function createApi(baseUrl: string = API_BASE_URL, timeoutMs: number = DEFAULT_TIMEOUT_MS) {
-  return createClient<paths>({ baseUrl, fetch: fetchWithTimeout(timeoutMs) });
+/**
+ * Builds a typed fetch client; request and response types come from the backend's OpenAPI spec.
+ * Pass `middleware` to add behaviour to every call (the app's clients attach the sign-in token).
+ */
+export function createApi(
+  baseUrl: string = API_BASE_URL,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  middleware?: Middleware,
+) {
+  const client = createClient<paths>({ baseUrl, fetch: fetchWithTimeout(timeoutMs) });
+  if (middleware) client.use(middleware);
+  return client;
 }
 
-/** The app-wide client. */
-export const api = createApi();
+const authMiddleware = createAuthMiddleware(getAccessToken, notifyUnauthorized);
+
+/** The app-wide client. Sends the signed-in user's token; a `401` ends the session. */
+export const api = createApi(API_BASE_URL, DEFAULT_TIMEOUT_MS, authMiddleware);
 
 /** A client with the long PDF timeout, for the endpoints that run LibreOffice. */
-export const generateApi = createApi(API_BASE_URL, PDF_TIMEOUT_MS);
+export const generateApi = createApi(API_BASE_URL, PDF_TIMEOUT_MS, authMiddleware);

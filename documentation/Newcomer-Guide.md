@@ -69,6 +69,7 @@ Three things in this picture surprise newcomers:
 | **React + TypeScript + Vite** | A UI library, typed JavaScript, and the dev server/bundler that serves and builds them | The web app, in `frontend/`, that works on phone and desktop | `frontend/src/` |
 | **Tailwind + shadcn-style components** | Utility CSS classes and a set of copy-in UI components, themed with the Polaris design tokens | Consistent look (square corners, teal/amber, light and dark) without hand-written CSS | `frontend/src/index.css`, `frontend/DESIGN.md` |
 | **React Hook Form + Zod** | Form state, and a schema that describes valid input | The lineup form checks the API's rules in the browser first, and maps the API's 422 errors onto the right inputs | `frontend/src/features/lineup/` |
+| **Supabase Auth (`@supabase/supabase-js`)** | The hosted sign-in service, and its browser library | Runs "Sign in with Google"; the app uses it for sign-in only and sends the token it returns to our API, which checks it | `frontend/src/auth/`, [[Auth Setup]] |
 | **TanStack Query** | A library that fetches, caches and retries server data in React | Handles loading states and the slow first request after the hosted API has been idle; `frontend/src/backend-status/` shows a "server is waking up" banner | `frontend/src/api/query-client.ts` |
 | **openapi-typescript / openapi-fetch** | Generate TypeScript types from the API's OpenAPI description and a fetch client that uses them | A renamed field or changed endpoint becomes a compile error, not a runtime surprise | `frontend/src/api/` |
 | **pnpm, ESLint, Prettier, Vitest** | Package manager (`pnpm-lock.yaml` pins versions), linter, formatter and test runner for the frontend | The frontend's counterparts of uv, Ruff and pytest | `task fe:*` |
@@ -97,7 +98,8 @@ Three things in this picture surprise newcomers:
 - **Pooler**: a proxy in front of Postgres (Supabase's) that shares connections; it needs special
   client settings (see [[Current State: Backend]]).
 - **RLS** (row-level security): Postgres rules that decide which rows a database role may see.
-- **JWT**: a signed token proving who a user is; planned for sign-in (see [[Roadmap: Backend]]).
+- **JWT**: a signed token proving who a user is. The frontend gets one from Supabase when the user signs in with Google and sends it as `Authorization: Bearer ...`; the API checks its signature (see [[Auth Setup]]).
+- **PKCE**: the OAuth variant the web app uses, where Google's redirect carries a one-time code instead of the tokens, so no token is ever in a URL.
 - **Coverage**: the percentage of code lines the tests execute; this repo requires 100%.
 - **e2e test**: a test that drives the real running container instead of mocks.
 - **Dev / prod**: our only two environments. Long-lived branches: `develop` (dev) and `main` (prod).
@@ -239,6 +241,7 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 - **Text fields use the shared types in `lineup/common/types.py`** (trimmed, length-capped, no control
   characters). Use them for any new text field, or a stray tab/NUL can produce a 500 when the document is
   generated.
+- **The frontend's `VITE_*` settings are public.** Anything in `frontend/.env` ends up in the JavaScript every visitor downloads, so only the Supabase *publishable* key may go there (the app refuses a secret one). Sign-in needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; without them the sign-in page says it is not configured, and the app can't be used past it. [[Auth Setup]] explains how to try the frontend locally without a Google account.
 - **Lists have no "give me everything" mode.** `limit` is 1-200; page with `offset`.
 - **Changed an endpoint or schema? Regenerate the frontend client.** Run `task fe:api` and commit
   `frontend/src/api/`; CI's `Frontend` job fails with "stale" otherwise.
