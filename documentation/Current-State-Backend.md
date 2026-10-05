@@ -327,7 +327,8 @@ database safe to put behind a public API. It does four things:
    now on, so a forgotten `ENABLE ROW LEVEL SECURITY` in a future migration can't leave a table open.
    Event triggers normally need a superuser; if the hosting role isn't allowed to create one the
    migration logs a notice and continues, and CI's "every table has RLS" assertion still protects
-   you.
+   you. The function's `search_path` is pinned to empty (a follow-up migration, after Supabase's
+   Security Advisor flagged it); it only uses `pg_catalog` functions, which are always searched.
 4. **The `lineup_app` role**: not the owner (so RLS applies to it), `NOBYPASSRLS`, no `CREATE` on the
    schema, `SELECT/INSERT/UPDATE/DELETE` on the four app tables only (not on `alembic_version`, so a
    compromised API can't rewrite the migration history) and the same default privileges on future
@@ -356,6 +357,11 @@ the API must never hold the owner's password. `alembic/env.py` prefers `MIGRATE_
    statement).
 3. Restart the app and run the `supabase-smoke` skill: create and delete a team, player and saved
    lineup as `lineup_app`.
+
+Expect two notes in Supabase's Security Advisor: an INFO `rls_enabled_no_policy` on `alembic_version`
+is intended (RLS with no policy denies everyone but the owner, which is exactly what we want for the
+migration history), and the `search_path` WARN on the trigger function is fixed by the follow-up
+migration.
 
 `tests/test_postgres_migrations.py` proves all of the above against a real Postgres (skipped unless
 `POSTGRES_TEST_URL` is set; CI's "Migrations (Postgres)" job sets it): every table has RLS, the trigger
