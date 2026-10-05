@@ -30,3 +30,6 @@ export function createApi(baseUrl: string = API_BASE_URL, timeoutMs: number = DE
 
 /** The app-wide client. */
 export const api = createApi();
+
+/** A client with the long PDF timeout, for the endpoints that run LibreOffice. */
+export const generateApi = createApi(API_BASE_URL, PDF_TIMEOUT_MS);

@@ -105,7 +105,7 @@ A subset of M1. The rest of M1 follows at its own pace.
       generated API client (a CI check fails if it's stale), `task fe:*` targets, and a CI job
       (lint, typecheck, test, build).
 - [x] #120 Cold-start-aware data layer (§5) (PR #126): skeleton loaders, a wake-up banner, retry policy.
-- [ ] #121 First screen: a one-off lineup form calling `POST /lineups` against the local container.
+- [x] #121 First screen (PR #128): a one-off lineup form calling `POST /lineups` against the local container.
       This meets #20's acceptance.
 
 ### Phase 3 — Real auth on dev
@@ -404,3 +404,4 @@ Endpoints (amends #51):
 | 2026-10-05 | Phase 3, PR 1: `get_current_user_id()` verifies the Supabase JWT (ES256/RS256 only, cached JWKS, `iss`/`aud`/`exp`/`nbf`) and returns the `sub` UUID; 401/503 fail closed; repositories take a required user id; saved-lineup create resolves source ids as the caller; `Auth Setup` wiki page. `POST /lineups` stays public until #96. | #101, #47, #122 |
 | 2026-10-05 | Phase 2, PR 2: cold-start-aware data layer: `BackendStatusProvider` polls `/health` on load (`unknown → waking → ready` or `db-paused` or `down`, banner after 1.5 s behind `VITE_COLD_START_NOTICE`), TanStack Query retries only transient failures (1-2-4-8 s backoff, never 4xx or mutations), 60 s / 130 s (PDF) request timeouts, `QueryBoundary` + `Skeleton` for data regions and a `loading` button. Checked in Chromium with a slow, gateway-erroring, db-paused and 404 API. | #120, PR #126 |
 | 2026-10-05 | Phase 3, PR 2: `team_members` + `team_invitations` (RLS, grants, interim policy), creator inserted as `owner`, owner columns `NOT NULL` (ownerless dev rows deleted by the migration, not backfilled), `supabase-smoke` skill authenticates through `scripts/smoke_auth.py`. Applying the migration to dev Supabase is left to the owner. | #19, #52, #125 |
+| 2026-10-05 | Phase 2, PR 3: the first screen, a one-off lineup form (React Hook Form + a Zod schema that mirrors the API limits) calling `POST /lineups` and downloading the PDF or DOCX; API 422s are mapped onto the fields, a PDF-wait message appears after 5 s, nothing is persisted client-side. Verified in Chromium against a real container: a 15-player PDF and a DOCX downloaded, with `ő`/`ű` in the file name. Decisions for #20 recorded in `Roadmap-Frontend.md`; Phase 2 is complete. | #121, #20, PR #128 |

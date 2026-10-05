@@ -1,15 +1,19 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AppRoutes } from "@/app";
+import { createQueryClient } from "@/api/query-client";
 import { BackendStatusProvider } from "@/backend-status/provider";
 
 function renderAt(path: string) {
   return render(
     <BackendStatusProvider probe={async () => "ok"}>
-      <MemoryRouter initialEntries={[path]}>
-        <AppRoutes />
-      </MemoryRouter>
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={[path]}>
+          <AppRoutes />
+        </MemoryRouter>
+      </QueryClientProvider>
     </BackendStatusProvider>,
   );
 }
