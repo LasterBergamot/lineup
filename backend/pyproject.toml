@@ -18,7 +18,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.15",
+    "ruff>=0.16.10",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
     "pdfplumber>=0.11.0",
