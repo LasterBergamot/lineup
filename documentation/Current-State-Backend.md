@@ -343,7 +343,9 @@ total. As `lineup_app` the worst case is bounded to the app's own tables.
 connection) lives in the separate, git-ignored `backend/.env.migrate`. It must not go into
 `backend/.env`, because Docker Compose and `task serve` load that file into the API's environment and
 the API must never hold the owner's password. `alembic/env.py` prefers `MIGRATE_DATABASE_URL` over
-`DATABASE_URL`, and `task migrate:supabase` reads only `.env.migrate`.
+`DATABASE_URL`, and `task migrate:supabase` reads only `.env.migrate`. The migration URL may be the plain
+`postgresql://` string the Supabase dashboard shows: `lineup/db/urls.py` rewrites it to the `asyncpg` driver
+(the only one installed), and `sslmode=` to `ssl=`. The app's own `DATABASE_URL` must still say `postgresql+asyncpg://`.
 
 **Rolling it out on a Supabase project** (shared state; do it deliberately):
 

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from lineup.db.base import Base
 import lineup.db.models  # noqa: F401 — registers all ORM models with Base.metadata
+from lineup.db.urls import to_asyncpg_url
 
 config = context.config
 if config.config_file_name is not None:
@@ -30,6 +31,8 @@ url = (
     or os.getenv("DATABASE_URL")
     or config.get_main_option("sqlalchemy.url")
 )
+# Dashboards hand out plain postgresql:// URLs; this project only ships the asyncpg driver.
+url = to_asyncpg_url(url)
 config.set_main_option("sqlalchemy.url", url)
 
 target_metadata = Base.metadata
