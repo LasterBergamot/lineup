@@ -17,7 +17,7 @@ from lineup.teams import repository as team_repo
 
 
 async def _ensure_team_exists(
-    session: AsyncSession, team_id: uuid.UUID | None, user_id: uuid.UUID | None
+    session: AsyncSession, team_id: uuid.UUID | None, user_id: uuid.UUID
 ) -> None:
     """Without this an unknown team_id fails the FK at commit time as a 500."""
     if team_id is None:
@@ -31,7 +31,7 @@ async def create_player(
     session: AsyncSession,
     name: str,
     nssz_number: str,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     team_id: uuid.UUID | None,
 ) -> Player:
     """Create a player. Raises 404 "Team not found" if `team_id` is given but unknown."""
@@ -44,7 +44,7 @@ async def create_player(
 async def get_player_or_404(
     session: AsyncSession,
     player_id: uuid.UUID,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> Player:
     """Return the player or raise 404 "Player not found"."""
     player = await repository.get_player(session, player_id=player_id, user_id=user_id)
@@ -55,7 +55,7 @@ async def get_player_or_404(
 
 async def list_players(
     session: AsyncSession,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     team_id: uuid.UUID | None,
     limit: int,
     offset: int,
@@ -72,7 +72,7 @@ async def update_player(
     name: str,
     nssz_number: str,
     team_id: uuid.UUID | None,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> Player:
     """Replace a player's fields. Raises 404 if the player or the given `team_id` is unknown."""
     player = await get_player_or_404(session, player_id=player_id, user_id=user_id)
@@ -85,7 +85,7 @@ async def update_player(
 async def delete_player(
     session: AsyncSession,
     player_id: uuid.UUID,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> None:
     """Delete a player; always allowed, because saved lineups store copies. 404 if unknown."""
     player = await get_player_or_404(session, player_id=player_id, user_id=user_id)

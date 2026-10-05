@@ -1,7 +1,7 @@
 """Database access for saved lineups and their player snapshots.
 
-Lookups return `None` when nothing matches; `user_id` filters apply only when it is not `None`
-(always None until auth exists).
+Lookups return `None` when nothing matches; every query is filtered by the required `user_id`
+(the signed-in user).
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ async def create_saved_lineup(
     assistant_coach: str | None,
     team_leader: str | None,
     ball_thrower: str | None,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     source_team_id: uuid.UUID | None,
     source_opponent_id: uuid.UUID | None,
     player_snapshots: list[LineupPlayerSnapshot],
@@ -78,19 +78,20 @@ async def get_saved_lineup_by_id(
 async def get_saved_lineup(
     session: AsyncSession,
     lineup_id: uuid.UUID,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> SavedLineup | None:
-    """Fetch one lineup, restricted to `user_id` when given. Returns `None` if not found."""
-    query = select(SavedLineup).where(SavedLineup.id == lineup_id)
-    if user_id is not None:
-        query = query.where(SavedLineup.user_id == user_id)
-    result = await session.execute(query)
+    """Fetch one of `user_id`'s lineups. Returns `None` if not found or owned by someone else."""
+    result = await session.execute(
+        select(SavedLineup).where(
+            SavedLineup.id == lineup_id, SavedLineup.user_id == user_id
+        )
+    )
     return result.scalar_one_or_none()
 
 
 async def list_saved_lineups(
     session: AsyncSession,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     source_team_id: uuid.UUID | None = None,
     limit: int = 20,
     offset: int = 0,
@@ -98,9 +99,7 @@ async def list_saved_lineups(
     """One page of lineups, optionally for one `source_team_id`, ordered by
     `(created_at, id)` so paging is stable, plus the total count before paging.
     """
-    query = select(SavedLineup)
-    if user_id is not None:
-        query = query.where(SavedLineup.user_id == user_id)
+    query = select(SavedLineup).where(SavedLineup.user_id == user_id)
     if source_team_id is not None:
         query = query.where(SavedLineup.source_team_id == source_team_id)
     total: int = (

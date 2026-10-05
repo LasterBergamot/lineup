@@ -249,7 +249,7 @@ class TestTeamsPool:
 
 class TestTeamRepositoryOwnerFiltering:
     """Owner-scoped filtering is exercised directly at the repository layer
-    since the auth dependency always yields owner_id=None pre-Auth."""
+    so that the owner-scoped functions are checked with two real user ids."""
 
     async def test_get_team_filters_by_owner_id(self, db_session: AsyncSession):
         owner = uuid.uuid4()

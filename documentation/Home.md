@@ -18,6 +18,8 @@ saved roster instead of a one-off request payload.
 
 - [[Newcomer Guide]] — the junior-developer walkthrough: stack, glossary, request flow, running,
   testing, your first change, common gotchas
+- [[Auth Setup]] — how Google sign-in through Supabase works, the one-off dashboard setup, adding
+  and removing testers, and what each `401`/`503` means
 - [[References]] — official docs and links for every library, tool, service, spec and regulation
   we use (the dependency tables are generated from the repo)
 

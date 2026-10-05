@@ -12,7 +12,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 **Persistence layer** (`/teams`, `/players`, `/lineups/saved`): so a lineup can be built from a saved roster instead of retyping everything. Each module (`backend/lineup/teams/`, `backend/lineup/players/`, `backend/lineup/saved_lineups/`) has the same four files: `router.py` (HTTP), `schemas.py` (validation), `service.py` (business rules) and `repository.py` (SQL). Data is stored with SQLAlchemy (async) in a database chosen by the `DATABASE_URL` environment variable: local SQLite by default, Supabase Postgres when configured. Schema changes are managed by Alembic migrations. A saved lineup is a *frozen snapshot* (names copied as text), so deleting a team or player later never alters history.
 
-**Not yet implemented:** real authentication. Every row has an owner column, but it is always empty for now (`get_current_user_id()` returns `None`); adding login later means changing that one function. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
+**Authentication:** every route except `GET /health`, the stateless one-off `POST /lineups` and the API docs requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. Team membership and invitations (shared rosters) are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
 
 **Repo layout:** all the Python lives in `backend/` (a React frontend will get its own `frontend/` directory); the repo root keeps only shared tooling — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`. Python commands must run with `backend/` as the working directory, because Alembic's config, the `resources/` template paths, pytest's rootdir and the default `./lineup.db` are all cwd-relative. The `task` commands handle that for you (they `cd backend`), so you can run them from the repo root.
 
@@ -113,6 +113,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
+| `SUPABASE_URL` | unset | Project URL (`https://<ref>.supabase.co`). The API derives the token issuer and the signing-key (JWKS) address from it. Unset = every protected route answers `503` (fail closed). Must be `https` (plain `http` only for localhost). See `documentation/Auth-Setup.md` (wiki: *Auth Setup*) |
 | `PDF_MAX_CONCURRENT` | `2` | How many LibreOffice conversions may run at once. Each is a separate process of a few hundred MB; extra requests wait up to 10 s, then get `503` with `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error reporting. Leave unset locally, in CI and in tests |
 
@@ -308,7 +309,8 @@ lineup/
     │   │   ├── engine.py                # DB engine (SQLite/Postgres aware), get_session() dependency
     │   │   └── models.py                # Team, Player, SavedLineup, LineupPlayerSnapshot
     │   ├── auth/
-    │   │   └── dependencies.py          # get_current_user_id() — None pre-Auth
+    │   │   ├── dependencies.py          # get_current_user_id(): verifies the Bearer JWT, 401/503 otherwise
+    │   │   └── tokens.py                # JWT verification + JWKS cache
     │   ├── teams/                       # schemas / repository / service / router
     │   ├── players/                     # schemas / repository / service / router
     │   └── saved_lineups/                # schemas / repository / service / router

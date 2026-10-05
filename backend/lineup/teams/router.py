@@ -33,7 +33,7 @@ async def list_teams(
     ] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PaginatedTeams:
     """List teams, ordered by name. Paginated: `limit` is 1-200 (default 20) and `offset`
     starts at 0; the response carries `total` so clients can page.
@@ -53,7 +53,7 @@ async def list_teams(
 async def create_team(
     body: TeamCreate,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> TeamResponse:
     """Create a team. `is_public` (default true) lists it in the opponent pool."""
     team = await service.create_team(
@@ -71,9 +71,10 @@ async def search_teams_pool(
     ] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     session: AsyncSession = Depends(get_session),
+    _user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> list[TeamPoolItem]:
-    """Search the shared opponent pool. Only public teams are returned, and only their
-    `id` and `name`. `search` is a literal, case-insensitive substring.
+    """Search the shared opponent pool (sign-in required). Only public teams are returned, and
+    only their `id` and `name`. `search` is a literal, case-insensitive substring.
     """
     teams = await service.search_teams_pool(session, search=search, limit=limit)
     return [TeamPoolItem.model_validate(t) for t in teams]
@@ -83,7 +84,7 @@ async def search_teams_pool(
 async def get_team(
     team_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> TeamResponse:
     """Get one team by id (404 if unknown)."""
     team = await service.get_team_or_404(session, team_id=team_id, owner_id=user_id)
@@ -95,7 +96,7 @@ async def update_team(
     team_id: uuid.UUID,
     body: TeamUpdate,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> TeamResponse:
     """Rename a team (404 if unknown)."""
     team = await service.update_team(
@@ -108,7 +109,7 @@ async def update_team(
 async def delete_team(
     team_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
-    user_id: uuid.UUID | None = Depends(get_current_user_id),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> TeamDeleteResponse:
     """Delete a team. Returns 409 while players are still on its roster; saved lineups that
     mention the team are unaffected because they store copies.

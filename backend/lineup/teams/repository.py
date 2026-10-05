@@ -1,7 +1,8 @@
 """Database access for teams: the only place that writes team queries.
 
-Functions take an `owner_id`; when it is `None` (always, until auth exists) no owner filter is
-applied. Lookups return `None` when nothing matches; turning that into a 404 is the service's job.
+Functions take a required `owner_id`, the signed-in user: every query is filtered by it, so a
+team is never visible to anyone else. Lookups return `None` when nothing matches; turning that
+into a 404 is the service's job.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from lineup.db.models import Player, Team
 async def create_team(
     session: AsyncSession,
     name: str,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
     is_public: bool,
 ) -> Team:
     """Insert a team, commit, and return it with database-generated fields loaded."""
@@ -31,38 +32,40 @@ async def create_team(
 async def get_team(
     session: AsyncSession,
     team_id: uuid.UUID,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
 ) -> Team | None:
-    """Fetch one team, restricted to `owner_id` when given. Returns `None` if not found or not owned."""
-    query = select(Team).where(Team.id == team_id)
-    if owner_id is not None:
-        query = query.where(Team.owner_id == owner_id)
-    result = await session.execute(query)
+    """Fetch one team owned by `owner_id`. Returns `None` if not found or owned by someone else."""
+    result = await session.execute(
+        select(Team).where(Team.id == team_id, Team.owner_id == owner_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def get_team_by_id(
+async def get_team_visible(
     session: AsyncSession,
     team_id: uuid.UUID,
+    user_id: uuid.UUID,
 ) -> Team | None:
-    """Ownerless lookup — used to resolve a soft team reference (e.g. an
-    opponent) regardless of who owns it."""
-    result = await session.execute(select(Team).where(Team.id == team_id))
+    """Fetch a team the caller may use as an *opponent*: their own, or one listed in the
+    opponent directory (`is_public`). Returns `None` otherwise."""
+    result = await session.execute(
+        select(Team).where(
+            Team.id == team_id, (Team.owner_id == user_id) | Team.is_public.is_(True)
+        )
+    )
     return result.scalar_one_or_none()
 
 
 async def list_teams(
     session: AsyncSession,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[Team], int]:
     """One page of teams ordered by `(name, id)` (the id breaks ties so pages never repeat or
     skip rows), plus the total count before paging.
     """
-    query = select(Team)
-    if owner_id is not None:
-        query = query.where(Team.owner_id == owner_id)
+    query = select(Team).where(Team.owner_id == owner_id)
     total: int = (
         await session.scalar(select(func.count()).select_from(query.subquery())) or 0
     )
