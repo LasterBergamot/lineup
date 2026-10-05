@@ -145,6 +145,7 @@ React 19 + TypeScript + Vite (pnpm; the version is pinned by `packageManager` in
 
 - **Generated API client**: `src/api/openapi.json` is dumped offline from the FastAPI app (`scripts/dump_openapi.py`, no server) and `src/api/schema.d.ts` is generated from it by openapi-typescript; `src/api/client.ts` wraps it in `openapi-fetch`. Never edit the generated files; after any backend endpoint/schema change run `task fe:api` and commit the result, otherwise CI's `task fe:api:check` fails.
 - **API base URL**: `VITE_API_URL` if set, else the same-origin `/api`, which the Vite dev server proxies to `VITE_DEV_API_TARGET` (default `http://localhost:8000`) with the prefix stripped, so local dev needs no CORS. `VITE_*` values are public: no secrets in `frontend/.env*` (ignored by the repo except `.env.example`).
+- **Cold starts (PLAN.md §5)**: `BackendStatusProvider` (`src/backend-status/`, mounted outermost in `app.tsx`) polls `GET /health` on load (`unknown -> waking after 1.5 s -> ready | down`, then one `?db=true` check for `db-paused`) and `BackendStatusBanner` (inside `AppShell`) shows the message; the wake-up text sits behind `VITE_COLD_START_NOTICE` (on unless `"false"`). `createQueryClient()` retries only transient failures (`isTransient`: status 0 or 502/503/504) with 1-2-4-8 s backoff, never 4xx and never mutations. Use `request()` from `src/api/errors.ts` around every `openapi-fetch` call so failures become `ApiError`, `describeError()` for user-facing text (never show or log server error text), `QueryBoundary` + `Skeleton` for each data region and `<Button loading>` for mutations. Timeouts: `DEFAULT_TIMEOUT_MS` 60 s, `PDF_TIMEOUT_MS` 130 s (above the backend's 120 s LibreOffice limit).
 - **Fonts and third parties**: Google Sans Flex is self-hosted through Fontsource; the app must not request any third-party origin (#97, GDPR G14).
 - **TypeScript is pinned to 6.0 (`~6.0.3`)**: typescript-eslint doesn't support 7.x yet; lift the pin when it does.
 - CI's `Frontend` job (in `ci.yml`, no path filter so it reports on every PR) runs `task fe:install`, `fe:lint`, `fe:typecheck`, `fe:test`, `fe:build`, `fe:api:check` and a report-only `pnpm audit --prod`. It is not (yet) a required check in branch protection. Dependabot has an `npm` entry for `/frontend` (minor/patch grouped).
@@ -227,8 +228,9 @@ lineup/
 │   ├── public/                       # favicon.svg, theme-init.js
 │   └── src/
 │       ├── main.tsx  app.tsx  index.css   # entry, providers + routes, Tailwind + Polaris tokens
-│       ├── api/                      # client.ts; GENERATED openapi.json + schema.d.ts (task fe:api)
-│       ├── components/               # app-shell (sidebar / bottom nav), theme-toggle, nav-items, ui/
+│       ├── api/                      # client.ts, errors.ts, query-client.ts; GENERATED openapi.json + schema.d.ts (task fe:api)
+│       ├── backend-status/           # health polling, provider, context, banner (cold-start handling)
+│       ├── components/               # app-shell (sidebar / bottom nav), theme-toggle, nav-items, query-boundary, ui/ (button, card, skeleton)
 │       ├── pages/                    # one file per route
 │       ├── lib/                      # utils.ts (cn), theme.ts
 │       └── test/setup.ts             # Vitest + Testing Library setup
