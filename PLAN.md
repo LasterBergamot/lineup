@@ -96,8 +96,8 @@ A subset of M1. The rest of M1 follows at its own pace.
 - [x] #55 stable ordering (UI lists) (PR #107)
 - [x] #70 Dockerfile hardening (non-root before going public) (PR #108)
 - [x] #71 PDF pipeline robustness (concurrent conversions on a small machine) (PR #108)
-- [ ] #68 least-privilege DB role + RLS as migrations
-- [ ] #60 Alembic migrations in CI (CD will run them)
+- [ ] #68 least-privilege DB role + RLS as migrations. Migration, `task migrate:supabase` and `task db:create-app-role` landed in PR #111; **still to do by hand on dev Supabase:** apply the migration, run `db:create-app-role`, run `supabase-smoke` as `lineup_app`, then close #68.
+- [x] #60 Alembic migrations in CI (CD will run them) (PR #111)
 
 ### Phase 2 — Frontend skeleton (can run in parallel with Phase 3)
 - [ ] **new** FE skeleton + tooling + CI: Vite app in `frontend/`, Tailwind + shadcn with the
@@ -397,3 +397,4 @@ Endpoints (amends #51):
 | 2026-10-05 | PR 1 of Phase 1: `GET /health` (+ `?db=1`), `CORS_ORIGINS` allowlist, `max_length` on the one-off request, `limit` capped at 1–200 (`limit=0` dropped), literal `%`/`_` in the pool search. #69 moved to M1. | #69, #56, #106 |
 | 2026-10-05 | PR 2 of Phase 1: shared `CleanStr` input types (trim, no control chars, blank optional → `None`), unknown `team_id` → 404 (+ stray `IntegrityError` → 409), source id xor free text, duplicate NSSZ → 422, deterministic list ordering and cap-sorted snapshots on create. | #53, #54, #55, #107 |
 | 2026-10-05 | PR 3 of Phase 1: two-stage Dockerfile pinned by digest, non-root `app` user, tini, `/health` HEALTHCHECK, `libreoffice-writer-nogui` (image 1.16 GB → 870 MB, e2e fidelity unchanged); PDF conversions capped by `PDF_MAX_CONCURRENT` (503 + `Retry-After`), process-group kill on timeout, distinct missing-binary/output errors, cwd-independent template path; Dependabot docker ecosystem added (partly covers #73). | #70, #71, #108 |
+| 2026-10-05 | PR 4 of Phase 1: `alembic upgrade head` + `alembic check` in CI (SQLite, plus a Postgres 17 service job that also asserts RLS/grants and round-trips the migration); Postgres-only migration enabling RLS everywhere, revoking `anon`/`authenticated`, adding the `lineup_enable_rls` event trigger and the `lineup_app` role; `MIGRATE_DATABASE_URL` in a separate `backend/.env.migrate`; `task migrate:supabase`, `task migrate-check`, `task db:create-app-role`. Applying it to dev Supabase and switching the app to `lineup_app` is left to the owner. | #60, #68, #111 |

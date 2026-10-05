@@ -123,14 +123,15 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 The dev environment can run against a hosted Postgres on [Supabase](https://supabase.com) (project `lineup-dev`). This only replaces the database; authentication is not wired up yet.
 
 1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `backend/.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `backend/.env.example`. `ENV=production` is the right value for the dev database too: it means "Alembic owns the schema", not "this is the prod deployment". The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 backend/.env` keeps other users on your machine from reading it.
-2. Create the tables once with Alembic, using the **direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead): `DATABASE_URL="<direct URL>" task migrate`.
-3. Start the app (`task up` or `task serve`; both read `backend/.env`).
+2. Put the **owner's direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead) in a separate git-ignored file, `backend/.env.migrate`, as `MIGRATE_DATABASE_URL` (`chmod 600`). It is kept out of `.env` on purpose: Compose and `task serve` load `.env` into the API's environment, and the API must never hold the owner's password. Then run `task migrate:supabase`. This creates the tables **and** switches on Row Level Security with a least-privilege `lineup_app` role (see *Current State: Backend* on the wiki).
+3. Run `task db:create-app-role`: it gives `lineup_app` a generated password and rewrites the pooler `DATABASE_URL` in `backend/.env` to that role (nothing is printed). The API then connects as `lineup_app`, not as the table-owning `postgres` role.
+4. Start the app (`task up` or `task serve`; both read `backend/.env`).
 
 **Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes; `task db:postgres` switches forward again.
 
 **If the credentials are lost:** the database password can be reset at any time in the Supabase dashboard (Project Settings → Database → *Reset database password*) without losing data; update your `backend/.env`. API keys and the JWT secret are always viewable and rotatable in Project Settings. The only unrecoverable situation is losing access to the Supabase account itself, so keep the account recovery e-mail and 2FA backup codes safe and consider adding a second owner to the organization.
 
-**Changing the schema later:** edit `backend/lineup/db/models.py`, run `task migrate-new -- -m "description"` (against local SQLite), review the generated file in `backend/alembic/versions/`, then `task migrate` (and the same with the direct `DATABASE_URL` to update Supabase). Moving to a different database or cloud provider someday is covered in the wiki's *Current State: Backend* page.
+**Changing the schema later:** edit `backend/lineup/db/models.py`, run `task migrate-new -- -m "description"` (against local SQLite), review the generated file in `backend/alembic/versions/`, then `task migrate` (and `task migrate:supabase` to update Supabase). `task migrate-check` (also run by CI) fails if the models and the migrations disagree. Moving to a different database or cloud provider someday is covered in the wiki's *Current State: Backend* page.
 
 ## API
 
@@ -252,6 +253,9 @@ POST /lineups/saved
 | `task migrate`  | Apply Alembic migrations (`upgrade head`)                        |
 | `task migrate-new -- -m "description"` | Autogenerate a new Alembic migration          |
 | `task migrate-down` | Roll back one migration step                                 |
+| `task migrate-check` | Apply all migrations to a throwaway SQLite file and fail on model/migration drift |
+| `task migrate:supabase` | Apply migrations to Supabase using `MIGRATE_DATABASE_URL` from `backend/.env.migrate` |
+| `task db:create-app-role` | Create the `lineup_app` login (generated password, written to `backend/.env`, never printed) |
 | `task docs:references` | Regenerate the dependency block in `documentation/References.md` |
 | `task docs:check` | Fail if that block is stale (CI runs it)                       |
 
@@ -278,7 +282,8 @@ lineup/
     ├── alembic/
     │   ├── env.py                       # Async migration environment
     │   └── versions/
-    │       └── 35ce55ceabf4_initial_schema.py  # teams/players/saved_lineups/lineup_player_snapshots
+    │       ├── 35ce55ceabf4_initial_schema.py  # teams/players/saved_lineups/lineup_player_snapshots
+    │       └── 8b1f3c2d9a47_rls_and_least_privilege_role.py  # Postgres-only RLS + lineup_app role
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)

@@ -41,6 +41,58 @@ jobs:
       - name: References page up to date
         run: task docs:check
 
+      - name: Migrations match the models (SQLite)
+        run: task migrate-check
+
+  migrations-postgres:
+    name: Migrations (Postgres)
+    runs-on: ubuntu-latest
+    # Throwaway database that lives for this job only, so the password is
+    # not a secret. It proves what SQLite cannot: RLS, roles, grants and the
+    # event trigger from the rls_and_least_privilege_role migration.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MIGRATE_DATABASE_URL: >-
+        postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+      POSTGRES_TEST_URL: >-
+        postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+        working-directory: backend
+
+      - name: Migrate a fresh database and assert RLS and privileges
+        run: uv run pytest tests/test_postgres_migrations.py -v
+        working-directory: backend
+
+      - name: Models match the migrations (Postgres compares types too)
+        run: uv run alembic check
+        working-directory: backend
+
+      - name: Migrations are reversible
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+        working-directory: backend
+
   e2e:
     name: E2E (real PDF conversion)
     runs-on: ubuntu-latest

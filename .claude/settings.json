@@ -12,7 +12,8 @@
       "Read(./backend/.env)",
       "Read(./backend/.env.local)",
       "Read(./backend/.env.production)",
-      "Read(./backend/.env.development)"
+      "Read(./backend/.env.development)",
+      "Read(./backend/.env.migrate)"
     ]
   }
 }

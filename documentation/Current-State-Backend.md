@@ -301,9 +301,65 @@ Routine schema changes work the same way on every backend:
    autogeneration doesn't need live Supabase access.
 3. Review the generated file in `alembic/versions/` by hand — autogenerate is a starting point,
    not ground truth (it won't reliably infer `ondelete=` changes, for example).
-4. `task migrate` applies it locally. To apply it to Supabase, run
-   `DATABASE_URL="<direct URL>" task migrate` (the pooler can't run DDL). `task migrate-down`
-   rolls back one revision.
+4. `task migrate` applies it locally. To apply it to Supabase, put the owner's direct (or
+   session-pooler) URL in `backend/.env.migrate` as `MIGRATE_DATABASE_URL` and run
+   `task migrate:supabase` (the transaction pooler can't run DDL). `task migrate-down` rolls back
+   one revision.
+5. `task migrate-check` (CI runs it too) applies every migration to a throwaway SQLite file and then
+   runs `alembic check`, which fails if the models still differ from what the migrations produce. So
+   forgetting step 2 fails the build instead of surfacing when someone next migrates Supabase.
+   SQLite reflects `UUID` columns as `NUMERIC`, so `alembic/env.py` skips *type* comparison there (column,
+   nullability and foreign-key drift are still caught); CI's Postgres job compares types for real.
+
+### Database roles and Row Level Security
+
+The `rls_and_least_privilege_role` migration (Postgres only; a no-op on SQLite) is what makes the
+database safe to put behind a public API. It does four things:
+
+1. **RLS on every `public` table**, including `alembic_version`. With RLS on and no policy, every role
+   except the table owner is denied by default. (On 2026-10-02 this had been done by hand on the dev
+   project; the migration makes it reproducible.)
+2. **`anon` / `authenticated` lose everything.** Those are Supabase's Data API roles; we keep the Data
+   API off, and this guarantees that turning it on by mistake still exposes nothing. Default privileges
+   are revoked too, so tables created later don't come pre-granted to them. (The statements are
+   guarded, because plain Postgres in CI has no such roles.)
+3. **An event trigger** (`lineup_enable_rls`) switches RLS on for every table created in `public` from
+   now on, so a forgotten `ENABLE ROW LEVEL SECURITY` in a future migration can't leave a table open.
+   Event triggers normally need a superuser; if the hosting role isn't allowed to create one the
+   migration logs a notice and continues, and CI's "every table has RLS" assertion still protects
+   you.
+4. **The `lineup_app` role**: not the owner (so RLS applies to it), `NOBYPASSRLS`, no `CREATE` on the
+   schema, `SELECT/INSERT/UPDATE/DELETE` on the four app tables only (not on `alembic_version`, so a
+   compromised API can't rewrite the migration history) and the same default privileges on future
+   tables. An interim policy `app_all ... USING (true)` lets the API through, because the API is the
+   only client; #21 replaces it with team-scoped policies. A new table therefore starts out *denied*
+   to the app until its migration adds a policy.
+
+Why not just connect as `postgres`? It owns the tables, so it **bypasses RLS**, can drop them, and can
+read other schemas such as `auth.*`. A SQL-injection bug or a leaked `DATABASE_URL` would then be
+total. As `lineup_app` the worst case is bounded to the app's own tables.
+
+**Two credentials, two files.** The owner's URL (`MIGRATE_DATABASE_URL`, direct or session-pooler
+connection) lives in the separate, git-ignored `backend/.env.migrate`. It must not go into
+`backend/.env`, because Docker Compose and `task serve` load that file into the API's environment and
+the API must never hold the owner's password. `alembic/env.py` prefers `MIGRATE_DATABASE_URL` over
+`DATABASE_URL`, and `task migrate:supabase` reads only `.env.migrate`.
+
+**Rolling it out on a Supabase project** (shared state; do it deliberately):
+
+1. `task migrate:supabase` applies the migration as the owner.
+2. `task db:create-app-role` gives `lineup_app` a generated password and rewrites the pooler
+   `DATABASE_URL` in `backend/.env` to `lineup_app.<project-ref>` (user and password only; nothing is
+   printed, and on any failure only the exception class is shown because driver messages can quote the
+   statement).
+3. Restart the app and run the `supabase-smoke` skill: create and delete a team, player and saved
+   lineup as `lineup_app`.
+
+`tests/test_postgres_migrations.py` proves all of the above against a real Postgres (skipped unless
+`POSTGRES_TEST_URL` is set; CI's "Migrations (Postgres)" job sets it): every table has RLS, the trigger
+exists and protects a table created later, `lineup_app` can do DML through RLS but not touch
+`alembic_version` or create objects, `anon`/`authenticated` reach nothing, and the generated password
+really logs in.
 
 ### If database credentials are lost
 

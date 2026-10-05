@@ -26,8 +26,13 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/docs   # is somet
 - If port 8000 is taken (usually the `lineup` container from `task up`), ask before running
   `task down`.
 - The dev schema must be at Alembic head. If the change added a migration, the user must
-  have applied it already: `task migrate` with `DATABASE_URL` set to the **direct**
-  connection, never the pooler.
+  have applied it already with `task migrate:supabase` (owner credentials from
+  `backend/.env.migrate`), never through the pooler.
+- The app should connect as the least-privilege `lineup_app` role (`task db:create-app-role`
+  rewrites the pooler URL in `backend/.env`). Running this smoke test as `lineup_app` is the
+  acceptance check for #68: it proves RLS plus the grants let the API do everything it needs. A
+  `permission denied` or `row-level security` error here means a new table is missing its
+  policy or grants in its migration.
 
 ## 2. Start the API
 
