@@ -1,3 +1,8 @@
+"""Who is calling? Currently nobody: there is no authentication yet.
+
+`get_current_user_id` is injected into every router. Once sign-in exists, only its body changes.
+"""
+
 from uuid import UUID
 
 

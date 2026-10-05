@@ -1,3 +1,9 @@
+"""FastAPI application entry point: wires up CORS, the error handler, the routers and Sentry.
+
+Run with `uvicorn app:app` (the container does this). Each feature lives in its own package
+under `lineup/` (router -> service -> repository) and is registered below.
+"""
+
 import os
 from contextlib import asynccontextmanager
 
@@ -37,8 +43,12 @@ def parse_cors_origins(raw: str | None) -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Dev / test: create all tables from ORM models directly.
-    # Production: Alembic handles all DDL — set ENV=production to skip this.
+    """Create missing tables at startup, unless Alembic owns the schema.
+
+    The tables are created straight from the ORM models for local SQLite and tests. With
+    `ENV=production` (any real Postgres, dev or prod) startup leaves the schema alone, because
+    Alembic migrations are the only thing allowed to change it there.
+    """
     if os.getenv("ENV") != "production":
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)

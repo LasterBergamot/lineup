@@ -15,6 +15,7 @@ _XML_NONCHARACTERS = {"￾", "￿"}
 
 
 def reject_unsafe_characters(value: str) -> str:
+    """Pydantic `AfterValidator`: raise if the text contains control characters, surrogates or U+FFFE/U+FFFF."""
     for char in value:
         if unicodedata.category(char) in {"Cc", "Cs"} or char in _XML_NONCHARACTERS:
             raise ValueError("must not contain control characters")
@@ -22,6 +23,7 @@ def reject_unsafe_characters(value: str) -> str:
 
 
 def blank_to_none(value: object) -> object:
+    """Pydantic `BeforeValidator` for optional text: a blank or whitespace-only string becomes `None`."""
     if isinstance(value, str) and not value.strip():
         return None
     return value

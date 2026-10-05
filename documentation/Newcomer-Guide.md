@@ -59,7 +59,7 @@ Two things in this picture surprise newcomers:
 | **Docker + Compose** | Packages the app and LibreOffice (and the right fonts) into one image | Same PDF output on every machine | `backend/Dockerfile`, `compose.yml` |
 | **uv** | Fast Python package manager (`uv.lock` pins exact versions) | Reproducible installs | `backend/pyproject.toml` |
 | **Task** | A command runner; `Taskfile.yml` lists every command | One way to run things (`task test`), no copy-pasted shell | `Taskfile.yml` |
-| **Ruff** | Linter and formatter, including security rules | Catches bugs and style issues before review | `task lint`, `task format` |
+| **Ruff** | Linter and formatter, including security rules and a check that public code has a docstring | Catches bugs, style issues and undocumented code before review | `task lint`, `task format` |
 | **pytest** | Test runner; coverage must stay at 100% | Safety net for refactoring | `backend/tests/` |
 | **GitHub Actions** | Runs lint, tests, the container test and a docs check on every PR | Nothing broken reaches `develop` | `.github/workflows/` |
 | **Claude Code + skills** | An AI assistant with project rules and recipes | Repetitive workflows (PRs, issues, audits) are written down once | `CLAUDE.md`, `.claude/skills/` |
@@ -176,7 +176,9 @@ copy `backend/.env.example` to `backend/.env`, fill it in and use `task db:postg
    update the existing tests.
 4. **Check locally**: `task lint && task test` (and `task test-e2e` if you touched the document or
    container code).
-5. **Update the docs in the same change**: `README.md` (how to use it), the matching page under
+5. **Document the code and the docs in the same change**: give every new public module, class, function or
+   method a docstring (what it is for and why, not a restatement of its name; `task lint` fails on a
+   missing one), then update `README.md` (how to use it), the matching page under
    `documentation/` (how it works), and `CLAUDE.md` (conventions). If nothing needs documenting,
    say `No doc impact: <reason>` in the PR. CI's docs check enforces this.
 6. **Open a PR into `develop`.** CI must be green. PRs are merged with a **merge commit** (never

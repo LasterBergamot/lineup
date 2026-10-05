@@ -1,3 +1,9 @@
+"""Shared download response for both generate endpoints (`POST /lineups` and `POST /lineups/saved/{id}/generate`).
+
+Owns the rendering call, the mapping of failures to HTTP status codes (busy -> 503,
+timeout -> 504, anything else -> 500) and the `Content-Disposition` header.
+"""
+
 import logging
 import re
 import subprocess
@@ -26,6 +32,8 @@ QUEUE_RETRY_AFTER_SECONDS = 5
 
 
 class FileFormat(str, Enum):
+    """Output format of a generated lineup, taken from the `format` query parameter."""
+
     PDF = "pdf"
     DOCX = "docx"
 

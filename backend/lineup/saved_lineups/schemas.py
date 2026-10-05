@@ -1,3 +1,7 @@
+"""Request and response shapes for `/lineups/saved`, including the rules that keep a snapshot
+unambiguous: exactly one of source id / free text per field, unique cap and NSSZ numbers.
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -27,6 +31,7 @@ class SavedLineupPlayerCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_identity(self) -> "SavedLineupPlayerCreate":
+        """Enforce "exactly one of `source_player_id` or (`name` and `nssz_number`)"."""
         free_text = self.name is not None or self.nssz_number is not None
         if self.source_player_id is not None and free_text:
             raise ValueError(
@@ -40,6 +45,13 @@ class SavedLineupPlayerCreate(BaseModel):
 
 
 class SavedLineupCreate(BaseModel):
+    """Body for saving a lineup.
+
+    Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
+    defaults to "<team> - <opponent>". Blank optional values count as not provided. Cap numbers
+    must be unique, and no roster player may appear twice.
+    """
+
     source_team_id: uuid.UUID | None = None
     team_name: OptionalCleanStr120 = None
     source_opponent_id: uuid.UUID | None = None
@@ -60,6 +72,7 @@ class SavedLineupCreate(BaseModel):
     def cap_numbers_unique(
         cls, players: list[SavedLineupPlayerCreate]
     ) -> list[SavedLineupPlayerCreate]:
+        """Reject two players sharing a cap number."""
         cap_numbers = [p.cap_number for p in players]
         if len(cap_numbers) != len(set(cap_numbers)):
             raise ValueError("Cap numbers within a lineup must be unique")
@@ -70,6 +83,7 @@ class SavedLineupCreate(BaseModel):
     def source_player_ids_unique(
         cls, players: list[SavedLineupPlayerCreate]
     ) -> list[SavedLineupPlayerCreate]:
+        """Reject the same roster player appearing in two slots."""
         source_ids = [
             p.source_player_id for p in players if p.source_player_id is not None
         ]
@@ -79,6 +93,7 @@ class SavedLineupCreate(BaseModel):
 
     @model_validator(mode="after")
     def require_team_identity(self) -> "SavedLineupCreate":
+        """Enforce "exactly one of source id or name" for both the team and the opponent."""
         for source_id, name, label in (
             (self.source_team_id, self.team_name, "team"),
             (self.source_opponent_id, self.opponent_name, "opponent"),
@@ -95,6 +110,8 @@ class SavedLineupCreate(BaseModel):
 
 
 class SavedLineupPlayerResponse(BaseModel):
+    """A player slot of a saved lineup, as frozen when it was saved."""
+
     id: uuid.UUID
     cap_number: int
     name: str
@@ -105,6 +122,10 @@ class SavedLineupPlayerResponse(BaseModel):
 
 
 class SavedLineupResponse(BaseModel):
+    """A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`
+    fields are soft references and become null if the source is deleted.
+    """
+
     id: uuid.UUID
     team_name: str
     opponent_name: str
@@ -126,6 +147,8 @@ class SavedLineupResponse(BaseModel):
 
 
 class PaginatedSavedLineups(BaseModel):
+    """One page of saved lineups plus the total number of matching lineups."""
+
     items: list[SavedLineupResponse]
     total: int
     limit: int

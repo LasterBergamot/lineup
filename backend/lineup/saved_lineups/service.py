@@ -1,3 +1,10 @@
+"""Business rules for saved lineups: turning a create request into a frozen snapshot.
+
+Team, opponent and each player come either from the live roster (`source_*_id`, whose current
+name/NSSZ is copied in) or from free text, exactly one of the two (enforced by the schemas).
+Nothing here is a live reference afterwards.
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -99,6 +106,12 @@ async def create_saved_lineup(
     data: SavedLineupCreate,
     user_id: uuid.UUID | None,
 ) -> SavedLineupResponse:
+    """Save a lineup as a snapshot and return it.
+
+    Resolves team and opponent names (404 if a source id is unknown), defaults the match name to
+    "<team> - <opponent>", builds the player snapshots (404 if a source player is unknown) and
+    rejects duplicate NSSZ numbers with 422, checked on the resolved values.
+    """
     team_name = await _resolve_team_name(
         session, data.source_team_id, data.team_name, "Team not found"
     )
@@ -138,6 +151,7 @@ async def get_saved_lineup_or_404(
     lineup_id: uuid.UUID,
     user_id: uuid.UUID | None,
 ) -> SavedLineupResponse:
+    """Return the lineup or raise 404 "Saved lineup not found"."""
     lineup = await repository.get_saved_lineup(
         session, lineup_id=lineup_id, user_id=user_id
     )
@@ -153,6 +167,7 @@ async def list_saved_lineups(
     limit: int,
     offset: int,
 ) -> tuple[list[SavedLineupResponse], int]:
+    """One page of lineups (optionally for one source team) and the total count."""
     lineups, total = await repository.list_saved_lineups(
         session,
         user_id=user_id,
@@ -168,6 +183,7 @@ async def delete_saved_lineup(
     lineup_id: uuid.UUID,
     user_id: uuid.UUID | None,
 ) -> None:
+    """Delete a lineup, or raise 404 if it is not found."""
     lineup = await repository.get_saved_lineup(
         session, lineup_id=lineup_id, user_id=user_id
     )

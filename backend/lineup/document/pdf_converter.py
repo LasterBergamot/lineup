@@ -1,3 +1,9 @@
+"""DOCX to PDF conversion through LibreOffice.
+
+LibreOffice is a heavy external process, so this module limits how many run at once, gives
+each its own profile directory and kills the whole process group on timeout.
+"""
+
 import logging
 import os
 import shutil
@@ -40,7 +46,16 @@ class ConverterBusyError(RuntimeError):
 
 
 class PdfConverter:
+    """Converts `.docx` bytes to PDF bytes with a headless LibreOffice subprocess."""
+
     def convert(self, docx_bytes: bytes) -> bytes:
+        """Return the PDF for `docx_bytes`.
+
+        Waits up to `QUEUE_TIMEOUT_SECONDS` for a free conversion slot and raises `ConverterBusyError`
+        if none frees up. Raises `subprocess.TimeoutExpired` after `CONVERSION_TIMEOUT_SECONDS`
+        (the whole LibreOffice process group is killed) and `RuntimeError` if LibreOffice is missing,
+        exits non-zero or writes no PDF.
+        """
         if shutil.which("libreoffice") is None:
             raise RuntimeError(
                 "LibreOffice is not installed (no 'libreoffice' on PATH)"

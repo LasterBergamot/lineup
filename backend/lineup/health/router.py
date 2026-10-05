@@ -1,3 +1,5 @@
+"""`GET /health`: liveness and readiness probes for the container, deploys and uptime checks."""
+
 import logging
 from typing import Annotated, Literal
 
@@ -15,6 +17,8 @@ router = APIRouter(tags=["health"])
 
 
 class HealthResponse(BaseModel):
+    """Body of the health endpoint: `ok`, or `unavailable` when the database check failed."""
+
     status: Literal["ok", "unavailable"]
 
 

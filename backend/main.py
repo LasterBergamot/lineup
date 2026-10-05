@@ -1,3 +1,5 @@
+"""Command-line demo: generates a sample lineup sheet without starting the API (`task run`)."""
+
 from lineup.water_polo.water_polo_lineup_creator import WaterPoloLineupCreator
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
@@ -7,6 +9,7 @@ NAME = "Török András"
 
 
 def main():
+    """Fill the template with hard-coded sample data and write `resources/modified_rajtlista.docx`."""
     players = [
         WaterPoloLineupDTO.Player.PlayerBuilder()
         .set_name(NAME)

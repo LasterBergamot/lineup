@@ -1,3 +1,5 @@
+"""Exception handlers registered on the FastAPI app in `app.py`."""
+
 import logging
 
 from fastapi import Request

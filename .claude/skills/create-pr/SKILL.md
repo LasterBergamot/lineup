@@ -63,7 +63,7 @@ no new ruff `S` ignores were added outside the two documented spots.
 ## 4. Docs
 
 Always run the `update-documentation` skill, whatever the diff. It covers `README.md`,
-`CLAUDE.md` and `documentation/` (the wiki mirror, including the Newcomer Guide and
+`CLAUDE.md`, the docstrings of the code the diff touches and `documentation/` (the wiki mirror, including the Newcomer Guide and
 References pages, and `task docs:references` for the generated block). Commit the result,
 after approval.
 

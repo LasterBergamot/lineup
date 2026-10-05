@@ -25,13 +25,19 @@ dev = [
 ]
 
 [tool.ruff.lint]
-extend-select = ["S"]
+# S = flake8-bandit (security). D1 = pydocstyle's "missing docstring" checks only: every
+# public module, class, function and method must explain itself. The style rules (D2xx/D4xx)
+# are deliberately not enabled; what matters is content, not formatting.
+extend-select = ["S", "D1"]
 
 [tool.ruff.lint.per-file-ignores]
 # assert is the standard pytest idiom, not a production risk; S310's "unexpected scheme"
 # check is a false positive here — BASE_URL is a fixed local constant, never user input.
-"tests/**/*.py" = ["S101", "S310"]
-# subprocess.run([...]) with a literal executable and no shell=True; the "partial
+"tests/**/*.py" = ["S101", "S310", "D1"]
+# Migration revisions are documented by their module docstring; upgrade()/downgrade() are the
+# fixed Alembic entry points.
+"alembic/versions/*.py" = ["D1"]
+# subprocess.Popen([...]) with a literal executable and no shell=True; the "partial
 # executable path" (S607) and "subprocess call" (S603) warnings don't apply here — see
 # the comment above the call in this file.
 "lineup/document/pdf_converter.py" = ["S603", "S607"]

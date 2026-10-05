@@ -1,3 +1,5 @@
+"""`POST /lineups`: build a lineup document straight from the request, without touching the database."""
+
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -18,6 +20,11 @@ async def create_lineup(
         Query(alias="format", description="Output format of the generated file"),
     ] = FileFormat.PDF,
 ) -> Response:
+    """Generate a lineup sheet from the request body and return it as a file download.
+
+    `format=pdf` (default) converts through LibreOffice, which only exists in the container;
+    `format=docx` returns the filled template directly. Nothing is stored.
+    """
     players = [
         WaterPoloLineupDTO.Player.PlayerBuilder()
         .set_cap_number(p.cap_number)

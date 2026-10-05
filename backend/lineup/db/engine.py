@@ -1,3 +1,9 @@
+"""Database engine, session factory and the connection quirks of SQLite and Supabase Postgres.
+
+`DATABASE_URL` picks the database (local SQLite file by default). Everything dialect-specific
+(foreign keys on SQLite, pooler-safe settings on Postgres) is confined to this module.
+"""
+
 import os
 import uuid
 from collections.abc import AsyncGenerator
@@ -34,6 +40,7 @@ def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
 
 
 def _unique_statement_name() -> str:
+    """Give every prepared statement its own name so pooled connections never collide."""
     return f"__asyncpg_{uuid.uuid4()}__"
 
 
@@ -63,5 +70,9 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency: one `AsyncSession` per request, closed when the request ends.
+
+    Nothing is committed automatically; the repositories commit their own writes.
+    """
     async with AsyncSessionLocal() as session:
         yield session

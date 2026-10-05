@@ -1,3 +1,9 @@
+"""Alembic environment: tells `alembic` which database to migrate and which models to compare.
+
+The async engine is used so the same migrations run on SQLite (aiosqlite) and Postgres (asyncpg).
+See `MIGRATE_DATABASE_URL` below for how the target database is chosen.
+"""
+
 import asyncio
 import os
 from logging.config import fileConfig

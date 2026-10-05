@@ -1,3 +1,12 @@
+"""ORM tables: teams, players, saved lineups and their frozen player snapshots.
+
+A saved lineup is a *snapshot*: it copies team, opponent and player names as plain text, so
+deleting a team or player later never changes history. The `source_*_id` columns are nullable
+"soft references" (`ON DELETE SET NULL`) that only remember where a snapshot came from.
+Relationships are `lazy="selectin"` because async SQLAlchemy cannot lazy-load on attribute
+access (it raises `MissingGreenlet`).
+"""
+
 import uuid
 from datetime import datetime, timezone
 
@@ -14,6 +23,15 @@ def _utcnow() -> datetime:
 
 
 class Team(Base):
+    """A club's team. Doubles as a roster (its `players`) and, when `is_public`, as an entry
+    in the shared opponent pool.
+
+    `owner_id` is always NULL until real auth exists. A team that still has roster players
+    cannot be deleted (`players.team_id` is `ON DELETE RESTRICT`; the service reports it as 409
+    before the database ever has to).
+
+    """
+
     __tablename__ = "teams"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
@@ -31,6 +49,13 @@ class Team(Base):
 
 
 class Player(Base):
+    """A roster entry: a person's name and NSSZ (federation registration) number, optionally
+    assigned to a team. `user_id` is NULL until real auth exists.
+
+    Deleting a player is always safe: saved lineups hold copies, not references.
+
+    """
+
     __tablename__ = "players"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
@@ -47,6 +72,14 @@ class Player(Base):
 
 
 class SavedLineup(Base):
+    """A lineup frozen at creation time, ready to be rendered to PDF/DOCX later.
+
+    Every text column is a copy, so rendering never joins against `teams` or `players`.
+    `source_team_id` / `source_opponent_id` are soft references (set to NULL if the team is
+    deleted) kept for reuse and cloning. `player_snapshots` always loads ordered by cap number.
+
+    """
+
     __tablename__ = "saved_lineups"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
@@ -88,6 +121,12 @@ class SavedLineup(Base):
 
 
 class LineupPlayerSnapshot(Base):
+    """One player slot of a saved lineup: the name and NSSZ number as they were when the
+    lineup was saved, plus the cap number. `source_player_id` is a soft reference (NULL once
+    the roster player is deleted). Deleted together with its lineup (`ON DELETE CASCADE`).
+
+    """
+
     __tablename__ = "lineup_player_snapshots"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)

@@ -1,3 +1,9 @@
+"""Database access for players: the only place that writes player queries.
+
+Like the team repository, `user_id` filters apply only when it is not `None` (always None until
+auth exists), and lookups return `None` when nothing matches.
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -15,6 +21,7 @@ async def create_player(
     user_id: uuid.UUID | None,
     team_id: uuid.UUID | None,
 ) -> Player:
+    """Insert a player, commit, and return it refreshed."""
     player = Player(
         id=uuid.uuid4(),
         name=name,
@@ -33,6 +40,7 @@ async def get_player(
     player_id: uuid.UUID,
     user_id: uuid.UUID | None,
 ) -> Player | None:
+    """Fetch one player, restricted to `user_id` when given. Returns `None` if not found."""
     query = select(Player).where(Player.id == player_id)
     if user_id is not None:
         query = query.where(Player.user_id == user_id)
@@ -47,6 +55,9 @@ async def list_players(
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[Player], int]:
+    """One page of players, optionally for one team, ordered by `(created_at, id)` so paging is
+    stable, plus the total count before paging.
+    """
     query = select(Player)
     if user_id is not None:
         query = query.where(Player.user_id == user_id)
@@ -67,6 +78,7 @@ async def update_player(
     nssz_number: str,
     team_id: uuid.UUID | None,
 ) -> Player:
+    """Overwrite name, NSSZ number and team of a player, commit, and return it refreshed."""
     player.name = name
     player.nssz_number = nssz_number
     player.team_id = team_id
@@ -79,5 +91,6 @@ async def delete_player(
     session: AsyncSession,
     player: Player,
 ) -> None:
+    """Delete a player. Saved lineups are unaffected (their snapshots only lose the soft reference)."""
     await session.delete(player)
     await session.commit()
