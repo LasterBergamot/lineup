@@ -25,7 +25,8 @@ spend your time on:
 
 ```mermaid
 flowchart LR
-    Client[Browser / curl] -->|HTTP JSON| API[FastAPI app<br/>backend/app.py]
+    Web[Web app<br/>frontend/, React] -->|HTTP JSON| API
+    Client[curl / Swagger docs] -->|HTTP JSON| API[FastAPI app<br/>backend/app.py]
     API --> Routers[Routers<br/>HTTP in/out]
     Routers --> Services[Services<br/>business rules]
     Services --> Repos[Repositories<br/>SQL]
@@ -35,12 +36,19 @@ flowchart LR
     Docx -->|format=pdf| LO[LibreOffice headless<br/>docx to PDF]
 ```
 
-Two things in this picture surprise newcomers:
+The web app in `frontend/` is just another HTTP client: it never touches the database or the
+template itself. Its API types are generated from the backend's OpenAPI spec, so when an endpoint
+changes the frontend build tells you.
+
+Three things in this picture surprise newcomers:
 
 1. **Document generation and the database are separate.** `POST /lineups` needs no database at
    all; it just fills the template. Saved lineups use the database to *gather* the data, then
    hand the same generation code a ready-made object.
-2. **PDF needs the container.** LibreOffice is only installed inside the Docker image, so
+2. **The frontend is a separate program with its own toolchain.** It is written in TypeScript, built
+   with Node and pnpm, and never imports Python code; the only contract between the two sides is the
+   HTTP API and its OpenAPI description.
+3. **PDF needs the container.** LibreOffice is only installed inside the Docker image, so
    `task serve` (plain local server) can only produce DOCX. For PDFs you run `task build` then
    `task up`.
 
@@ -58,6 +66,11 @@ Two things in this picture surprise newcomers:
 | **LibreOffice (headless)** | An office suite run without a window | Converts DOCX to PDF with a layout that matches the original | `lineup/document/pdf_converter.py` |
 | **Docker + Compose** | Packages the app and LibreOffice (and the right fonts) into one image | Same PDF output on every machine | `backend/Dockerfile`, `compose.yml` |
 | **uv** | Fast Python package manager (`uv.lock` pins exact versions) | Reproducible installs | `backend/pyproject.toml` |
+| **React + TypeScript + Vite** | A UI library, typed JavaScript, and the dev server/bundler that serves and builds them | The web app, in `frontend/`, that works on phone and desktop | `frontend/src/` |
+| **Tailwind + shadcn-style components** | Utility CSS classes and a set of copy-in UI components, themed with the Polaris design tokens | Consistent look (square corners, teal/amber, light and dark) without hand-written CSS | `frontend/src/index.css`, `frontend/DESIGN.md` |
+| **TanStack Query** | A library that fetches, caches and retries server data in React | Handles loading states and the slow first request after the hosted API has been idle | `frontend/src/app.tsx` |
+| **openapi-typescript / openapi-fetch** | Generate TypeScript types from the API's OpenAPI description and a fetch client that uses them | A renamed field or changed endpoint becomes a compile error, not a runtime surprise | `frontend/src/api/` |
+| **pnpm, ESLint, Prettier, Vitest** | Package manager (`pnpm-lock.yaml` pins versions), linter, formatter and test runner for the frontend | The frontend's counterparts of uv, Ruff and pytest | `task fe:*` |
 | **Task** | A command runner; `Taskfile.yml` lists every command | One way to run things (`task test`), no copy-pasted shell | `Taskfile.yml` |
 | **Ruff** | Linter and formatter, including security rules and a check that public code has a docstring | Catches bugs, style issues and undocumented code before review | `task lint`, `task format` |
 | **pytest** | Test runner; coverage must stay at 100% | Safety net for refactoring | `backend/tests/` |
@@ -66,6 +79,10 @@ Two things in this picture surprise newcomers:
 
 ## 4. Glossary
 
+- **SPA** (single-page app): a web app that loads once and then switches screens in the browser,
+  fetching only data from the API. That is what `frontend/` is.
+- **Generated client**: code produced by a tool from a description. `frontend/src/api/schema.d.ts`
+  is generated from the backend's OpenAPI spec (`task fe:api`); you commit it but never edit it.
 - **Endpoint / route**: a URL plus HTTP method the API answers, e.g. `POST /lineups`.
 - **DTO** (data transfer object): a plain object that carries data between layers. Here,
   `WaterPoloLineupDTO` is what the document code receives.
@@ -150,7 +167,20 @@ task build && task up    # full API in a container, with PDF output
 task test-e2e       # real-conversion tests against the container
 ```
 
-Then open `http://localhost:8000/docs` for the interactive API docs. Every Python command has to
+Then open `http://localhost:8000/docs` for the interactive API docs.
+
+To run the web app as well, install Node.js (current LTS) and pnpm, then:
+
+```bash
+task fe:install     # install the frontend dependencies (exact versions from the lockfile)
+task up             # the API container on :8000 (the app's backend)
+task fe:dev         # the web app on http://localhost:5173
+task fe:check       # lint + tests + build + 'is the generated API client fresh?'
+```
+
+In dev the browser calls `/api/...` on the Vite server, which forwards to `:8000`, so no CORS
+setup is needed. Frontend commands run with `frontend/` as the working directory; the `task fe:*`
+commands take care of it. Every Python command has to
 run with `backend/` as the working directory (paths such as `./lineup.db` and `resources/…` are
 relative to it); the `task` commands take care of that, so run them from the repo root.
 
@@ -165,6 +195,8 @@ copy `backend/.env.example` to `backend/.env`, fill it in and use `task db:postg
 - LibreOffice isn't available outside the container, so unit tests **mock** `PdfConverter.convert`;
   only the e2e suite (`task test-e2e`) runs the real thing.
 - Coverage is enforced at 100%. If `task test` fails on coverage, you added a branch without a test.
+- Frontend tests (`task fe:test`) are Vitest files next to the code (`*.test.ts(x)`); they render
+  components with Testing Library and mock `fetch`, so they need no running API.
 
 ## 9. Make your first change
 
@@ -200,13 +232,15 @@ the service if a rule applies, tests for the new behaviour, and the docs.
   coverage under-reports lines after an `await session.commit()`.
 - **FastAPI routers:** don't use `from __future__ import annotations` in router files (it breaks
   query-parameter detection) and declare query parameters with `Annotated[..., Query(...)]`.
-- **A browser on another origin is blocked unless you allow it.** The frontend dev server
-  (`http://localhost:5173`) is a different origin from the API (`:8000`), so set `CORS_ORIGINS` in
-  `backend/.env`. With it unset the API sends no CORS headers (curl and the docs page still work).
+- **A browser on another origin is blocked unless you allow it.** `task fe:dev` avoids this by
+  proxying `/api` to the API, but a deployed frontend or a dev server pointed straight at `:8000`
+  (`VITE_API_URL`) is a different origin, so set `CORS_ORIGINS` in `backend/.env`. With it unset the API sends no CORS headers (curl and the docs page still work).
 - **Text fields use the shared types in `lineup/common/types.py`** (trimmed, length-capped, no control
   characters). Use them for any new text field, or a stray tab/NUL can produce a 500 when the document is
   generated.
 - **Lists have no "give me everything" mode.** `limit` is 1-200; page with `offset`.
+- **Changed an endpoint or schema? Regenerate the frontend client.** Run `task fe:api` and commit
+  `frontend/src/api/`; CI's `Frontend` job fails with "stale" otherwise.
 - **Download file names** go through `content_disposition()` because HTTP header values are
   latin-1 and names like `ő`/`ű` would crash a plain `filename=`.
 - **Nobody is logged in yet.** `get_current_user_id()` returns `None`, so ownership filters exist
@@ -216,7 +250,8 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 
 - The code tour: `backend/app.py` → `lineup/api/router.py` → `lineup/water_polo/` →
   `lineup/document/` → `lineup/db/` → `lineup/teams/`.
-- [[Current State: Backend]] for the data model and database configuration.
+- [[Current State: Backend]] for the data model and database configuration, and
+  [[Current State: Frontend]] for how the web app is built.
 - [[Current State: Everything Else]] for CI, containers and conventions.
 - [[Roadmap: Everything Else]], `PLAN.md` and the GitHub issues/board for what's coming.
 - [[References]] for the official documentation of every tool above.

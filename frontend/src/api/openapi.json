@@ -1,0 +1,1860 @@
+{
+  "components": {
+    "schemas": {
+      "FileFormat": {
+        "description": "Output format of a generated lineup, taken from the `format` query parameter.",
+        "enum": [
+          "pdf",
+          "docx"
+        ],
+        "title": "FileFormat",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "description": "Body of the health endpoint: `ok`, or `unavailable` when the database check failed.",
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "LineupRequest": {
+        "description": "Everything needed to fill one lineup sheet (no database involved).\n\nText fields are trimmed, must not be empty and have a maximum length. `players` holds 1 to 15\nentries with unique cap numbers (1-15) and unique NSSZ numbers.",
+        "properties": {
+          "assistant_coach": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Assistant Coach",
+            "type": "string"
+          },
+          "ball_thrower": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Ball Thrower",
+            "type": "string"
+          },
+          "cap": {
+            "enum": [
+              "Fehér",
+              "Kék"
+            ],
+            "title": "Cap",
+            "type": "string"
+          },
+          "coach": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Coach",
+            "type": "string"
+          },
+          "date": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Date",
+            "type": "string"
+          },
+          "division": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Division",
+            "type": "string"
+          },
+          "doctor": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Doctor",
+            "type": "string"
+          },
+          "match": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Match",
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerRequest"
+            },
+            "maxItems": 15,
+            "minItems": 1,
+            "title": "Players",
+            "type": "array"
+          },
+          "team_leader": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Team Leader",
+            "type": "string"
+          },
+          "team_name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Team Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "match",
+          "division",
+          "team_name",
+          "cap",
+          "date",
+          "coach",
+          "doctor",
+          "assistant_coach",
+          "team_leader",
+          "ball_thrower",
+          "players"
+        ],
+        "title": "LineupRequest",
+        "type": "object"
+      },
+      "PaginatedPlayers": {
+        "description": "One page of players plus the total number of matching players.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PlayerResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PaginatedPlayers",
+        "type": "object"
+      },
+      "PaginatedSavedLineups": {
+        "description": "One page of saved lineups plus the total number of matching lineups.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SavedLineupResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PaginatedSavedLineups",
+        "type": "object"
+      },
+      "PaginatedTeams": {
+        "description": "One page of teams plus the total number of teams.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TeamResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PaginatedTeams",
+        "type": "object"
+      },
+      "PlayerCreate": {
+        "description": "Body for creating a player. Text is trimmed, must not be blank or contain control\ncharacters; `team_id` (optional) must be an existing team.",
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "nssz_number": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Nssz Number",
+            "type": "string"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "required": [
+          "name",
+          "nssz_number"
+        ],
+        "title": "PlayerCreate",
+        "type": "object"
+      },
+      "PlayerRequest": {
+        "description": "One player on the lineup sheet.",
+        "properties": {
+          "cap_number": {
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "Cap Number",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "nssz_number": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Nssz Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cap_number",
+          "name",
+          "nssz_number"
+        ],
+        "title": "PlayerRequest",
+        "type": "object"
+      },
+      "PlayerResponse": {
+        "description": "A player as returned by the API.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nssz_number": {
+            "title": "Nssz Number",
+            "type": "string"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nssz_number",
+          "team_id",
+          "created_at"
+        ],
+        "title": "PlayerResponse",
+        "type": "object"
+      },
+      "PlayerUpdate": {
+        "description": "Body for replacing a player's data (all fields are overwritten, including `team_id`).",
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "nssz_number": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Nssz Number",
+            "type": "string"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "required": [
+          "name",
+          "nssz_number"
+        ],
+        "title": "PlayerUpdate",
+        "type": "object"
+      },
+      "SavedLineupCreate": {
+        "description": "Body for saving a lineup.\n\nTeam and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.",
+        "properties": {
+          "assistant_coach": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Coach"
+          },
+          "ball_thrower": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ball Thrower"
+          },
+          "cap": {
+            "enum": [
+              "Fehér",
+              "Kék"
+            ],
+            "title": "Cap",
+            "type": "string"
+          },
+          "coach": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Coach",
+            "type": "string"
+          },
+          "date": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Date",
+            "type": "string"
+          },
+          "division": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Division",
+            "type": "string"
+          },
+          "doctor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctor"
+          },
+          "match_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Name"
+          },
+          "opponent_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Name"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/SavedLineupPlayerCreate"
+            },
+            "maxItems": 15,
+            "minItems": 1,
+            "title": "Players",
+            "type": "array"
+          },
+          "source_opponent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Opponent Id"
+          },
+          "source_team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Team Id"
+          },
+          "team_leader": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Leader"
+          },
+          "team_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Name"
+          }
+        },
+        "required": [
+          "division",
+          "cap",
+          "date",
+          "coach",
+          "players"
+        ],
+        "title": "SavedLineupCreate",
+        "type": "object"
+      },
+      "SavedLineupPlayerCreate": {
+        "description": "One player slot: reference an existing roster player (whose current\nname/NSSZ number is frozen at save time) or supply free text directly, never both.",
+        "properties": {
+          "cap_number": {
+            "maximum": 15.0,
+            "minimum": 1.0,
+            "title": "Cap Number",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "nssz_number": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nssz Number"
+          },
+          "source_player_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Player Id"
+          }
+        },
+        "required": [
+          "cap_number"
+        ],
+        "title": "SavedLineupPlayerCreate",
+        "type": "object"
+      },
+      "SavedLineupPlayerResponse": {
+        "description": "A player slot of a saved lineup, as frozen when it was saved.",
+        "properties": {
+          "cap_number": {
+            "title": "Cap Number",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nssz_number": {
+            "title": "Nssz Number",
+            "type": "string"
+          },
+          "source_player_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Player Id"
+          }
+        },
+        "required": [
+          "id",
+          "cap_number",
+          "name",
+          "nssz_number",
+          "source_player_id"
+        ],
+        "title": "SavedLineupPlayerResponse",
+        "type": "object"
+      },
+      "SavedLineupResponse": {
+        "description": "A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`\nfields are soft references and become null if the source is deleted.",
+        "properties": {
+          "assistant_coach": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Coach"
+          },
+          "ball_thrower": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ball Thrower"
+          },
+          "cap": {
+            "title": "Cap",
+            "type": "string"
+          },
+          "coach": {
+            "title": "Coach",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "division": {
+            "title": "Division",
+            "type": "string"
+          },
+          "doctor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctor"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "match_name": {
+            "title": "Match Name",
+            "type": "string"
+          },
+          "opponent_name": {
+            "title": "Opponent Name",
+            "type": "string"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/SavedLineupPlayerResponse"
+            },
+            "title": "Players",
+            "type": "array"
+          },
+          "source_opponent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Opponent Id"
+          },
+          "source_team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Team Id"
+          },
+          "team_leader": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Leader"
+          },
+          "team_name": {
+            "title": "Team Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "team_name",
+          "opponent_name",
+          "match_name",
+          "division",
+          "cap",
+          "date",
+          "coach",
+          "doctor",
+          "assistant_coach",
+          "team_leader",
+          "ball_thrower",
+          "source_team_id",
+          "source_opponent_id",
+          "players",
+          "created_at"
+        ],
+        "title": "SavedLineupResponse",
+        "type": "object"
+      },
+      "TeamCreate": {
+        "description": "Body for creating a team. The name is trimmed and must not be blank or contain control\ncharacters.",
+        "properties": {
+          "is_public": {
+            "default": true,
+            "title": "Is Public",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TeamCreate",
+        "type": "object"
+      },
+      "TeamDeleteResponse": {
+        "description": "Confirmation returned after a team is deleted.",
+        "properties": {
+          "deleted": {
+            "title": "Deleted",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "deleted"
+        ],
+        "title": "TeamDeleteResponse",
+        "type": "object"
+      },
+      "TeamPoolItem": {
+        "description": "Lightweight entry for the shared opponent pool — id + name only.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TeamPoolItem",
+        "type": "object"
+      },
+      "TeamResponse": {
+        "description": "A team as returned by the API.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_public": {
+            "title": "Is Public",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Id"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "owner_id",
+          "is_public",
+          "created_at"
+        ],
+        "title": "TeamResponse",
+        "type": "object"
+      },
+      "TeamUpdate": {
+        "description": "Body for renaming a team.",
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TeamUpdate",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Generates water polo lineup documents.",
+    "title": "Lineup API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "description": "Liveness by default; `?db=1` adds a `SELECT 1` readiness probe.\n\nA failing probe returns a plain 503 body instead of raising, so the driver's error\ntext (which can contain hostnames) never reaches the client and health checks don't\nflood Sentry.",
+        "operationId": "health_health_get",
+        "parameters": [
+          {
+            "description": "Also check the database (readiness). Default: liveness only.",
+            "in": "query",
+            "name": "db",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Also check the database (readiness). Default: liveness only.",
+              "title": "Db",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Database unreachable"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/lineups": {
+      "post": {
+        "description": "Generate a lineup sheet from the request body and return it as a file download.\n\n`format=pdf` (default) converts through LibreOffice, which only exists in the container;\n`format=docx` returns the filled template directly. Nothing is stored.",
+        "operationId": "create_lineup_lineups_post",
+        "parameters": [
+          {
+            "description": "Output format of the generated file",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FileFormat",
+              "default": "pdf",
+              "description": "Output format of the generated file"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LineupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Lineup",
+        "tags": [
+          "lineups"
+        ]
+      }
+    },
+    "/lineups/saved": {
+      "get": {
+        "description": "List saved lineups, oldest first, optionally only those made for one team\n(`source_team_id`). Paginated: `limit` is 1-200 (default 20), `offset` starts at 0.",
+        "operationId": "list_saved_lineups_lineups_saved_get",
+        "parameters": [
+          {
+            "description": "Max items to return (1-200).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Max items to return (1-200).",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSavedLineups"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Saved Lineups",
+        "tags": [
+          "saved-lineups"
+        ]
+      },
+      "post": {
+        "description": "Save a lineup as a frozen snapshot.\n\nFor the team, the opponent and each player, send either a `source_*_id` (the current name\nand NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ\nnumbers must be unique within the lineup. Deleting the source team or player later does not\nchange a saved lineup.",
+        "operationId": "create_saved_lineup_lineups_saved_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedLineupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedLineupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Saved Lineup",
+        "tags": [
+          "saved-lineups"
+        ]
+      }
+    },
+    "/lineups/saved/{lineup_id}": {
+      "delete": {
+        "description": "Delete a saved lineup (404 if unknown).",
+        "operationId": "delete_saved_lineup_lineups_saved__lineup_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineup_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Saved Lineup",
+        "tags": [
+          "saved-lineups"
+        ]
+      },
+      "get": {
+        "description": "Get one saved lineup by id, with its players ordered by cap number (404 if unknown).",
+        "operationId": "get_saved_lineup_lineups_saved__lineup_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineup_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedLineupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Saved Lineup",
+        "tags": [
+          "saved-lineups"
+        ]
+      }
+    },
+    "/lineups/saved/{lineup_id}/generate": {
+      "post": {
+        "description": "Generate a document from a previously saved lineup.",
+        "operationId": "generate_from_saved_lineup_lineups_saved__lineup_id__generate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineup_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineup Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Output format: pdf or docx",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FileFormat",
+              "default": "pdf",
+              "description": "Output format: pdf or docx"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate From Saved Lineup",
+        "tags": [
+          "saved-lineups"
+        ]
+      }
+    },
+    "/players": {
+      "get": {
+        "description": "List players ordered by creation time, optionally only one team's (`team_id`). Paginated:\n`limit` is 1-200 (default 20), `offset` starts at 0.",
+        "operationId": "list_players_players_get",
+        "parameters": [
+          {
+            "description": "Max items to return (1-200).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Max items to return (1-200).",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPlayers"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Players",
+        "tags": [
+          "players"
+        ]
+      },
+      "post": {
+        "description": "Create a player, optionally on a team's roster. An unknown `team_id` returns 404.",
+        "operationId": "create_player_players_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Player",
+        "tags": [
+          "players"
+        ]
+      }
+    },
+    "/players/{player_id}": {
+      "delete": {
+        "description": "Delete a player. Always succeeds (204): saved lineups keep their own copy of the data.",
+        "operationId": "delete_player_players__player_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "player_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Player Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Player",
+        "tags": [
+          "players"
+        ]
+      },
+      "get": {
+        "description": "Get one player by id (404 if unknown).",
+        "operationId": "get_player_players__player_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "player_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Player Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Player",
+        "tags": [
+          "players"
+        ]
+      },
+      "put": {
+        "description": "Replace a player's name, NSSZ number and team. An unknown player or `team_id` returns 404.",
+        "operationId": "update_player_players__player_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "player_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Player Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlayerUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Player",
+        "tags": [
+          "players"
+        ]
+      }
+    },
+    "/teams": {
+      "get": {
+        "description": "List teams, ordered by name. Paginated: `limit` is 1-200 (default 20) and `offset`\nstarts at 0; the response carries `total` so clients can page.",
+        "operationId": "list_teams_teams_get",
+        "parameters": [
+          {
+            "description": "Max items to return (1-200).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Max items to return (1-200).",
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTeams"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Teams",
+        "tags": [
+          "teams"
+        ]
+      },
+      "post": {
+        "description": "Create a team. `is_public` (default true) lists it in the opponent pool.",
+        "operationId": "create_team_teams_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Team",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/teams/pool": {
+      "get": {
+        "description": "Search the shared opponent pool. Only public teams are returned, and only their\n`id` and `name`. `search` is a literal, case-insensitive substring.",
+        "operationId": "search_teams_pool_teams_pool_get",
+        "parameters": [
+          {
+            "description": "Filter by team name (literal match)",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by team name (literal match)",
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TeamPoolItem"
+                  },
+                  "title": "Response Search Teams Pool Teams Pool Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Teams Pool",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/teams/{team_id}": {
+      "delete": {
+        "description": "Delete a team. Returns 409 while players are still on its roster; saved lineups that\nmention the team are unaffected because they store copies.",
+        "operationId": "delete_team_teams__team_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Team",
+        "tags": [
+          "teams"
+        ]
+      },
+      "get": {
+        "description": "Get one team by id (404 if unknown).",
+        "operationId": "get_team_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Team",
+        "tags": [
+          "teams"
+        ]
+      },
+      "put": {
+        "description": "Rename a team (404 if unknown).",
+        "operationId": "update_team_teams__team_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Team",
+        "tags": [
+          "teams"
+        ]
+      }
+    }
+  }
+}

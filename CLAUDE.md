@@ -27,7 +27,7 @@ Water polo lineup document generator. Takes match details and player info, fills
 
 PDF conversion uses LibreOffice headless, which is only available inside the container — the API must be run via `task build` + `task up`, not `task serve`.
 
-**Repo layout**: the Python backend lives in `backend/` (and a Vite/React app will live in `frontend/`); the repo root only holds what is shared or cross-cutting — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`, `README.md`, `CLAUDE.md`, `PLAN.md`. **Every Python command must run with `backend/` as its working directory**, because `alembic.ini` (`prepend_sys_path = .`), the `resources/…` template paths, pytest's rootdir (`from app import app`), `--cov=lineup` and the `./lineup.db` SQLite default are all cwd-relative. The root `Taskfile.yml` sets `dir: backend` on those tasks, so use `task …` from anywhere; if you run `uv`/`pytest`/`alembic` by hand, `cd backend` first. The split exists so CI, Docker and Dependabot can treat the two sides separately (the Docker build context is `backend/`, so repo-root files never enter the image).
+**Repo layout**: the Python backend lives in `backend/` and the Vite/React web app lives in `frontend/`; the repo root only holds what is shared or cross-cutting — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`, `README.md`, `CLAUDE.md`, `PLAN.md`. **Every Python command must run with `backend/` as its working directory**, because `alembic.ini` (`prepend_sys_path = .`), the `resources/…` template paths, pytest's rootdir (`from app import app`), `--cov=lineup` and the `./lineup.db` SQLite default are all cwd-relative. The root `Taskfile.yml` sets `dir: backend` on those tasks, so use `task …` from anywhere; if you run `uv`/`pytest`/`alembic` by hand, `cd backend` first. **Every frontend command runs with `frontend/` as its working directory** (the `task fe:*` targets set `dir: frontend`). The split exists so CI, Docker and Dependabot can treat the two sides separately (the Docker build context is `backend/`, so repo-root files never enter the image).
 
 The template is authored in Calibri/Calibri Light (proprietary). The container ships the libre metric-compatible substitutes (Carlito etc.) so the PDF layout matches the source `.docx`; without them LibreOffice substitutes a differently-sized font and the tab-stop/table layout drifts.
 
@@ -123,9 +123,29 @@ task migrate-down  # rollback one migration step
 task migrate-check  # throwaway SQLite: upgrade head + `alembic check` (CI runs it)
 task migrate:supabase  # upgrade head using MIGRATE_DATABASE_URL from backend/.env.migrate (owner creds)
 task db:create-app-role  # generate lineup_app's password, rewrite backend/.env's pooler URL (never printed)
+task fe:install   # pnpm install --frozen-lockfile in frontend/
+task fe:dev       # Vite dev server on :5173, proxies /api to the container from task up
+task fe:lint      # ESLint + Prettier check
+task fe:format    # Prettier write
+task fe:typecheck # tsc --noEmit
+task fe:test      # Vitest
+task fe:build     # tsc + vite build into frontend/dist
+task fe:api       # regenerate frontend/src/api (openapi.json + schema.d.ts) from the backend's OpenAPI spec
+task fe:api:check # fail if that generated client is stale (CI runs it)
+task fe:check     # lint + test + build + api:check, i.e. the CI Frontend job
 task docs:references  # regenerate the dependency block in documentation/References.md
 task docs:check   # fail if that block is stale (CI runs it)
 ```
+
+### Frontend (`frontend/`)
+
+React 19 + TypeScript + Vite (pnpm; the version is pinned by `packageManager` in `package.json`), Tailwind v4 with the Polaris tokens as CSS variables in `src/index.css` (square corners, light + dark; the `dark` class on `<html>` is set before first paint by `public/theme-init.js`, a separate file rather than inline so a strict CSP (#97) stays possible), shadcn-style components in `src/components/ui/` (`cn()` from `src/lib/utils.ts`; semantic tokens only, never raw hex), React Router (`BrowserRouter`/`Routes` in `src/app.tsx`), TanStack Query, Vitest + Testing Library (`src/**/*.test.ts(x)`, setup in `src/test/setup.ts`).
+
+- **Generated API client**: `src/api/openapi.json` is dumped offline from the FastAPI app (`scripts/dump_openapi.py`, no server) and `src/api/schema.d.ts` is generated from it by openapi-typescript; `src/api/client.ts` wraps it in `openapi-fetch`. Never edit the generated files; after any backend endpoint/schema change run `task fe:api` and commit the result, otherwise CI's `task fe:api:check` fails.
+- **API base URL**: `VITE_API_URL` if set, else the same-origin `/api`, which the Vite dev server proxies to `VITE_DEV_API_TARGET` (default `http://localhost:8000`) with the prefix stripped, so local dev needs no CORS. `VITE_*` values are public: no secrets in `frontend/.env*` (ignored by the repo except `.env.example`).
+- **Fonts and third parties**: Google Sans Flex is self-hosted through Fontsource; the app must not request any third-party origin (#97, GDPR G14).
+- **TypeScript is pinned to 6.0 (`~6.0.3`)**: typescript-eslint doesn't support 7.x yet; lift the pin when it does.
+- CI's `Frontend` job (in `ci.yml`, no path filter so it reports on every PR) runs `task fe:install`, `fe:lint`, `fe:typecheck`, `fe:test`, `fe:build`, `fe:api:check` and a report-only `pnpm audit --prod`. It is not (yet) a required check in branch protection. Dependabot has an `npm` entry for `/frontend` (minor/patch grouped).
 
 Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `PDF_MAX_CONCURRENT`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; a future `frontend/.env` is separate) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
@@ -197,9 +217,19 @@ lineup/
 ├── .github/                          # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                          # settings.json, skills/, commands/
 ├── documentation/                    # mirrored into the GitHub wiki by CI (incl. Newcomer-Guide.md, References.md)
-├── scripts/                          # check_docs_touched.sh (docs gate), docs_references.py (generates References.md block)
-├── frontend/
-│   └── DESIGN.md                     # Polaris theme spec (shadcn tokens) — the app itself is not scaffolded yet
+├── scripts/                          # check_docs_touched.sh (docs gate), docs_references.py (generates References.md block), dump_openapi.py (OpenAPI spec for the FE client)
+├── frontend/                         # React + TS + Vite app (pnpm); run commands with this as cwd
+│   ├── DESIGN.md                     # Polaris theme spec (shadcn tokens)
+│   ├── package.json  pnpm-lock.yaml  vite.config.ts  eslint.config.js  tsconfig.json
+│   ├── index.html  .env.example      # VITE_* vars (public values only)
+│   ├── public/                       # favicon.svg, theme-init.js
+│   └── src/
+│       ├── main.tsx  app.tsx  index.css   # entry, providers + routes, Tailwind + Polaris tokens
+│       ├── api/                      # client.ts; GENERATED openapi.json + schema.d.ts (task fe:api)
+│       ├── components/               # app-shell (sidebar / bottom nav), theme-toggle, nav-items, ui/
+│       ├── pages/                    # one file per route
+│       ├── lib/                      # utils.ts (cn), theme.ts
+│       └── test/setup.ts             # Vitest + Testing Library setup
 └── backend/                          # everything Python; run Python commands with this as cwd
     ├── app.py
     ├── main.py

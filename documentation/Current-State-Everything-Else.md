@@ -7,7 +7,7 @@ across the backend regardless of which module you're touching.
 
 The repo is split so each side can be built, tested and deployed on its own: **`backend/`**
 holds all the Python (API, Alembic migrations, tests, `Dockerfile`, `pyproject.toml`, the
-`.docx` template), and **`frontend/`** will hold the web app. The repo root keeps only
+`.docx` template), and **`frontend/`** holds the web app (React + TypeScript on Vite, pnpm; see [[Current State: Frontend]]). The repo root keeps only
 what is shared: `Taskfile.yml`, `compose.yml`, `.github/` (CI and Dependabot), `.claude/`,
 `documentation/` and the top-level docs.
 
@@ -153,7 +153,7 @@ Three GitHub Actions workflows (`.github/workflows/`):
   `ci.yml`: re-running the e2e job for a label would be wasteful): runs
   `scripts/check_docs_touched.sh`, which fails when the diff touches code or config paths
   (`backend/lineup/`, `backend/alembic/`, `backend/app.py`, `pyproject.toml`, `Dockerfile`,
-  `.env.example`, `compose.yml`, `Taskfile.yml`, `scripts/`, workflows, later `frontend/src/`)
+  `.env.example`, `compose.yml`, `Taskfile.yml`, `scripts/`, workflows, `frontend/src/`)
   but none of `README.md`, `CLAUDE.md` or `documentation/`. The escape hatch for changes that
   genuinely need no documentation is the `no-docs` label together with a
   `No doc impact: <reason>` line in the PR description. Dependabot PRs are skipped. The job
@@ -167,7 +167,12 @@ Three GitHub Actions workflows (`.github/workflows/`):
   fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
   checks the same thing on every PR.
 
-`ci.yml` has three jobs. **Lint & test** runs ruff, the tests at 100% coverage, the References check and
+`ci.yml` has four jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
+Prettier, the type check, the Vitest suite and the production build, then `task fe:api:check`, which
+regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
+and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
+It deliberately has no path filter, so it reports on every PR and can be made a required check later
+(it is not one yet). **Lint & test** runs ruff, the tests at 100% coverage, the References check and
 `task migrate-check` (migrations applied to SQLite, then `alembic check`). **Migrations (Postgres)** starts
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
@@ -183,7 +188,7 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
   ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`), the `docker` ecosystem (`backend/Dockerfile`: the
-  digest-pinned base image and the `uv` image) and the `github-actions` ecosystem (the workflow
+  digest-pinned base image and the `uv` image) the `npm` ecosystem (`directory: /frontend`, i.e. `frontend/package.json`/`frontend/pnpm-lock.yaml`, minor and patch updates grouped into one PR) and the `github-actions` ecosystem (the workflow
   files). Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
