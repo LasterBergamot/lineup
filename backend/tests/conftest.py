@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
@@ -66,15 +68,31 @@ async def db_session(db_engine) -> AsyncSession:
         yield session
 
 
+class CurrentUser:
+    """The user the test client is signed in as. Assign `.id` mid-test to switch users."""
+
+    def __init__(self) -> None:
+        self.id = uuid.uuid4()
+
+
 @pytest.fixture
-async def async_client(db_session: AsyncSession) -> AsyncClient:
+def current_user() -> CurrentUser:
+    """A fresh signed-in user for the `async_client` of this test."""
+    return CurrentUser()
+
+
+@pytest.fixture
+async def async_client(
+    db_session: AsyncSession, current_user: CurrentUser
+) -> AsyncClient:
     """
     AsyncClient wired to the FastAPI app with dependency overrides:
     - get_session → in-memory SQLite session
-    - get_current_user_id → None (pre-Auth behaviour)
+    - get_current_user_id → `current_user.id` (no token needed; the real JWT check is
+      covered in test_auth_dependencies.py)
     """
     app.dependency_overrides[get_session] = lambda: db_session
-    app.dependency_overrides[get_current_user_id] = lambda: None
+    app.dependency_overrides[get_current_user_id] = lambda: current_user.id
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:

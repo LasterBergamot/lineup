@@ -30,6 +30,7 @@ jobs:
             ["Home.md"]="Home.md"
             ["Newcomer-Guide.md"]="Newcomer-Guide.md"
             ["References.md"]="References.md"
+            ["Auth-Setup.md"]="Auth-Setup.md"
             ["Current-State-Backend.md"]="Current-State:-Backend.md"
             ["Current-State-Everything-Else.md"]="Current-State:-Everything-Else.md"
             ["Current-State-Frontend.md"]="Current-State:-Frontend.md"

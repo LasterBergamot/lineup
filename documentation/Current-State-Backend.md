@@ -42,7 +42,8 @@ Each layer has one job, which is what keeps the code easy to follow:
 
 A typical request, e.g. `POST /teams`: the router receives the JSON body (validated by the
 schema), gets a DB session from `get_session()` and the caller's identity from
-`get_current_user_id()` (both FastAPI dependencies), hands them to the service, which applies
+`get_current_user_id()` (both FastAPI dependencies; the latter verifies the Bearer token and returns
+the user's id, or the request stops with `401`), hands them to the service, which applies
 business rules and calls the repository, which runs the SQL and returns ORM objects that the
 router serialises back through the response schema.
 
@@ -54,11 +55,23 @@ router serialises back through the response schema.
   (`task run`); handy for trying the template without the API.
 - `lineup/db/engine.py` — creates the async SQLAlchemy engine from `DATABASE_URL` (details
   under [Database engine & configuration](#database-engine--configuration)).
-- `lineup/auth/dependencies.py` — the single auth seam, see [Auth status](#auth-status).
+- `lineup/auth/dependencies.py` + `lineup/auth/tokens.py` — the auth seam (Bearer JWT check and
+  the signing-key cache), see [Auth status](#auth-status).
 
 ## API surface
 
+**Who may call what.** Every route needs a signed-in user (`Authorization: Bearer <Supabase access
+token>`) — otherwise `401 {"detail":"Not authenticated"}` — except: `GET /health` (probes must work
+without a login), the API docs (`/docs`, `/redoc`, `/openapi.json`) and `POST /lineups` (below).
+`tests/test_auth_dependencies.py` walks every registered route and fails if a new one is reachable
+without a token and is not on that short public list.
+
 ### Document generation
+
+`POST /lineups` is deliberately still **public**: it is stateless (nothing is read or stored), so
+there is no data to protect, and the e2e suite drives it against the container without a token.
+The catch is that it starts LibreOffice, so a public deployment needs rate limiting or a login on
+it before anyone outside the team can reach it — tracked in #96 (API hardening), a Phase 4 gate.
 
 `POST /lineups?format=pdf|docx` — fills the template, converts to PDF (default) or returns
 DOCX directly, streams the file back with a `Content-Disposition: attachment` header.
@@ -105,7 +118,7 @@ so rendering, headers and error handling live in one place:
 | Method | Path | Notes |
 |---|---|---|
 | `GET`/`POST` | `/teams` | Paginated CRUD |
-| `GET` | `/teams/pool?search=&limit=` | Shared opponent pool — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
+| `GET` | `/teams/pool?search=&limit=` | Shared opponent pool (sign-in required) — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | `DELETE` returns **409** if the team still has roster players (app-level check, not DB-level) |
 
 ### Players
@@ -128,7 +141,11 @@ at save time) or as free text — **exactly one** of the two per field. Sending 
 this rule, free text silently overrode the roster value, which hid typos. The same NSSZ number can't
 appear twice in a lineup (`422`); on saved lineups this is checked on the *resolved* numbers, since a
 roster player's number is only known after the lookup. Deleting the source team/player afterwards
-never changes an already-saved lineup.
+never changes an already-saved lineup. The ids are looked up **as the caller**: `source_team_id` and
+`source_player_id` must be the caller's own rows, and `source_opponent_id` the caller's own team or
+one listed in the opponent pool (`is_public`). Anything else is the same `404` as an unknown id, so
+the API never confirms that someone else's row exists (otherwise anyone who knew a UUID could copy
+another user's team name or a player's name and NSSZ number into their own lineup).
 
 ### Input rules
 
@@ -180,7 +197,7 @@ erDiagram
     TEAMS {
         uuid id PK
         string name
-        uuid owner_id "nullable pre-auth"
+        uuid owner_id "the Supabase user id (sub)"
         boolean is_public "true for opponent pool"
     }
     PLAYERS {
@@ -393,9 +410,10 @@ hosting stack.
   `alembic upgrade head` (or restore a `pg_dump`). Keep `NullPool` and
   the pooler-safe `connect_args` only if the new host also uses a transaction-mode pooler
   (any PgBouncer-style pooler needs them, not just Supabase); drop them for direct connections.
-  The Supabase-flavoured parts arrive later with auth and RLS: `get_current_user_id()` would
-  validate Supabase-issued JWTs (one function to swap), while RLS policies are plain Postgres
-  SQL that carries over to any Postgres host.
+  The Supabase-flavoured parts are auth and RLS: `get_current_user_id()` validates Supabase-issued
+  JWTs against the project's JWKS (`SUPABASE_URL`; on another identity provider, point it at that
+  provider's JWKS and issuer), while RLS policies are plain Postgres SQL that carries over to any
+  Postgres host.
 - **A non-Postgres relational DB** (e.g. MySQL): swap the async driver (`asyncmy`/`aiomysql`
   instead of `asyncpg`), re-run the Alembic chain on the new engine to create the schema, and
   copy the data separately — Alembic moves DDL, not rows (read via the old engine, write via
@@ -431,10 +449,29 @@ sequenceDiagram
 
 ## Auth status
 
-Pre-Auth: `user_id`/`owner_id` columns exist on every table but always resolve to `None`
-until real auth is wired in (`lineup/auth/dependencies.py`'s `get_current_user_id()`). Every
-repository already filters on `user_id` whenever it is non-`None`, so turning auth on later
-means replacing that one function's body (to read the JWT `sub` claim) — no router or service
-changes. Using Supabase Postgres for the database does **not** change this: the DB cutover and
-the auth swap are independent, and the auth swap is deliberately sequenced after team
-membership ships. See [[Roadmap: Backend]].
+Sign-in is Google through Supabase Auth, done in the browser. The frontend then sends the
+resulting access token (a JWT) with every API call, and `get_current_user_id()`
+(`lineup/auth/dependencies.py`) checks it with `lineup/auth/tokens.py`:
+
+1. The header's `alg` must be `ES256` or `RS256`. Symmetric algorithms (`HS256`) and `none` are
+   refused outright; otherwise anyone who knew the public key could forge a token.
+2. The signing key is picked by the token's `kid` from the project's public key set (JWKS,
+   `<SUPABASE_URL>/auth/v1/.well-known/jwks.json`). Keys are cached for 10 minutes and reloaded
+   when a token names an unknown `kid` (Supabase rotated them), at most once per 30 seconds so
+   random `kid`s cannot make the API hammer Supabase. Stale keys are never used.
+3. Signature, `iss` (`<SUPABASE_URL>/auth/v1`), `aud == "authenticated"`, `exp` (and `nbf` if
+   present, with 10 s clock skew) must all pass, and `sub` must be a UUID. That `sub` is the user
+   id.
+
+Failure modes, all fail-closed: no or bad token → `401` with one generic body (the reason is only
+in the server log as a fixed code such as `expired`, never the token); `SUPABASE_URL` unset or the
+key set unreachable → `503 Authentication unavailable`. The dependency returns a plain `UUID`,
+never `None`, so repositories take a *required* `user_id` and there is no "skip the filter"
+branch. Local SQLite development can still run everything: tests override the dependency, and
+`task serve` with `SUPABASE_URL` pointing at the dev project works with real tokens.
+
+Owner columns (`teams.owner_id`, `players.user_id`, `saved_lineups.user_id`) hold that `sub`. They
+are still nullable in the schema until the migration that makes them `NOT NULL` lands (see
+[[Roadmap: Backend]]); the API never writes `NULL` any more. Team membership (several users sharing
+one roster) is not implemented yet: access is still "rows you created". Using Supabase Postgres for
+the database is independent of this. Setup steps for Google and Supabase: [[Auth Setup]].

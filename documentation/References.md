@@ -111,8 +111,9 @@ Direct dependencies from `backend/pyproject.toml`. Exact versions are pinned in 
 | `alembic` | runtime | [PyPI](https://pypi.org/project/alembic/) |
 | `asyncpg` | runtime | [PyPI](https://pypi.org/project/asyncpg/) |
 | `fastapi` | runtime | [PyPI](https://pypi.org/project/fastapi/) |
-| `httpx` | dev | [PyPI](https://pypi.org/project/httpx/) |
+| `httpx` | runtime | [PyPI](https://pypi.org/project/httpx/) |
 | `pdfplumber` | dev | [PyPI](https://pypi.org/project/pdfplumber/) |
+| `pyjwt` | runtime | [PyPI](https://pypi.org/project/pyjwt/) |
 | `pytest` | dev | [PyPI](https://pypi.org/project/pytest/) |
 | `pytest-asyncio` | dev | [PyPI](https://pypi.org/project/pytest-asyncio/) |
 | `pytest-cov` | dev | [PyPI](https://pypi.org/project/pytest-cov/) |

@@ -29,11 +29,24 @@ async def _resolve_team_name(
     source_id: uuid.UUID | None,
     explicit_name: str | None,
     not_found_detail: str,
+    user_id: uuid.UUID,
+    allow_listed: bool,
 ) -> str:
+    """Name of the referenced team, or `explicit_name` for free text.
+
+    The referenced team must be the caller's own; with `allow_listed` (opponents) a team listed
+    in the opponent directory also qualifies. Anything else is 404, the same as a missing id, so
+    the API never confirms that someone else's team exists.
+    """
     if source_id is None:
         # Exactly one of the two is set: SavedLineupCreate.require_team_identity
         return explicit_name  # type: ignore[return-value]
-    team = await team_repo.get_team_by_id(session, team_id=source_id)
+    if allow_listed:
+        team = await team_repo.get_team_visible(
+            session, team_id=source_id, user_id=user_id
+        )
+    else:
+        team = await team_repo.get_team(session, team_id=source_id, owner_id=user_id)
     if team is None:
         raise HTTPException(status_code=404, detail=not_found_detail)
     return team.name
@@ -42,13 +55,14 @@ async def _resolve_team_name(
 async def _build_player_snapshot(
     session: AsyncSession,
     entry: SavedLineupPlayerCreate,
+    user_id: uuid.UUID,
 ) -> LineupPlayerSnapshot:
     # Exactly one of source_player_id / free text is set: require_identity
     name = entry.name
     nssz_number = entry.nssz_number
     if entry.source_player_id is not None:
         player = await player_repo.get_player(
-            session, player_id=entry.source_player_id, user_id=None
+            session, player_id=entry.source_player_id, user_id=user_id
         )
         if player is None:
             raise HTTPException(
@@ -104,7 +118,7 @@ def _build_response(lineup: SavedLineup) -> SavedLineupResponse:
 async def create_saved_lineup(
     session: AsyncSession,
     data: SavedLineupCreate,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> SavedLineupResponse:
     """Save a lineup as a snapshot and return it.
 
@@ -113,15 +127,20 @@ async def create_saved_lineup(
     rejects duplicate NSSZ numbers with 422, checked on the resolved values.
     """
     team_name = await _resolve_team_name(
-        session, data.source_team_id, data.team_name, "Team not found"
+        session, data.source_team_id, data.team_name, "Team not found", user_id, False
     )
     opponent_name = await _resolve_team_name(
-        session, data.source_opponent_id, data.opponent_name, "Opponent team not found"
+        session,
+        data.source_opponent_id,
+        data.opponent_name,
+        "Opponent team not found",
+        user_id,
+        True,
     )
     match_name = data.match_name or f"{team_name} - {opponent_name}"
 
     player_snapshots = [
-        await _build_player_snapshot(session, entry) for entry in data.players
+        await _build_player_snapshot(session, entry, user_id) for entry in data.players
     ]
     _ensure_unique_nssz(player_snapshots)
 
@@ -149,7 +168,7 @@ async def create_saved_lineup(
 async def get_saved_lineup_or_404(
     session: AsyncSession,
     lineup_id: uuid.UUID,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> SavedLineupResponse:
     """Return the lineup or raise 404 "Saved lineup not found"."""
     lineup = await repository.get_saved_lineup(
@@ -162,7 +181,7 @@ async def get_saved_lineup_or_404(
 
 async def list_saved_lineups(
     session: AsyncSession,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     source_team_id: uuid.UUID | None,
     limit: int,
     offset: int,
@@ -181,7 +200,7 @@ async def list_saved_lineups(
 async def delete_saved_lineup(
     session: AsyncSession,
     lineup_id: uuid.UUID,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> None:
     """Delete a lineup, or raise 404 if it is not found."""
     lineup = await repository.get_saved_lineup(

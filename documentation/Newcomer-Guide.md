@@ -209,8 +209,12 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 - **Lists have no "give me everything" mode.** `limit` is 1-200; page with `offset`.
 - **Download file names** go through `content_disposition()` because HTTP header values are
   latin-1 and names like `ő`/`ű` would crash a plain `filename=`.
-- **Nobody is logged in yet.** `get_current_user_id()` returns `None`, so ownership filters exist
-  but never apply. Real auth is planned (Phase 3 in `PLAN.md`).
+- **Every data route needs a signed-in user.** `get_current_user_id()` checks the Supabase access
+  token (`Authorization: Bearer <jwt>`) and returns the user's id; a repository function always
+  takes that id as a *required* argument, so there is no code path that "forgets" to filter. In
+  tests the dependency is overridden (`current_user` fixture), so you don't need a token. To run
+  the API locally against real sign-in, set `SUPABASE_URL` (see [[Auth Setup]]); without it the
+  protected routes answer `503` on purpose.
 
 ## 11. Where to go next
 

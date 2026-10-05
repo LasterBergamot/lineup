@@ -1,7 +1,7 @@
 """Database access for players: the only place that writes player queries.
 
-Like the team repository, `user_id` filters apply only when it is not `None` (always None until
-auth exists), and lookups return `None` when nothing matches.
+Like the team repository, every query is filtered by the required `user_id` (the signed-in user),
+and lookups return `None` when nothing matches.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ async def create_player(
     session: AsyncSession,
     name: str,
     nssz_number: str,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     team_id: uuid.UUID | None,
 ) -> Player:
     """Insert a player, commit, and return it refreshed."""
@@ -38,19 +38,18 @@ async def create_player(
 async def get_player(
     session: AsyncSession,
     player_id: uuid.UUID,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
 ) -> Player | None:
-    """Fetch one player, restricted to `user_id` when given. Returns `None` if not found."""
-    query = select(Player).where(Player.id == player_id)
-    if user_id is not None:
-        query = query.where(Player.user_id == user_id)
-    result = await session.execute(query)
+    """Fetch one of `user_id`'s players. Returns `None` if not found or owned by someone else."""
+    result = await session.execute(
+        select(Player).where(Player.id == player_id, Player.user_id == user_id)
+    )
     return result.scalar_one_or_none()
 
 
 async def list_players(
     session: AsyncSession,
-    user_id: uuid.UUID | None,
+    user_id: uuid.UUID,
     team_id: uuid.UUID | None = None,
     limit: int = 20,
     offset: int = 0,
@@ -58,9 +57,7 @@ async def list_players(
     """One page of players, optionally for one team, ordered by `(created_at, id)` so paging is
     stable, plus the total count before paging.
     """
-    query = select(Player)
-    if user_id is not None:
-        query = query.where(Player.user_id == user_id)
+    query = select(Player).where(Player.user_id == user_id)
     if team_id is not None:
         query = query.where(Player.team_id == team_id)
     total: int = (

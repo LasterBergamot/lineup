@@ -43,11 +43,11 @@ erDiagram
 ## Supabase & OAuth integration
 
 1. **Authentication**
-   - Enable the Google OAuth provider in the Supabase dashboard.
-   - Incoming requests send a Bearer JWT; FastAPI validates it and
-     `get_current_user_id()` (`backend/lineup/auth/dependencies.py`) returns `payload["sub"]`
-     instead of `None` — **zero router or service changes needed**, since every repository
-     already accepts and conditionally filters on `user_id`.
+   - *Code done:* `get_current_user_id()` (`backend/lineup/auth/dependencies.py`) validates the
+     Bearer JWT against the project's JWKS and returns `sub`; every repository filters on the
+     required user id (see [[Current State: Backend]]).
+   - *Still manual (one-off, per project):* create the Google OAuth client and enable the Google
+     provider in the Supabase dashboard — step by step in [[Auth Setup]].
 2. **Production database cutover** *(remaining piece — the dev half is done)*
    - Done for dev: `asyncpg` is a dependency, the engine is dialect-aware, and the app runs
      against the `lineup-dev` Supabase project via `DATABASE_URL` (see
@@ -77,14 +77,13 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    A[Today: pre-Auth, user_id always None] --> B[Add team_members / team_invitations tables + migration]
-    B --> C[Swap get_current_user_id to real JWT sub]
+    A[Done: get_current_user_id validates the Supabase JWT] --> B[Add team_members / team_invitations tables + migration]
+    B --> C[Team-scoped access instead of creator-only]
     C --> D[Enable RLS policies in Postgres]
     D --> E[Cut DATABASE_URL to Supabase Postgres in prod<br/>dev project already cut over]
     E --> F[Ship invitation endpoints]
 ```
 
-The order matters: the auth-readiness work (`user_id` columns, conditional `WHERE` filters)
-is already in place, so swapping the dependency (step C) is low-risk and reversible — it's
-deliberately sequenced before the Postgres/RLS cutover (steps D–E) so auth can be validated
-against SQLite first.
+The order matters: the JWT check landed first, on its own, because it is small and reversible,
+and team membership builds on a real user id. It is deliberately sequenced before the
+Postgres/RLS cutover (steps D–E) so auth can be validated against SQLite first.

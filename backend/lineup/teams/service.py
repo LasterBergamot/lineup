@@ -18,10 +18,10 @@ from lineup.teams.schemas import TeamDeleteResponse
 async def create_team(
     session: AsyncSession,
     name: str,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
     is_public: bool,
 ) -> Team:
-    """Create a team owned by `owner_id` (None until auth exists)."""
+    """Create a team owned by `owner_id`."""
     return await repository.create_team(
         session, name=name, owner_id=owner_id, is_public=is_public
     )
@@ -30,7 +30,7 @@ async def create_team(
 async def get_team_or_404(
     session: AsyncSession,
     team_id: uuid.UUID,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
 ) -> Team:
     """Return the team or raise 404 "Team not found" (also when it exists but is not owned)."""
     team = await repository.get_team(session, team_id=team_id, owner_id=owner_id)
@@ -41,7 +41,7 @@ async def get_team_or_404(
 
 async def list_teams(
     session: AsyncSession,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
     limit: int,
     offset: int,
 ) -> tuple[list[Team], int]:
@@ -64,7 +64,7 @@ async def update_team(
     session: AsyncSession,
     team_id: uuid.UUID,
     name: str,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
 ) -> Team:
     """Rename a team; 404 if it is not found."""
     team = await get_team_or_404(session, team_id=team_id, owner_id=owner_id)
@@ -74,7 +74,7 @@ async def update_team(
 async def delete_team(
     session: AsyncSession,
     team_id: uuid.UUID,
-    owner_id: uuid.UUID | None,
+    owner_id: uuid.UUID,
 ) -> TeamDeleteResponse:
     """Delete a team. Raises 404 if not found and 409 if players are still on its roster.
 

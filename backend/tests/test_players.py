@@ -228,7 +228,7 @@ class TestDeletePlayer:
 
 class TestPlayerRepositoryUserFiltering:
     """User-scoped filtering is exercised directly at the repository layer
-    since the auth dependency always yields user_id=None pre-Auth."""
+    so that the user-scoped functions are checked with two real user ids."""
 
     async def test_get_player_filters_by_user_id(self, db_session: AsyncSession):
         user = uuid.uuid4()
