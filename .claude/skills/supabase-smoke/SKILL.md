@@ -34,28 +34,43 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/docs   # is somet
   `permission denied` or `row-level security` error here means a new table is missing its
   policy or grants in its migration.
 
-## 2. Start the API
+## 2. Start a fake Supabase Auth, then the API
 
-Run `task serve` **in the background**. It loads `backend/.env` and runs uvicorn on 127.0.0.1:8000.
-Then wait until `/docs` answers with 200. The local server has no LibreOffice, so it renders
-DOCX only.
+Every data route needs a signed-in user, and this test only wants the *database* path, so it
+does not sign in with Google. `scripts/smoke_auth.py` is a throw-away stand-in: it serves its
+own public key set on localhost and writes a token for a random user to a file. Nothing touches
+the real Supabase Auth.
+
+```bash
+uv run --project backend python scripts/smoke_auth.py --port 54399 --token-file /tmp/smoke.jwt &
+```
+
+Then start the API **in the background** with `SUPABASE_URL` pointing at it. This sources
+`backend/.env` (DB settings) first and overrides only `SUPABASE_URL` for this one process, so
+it works even if `.env` already sets the real project URL:
+
+```bash
+cd backend && set -a && . ./.env && set +a && SUPABASE_URL=http://127.0.0.1:54399 uv run uvicorn app:app
+```
+
+Wait until `/docs` answers 200. The local server has no LibreOffice, so it renders DOCX only.
 
 ## 3. Exercise the API
 
 Use a unique marker so the rows are easy to find and clean up. This needs `jq`.
 
 ```bash
-M="smoke-$(date +%s)"; B=http://127.0.0.1:8000
-TEAM=$(curl -sf -X POST $B/teams -H 'content-type: application/json' -d "{\"name\":\"$M team\"}" | jq -r .id)
-PLAYER=$(curl -sf -X POST $B/players -H 'content-type: application/json' \
+M="smoke-$(date +%s)"; B=http://127.0.0.1:8000; A="authorization: Bearer $(cat /tmp/smoke.jwt)"
+TEAM=$(curl -sf -X POST $B/teams -H "$A" -H 'content-type: application/json' -d "{\"name\":\"$M team\"}" | jq -r .id)
+PLAYER=$(curl -sf -X POST $B/players -H "$A" -H 'content-type: application/json' \
   -d "{\"name\":\"$M player\",\"nssz_number\":\"SMOKE1\",\"team_id\":\"$TEAM\"}" | jq -r .id)
-LINEUP=$(curl -sf -X POST $B/lineups/saved -H 'content-type: application/json' -d "{
+LINEUP=$(curl -sf -X POST $B/lineups/saved -H "$A" -H 'content-type: application/json' -d "{
   \"source_team_id\":\"$TEAM\",\"opponent_name\":\"$M opponent\",\"division\":\"OB II.\",
   \"cap\":\"Fehér\",\"date\":\"2026. 01. 01.\",\"coach\":\"Smoke Coach\",
   \"players\":[{\"source_player_id\":\"$PLAYER\",\"cap_number\":1}]}" | jq -r .id)
-curl -sf "$B/lineups/saved/$LINEUP" | jq '{team_name, players: [.players[].name]}'
-curl -sf -o /tmp/$M.docx -w 'generate: %{http_code} %{content_type}\n' -X POST "$B/lineups/saved/$LINEUP/generate?format=docx"
-curl -sf "$B/teams/pool?search=$M" | jq length
+curl -sf -H "$A" "$B/lineups/saved/$LINEUP" | jq '{team_name, players: [.players[].name]}'
+curl -sf -H "$A" -o /tmp/$M.docx -w 'generate: %{http_code} %{content_type}\n' -X POST "$B/lineups/saved/$LINEUP/generate?format=docx"
+curl -sf -H "$A" "$B/teams/pool?search=$M" | jq length
 ```
 
 Check: each create returns an id (a `null` means it failed, so read the uvicorn output),
@@ -67,19 +82,19 @@ Delete the lineup first, then the player, then the team, because the team delete
 409 while the player is still on it:
 
 ```bash
-curl -s -o /dev/null -w 'del lineup %{http_code}\n' -X DELETE "$B/lineups/saved/$LINEUP"   # 204
-curl -s -o /dev/null -w 'del player %{http_code}\n' -X DELETE "$B/players/$PLAYER"          # 204
-curl -s -o /dev/null -w 'del team %{http_code}\n'   -X DELETE "$B/teams/$TEAM"              # 200
-curl -sf "$B/teams/pool?search=$M" | jq length                                              # 0
-rm -f /tmp/$M.docx
+curl -s -H "$A" -o /dev/null -w 'del lineup %{http_code}\n' -X DELETE "$B/lineups/saved/$LINEUP"   # 204
+curl -s -H "$A" -o /dev/null -w 'del player %{http_code}\n' -X DELETE "$B/players/$PLAYER"          # 204
+curl -s -H "$A" -o /dev/null -w 'del team %{http_code}\n'   -X DELETE "$B/teams/$TEAM"              # 200
+curl -sf -H "$A" "$B/teams/pool?search=$M" | jq length                                        # 0
+rm -f /tmp/$M.docx /tmp/smoke.jwt
 ```
 
 If an id is missing because a create failed partway, list and delete by the marker
-instead: `GET /teams?limit=200` and `GET /players?limit=200`, filtered on `$M` with `jq` (`limit` is capped at 200, so page with `&offset=` if there are more).
+instead: `GET /teams?limit=200` and `GET /players?limit=200` (add `-H "$A"`), filtered on `$M` with `jq` (`limit` is capped at 200, so page with `&offset=` if there are more).
 
 ## 5. Restore and report
 
-- Stop the background `task serve`.
+- Stop the background API and the `smoke_auth.py` process.
 - Run `task db:sqlite` if you switched in step 1, and `task up` if you stopped the
   container.
 - Report each step's status code. On any 500, include the relevant uvicorn traceback lines
@@ -88,3 +103,5 @@ instead: `GET /teams?limit=200` and `GET /players?limit=200`, filtered on `$M` w
   - "can't subtract offset-naive and offset-aware datetimes" / `DataError` on timestamps:
     the model datetime defaults
   - missing column/table: the dev schema isn't at head
+  - `401` everywhere: the API was started without `SUPABASE_URL=http://127.0.0.1:54399`, or `smoke_auth.py` isn't running
+  - a `503 Authentication unavailable`: the fake key server isn't reachable on that port

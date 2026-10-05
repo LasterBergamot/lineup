@@ -12,7 +12,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lineup.db.models import Player, Team
+from lineup.db.models import Player, Team, TeamMember, TeamRole
 
 
 async def create_team(
@@ -21,9 +21,13 @@ async def create_team(
     owner_id: uuid.UUID,
     is_public: bool,
 ) -> Team:
-    """Insert a team, commit, and return it with database-generated fields loaded."""
+    """Insert a team and its creator's `owner` membership in one transaction, commit, and return
+    the team with database-generated fields loaded."""
     team = Team(id=uuid.uuid4(), name=name, owner_id=owner_id, is_public=is_public)
     session.add(team)
+    session.add(
+        TeamMember(team_id=team.id, user_id=owner_id, role=TeamRole.OWNER.value)
+    )
     await session.commit()
     await session.refresh(team)
     return team

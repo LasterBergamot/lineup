@@ -1,44 +1,24 @@
 # Roadmap: Backend
 
 Status: core persistence (Teams/Players/SavedLineups on the target snapshot schema) is
-**done**, and the app can already run against a **dev** Supabase Postgres project (DB cutover
-only — see [[Current State: Backend]]). Team Collaboration, real authentication, RLS and the
-production Supabase project are **not started**. (The current-state design — ERD, snapshot
+**done**, the app can already run against a **dev** Supabase Postgres project, requests are
+authenticated with Supabase JWTs and the team-membership tables exist (see
+[[Current State: Backend]]). Using membership for access, invitations, team-scoped RLS and the
+production Supabase project are **not done yet**. (The current-state design — ERD, snapshot
 strategy — lives in [[Current State: Backend]]; this page only covers what is still ahead.)
 
-## Planned data model additions
+## Team collaboration: what is done and what is next
 
-Two tables are designed in the ERD but not yet implemented: `TEAM_MEMBERS` and
-`TEAM_INVITATIONS`.
+The tables exist (`team_members`, `team_invitations`, see the ERD in [[Current State: Backend]]),
+creating a team adds its creator as an `owner` member, and the owner columns are `NOT NULL`.
+Nothing *reads* membership yet: access is still "rows you created". Still ahead, in order:
 
-```mermaid
-erDiagram
-    USERS ||--o{ TEAMS : "owns (owner_id)"
-    USERS ||--o{ TEAM_MEMBERS : "belongs to"
-    TEAMS ||--o{ TEAM_MEMBERS : "has members"
-    TEAMS ||--o{ TEAM_INVITATIONS : "has pending invites"
-    TEAMS ||--o{ PLAYERS : "has active roster"
-
-    TEAM_MEMBERS {
-        uuid team_id PK_FK
-        uuid user_id PK
-        string role "owner | admin | member"
-        datetime joined_at
-    }
-    TEAM_INVITATIONS {
-        uuid id PK
-        uuid team_id FK
-        uuid invited_by
-        string invite_code
-        string email "optional"
-        string role
-        string status "pending | accepted | revoked"
-        datetime expires_at
-    }
-```
-
-(`TEAMS`/`PLAYERS`/`SAVED_LINEUPS`/`LINEUP_PLAYER_SNAPSHOTS` already exist — see
-[[Current State: Backend]] for that part of the ERD.)
+1. **Team-scoped access** (#49, #48, #50): a team becomes the workspace. `players.team_id` and a new
+   `saved_lineups.team_id` become required, and the rule everywhere is "the caller is a member of the
+   row's team". `user_id` turns into an audit-only `created_by`.
+2. **Invitation endpoints** (#51): multi-use links that expire (24 h by default), can be revoked and
+   are stored only as a SHA-256 hash; members list; leave / transfer ownership.
+3. **Replace the interim RLS policy** (#21) with team-scoped ones using the same membership rule.
 
 ## Supabase & OAuth integration
 
@@ -77,7 +57,7 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    A[Done: get_current_user_id validates the Supabase JWT] --> B[Add team_members / team_invitations tables + migration]
+    A[Done: get_current_user_id validates the Supabase JWT] --> B[Done: team_members / team_invitations tables + migration]
     B --> C[Team-scoped access instead of creator-only]
     C --> D[Enable RLS policies in Postgres]
     D --> E[Cut DATABASE_URL to Supabase Postgres in prod<br/>dev project already cut over]

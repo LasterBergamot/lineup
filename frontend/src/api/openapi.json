@@ -859,16 +859,9 @@
             "type": "string"
           },
           "owner_id": {
-            "anyOf": [
-              {
-                "format": "uuid",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Owner Id"
+            "format": "uuid",
+            "title": "Owner Id",
+            "type": "string"
           }
         },
         "required": [

@@ -190,6 +190,8 @@ frontend can read the download file name.
 ```mermaid
 erDiagram
     TEAMS ||--o{ PLAYERS : "has active roster (team_id)"
+    TEAMS ||--|{ TEAM_MEMBERS : "has members (CASCADE)"
+    TEAMS ||--o{ TEAM_INVITATIONS : "has invite links (CASCADE)"
     TEAMS ||--o{ SAVED_LINEUPS : "soft ref: our team / opponent"
     SAVED_LINEUPS ||--|{ LINEUP_PLAYER_SNAPSHOTS : "contains frozen slots"
     PLAYERS ||--o{ LINEUP_PLAYER_SNAPSHOTS : "soft ref (source_player_id)"
@@ -199,6 +201,22 @@ erDiagram
         string name
         uuid owner_id "the Supabase user id (sub)"
         boolean is_public "true for opponent pool"
+    }
+    TEAM_MEMBERS {
+        uuid team_id PK_FK
+        uuid user_id PK "Supabase user id, no FK"
+        string role "owner | member"
+        datetime joined_at
+    }
+    TEAM_INVITATIONS {
+        uuid id PK
+        uuid team_id FK
+        uuid invited_by
+        string invite_code_hash "SHA-256, unique"
+        string email "optional, for a later variant"
+        string role "owner | member"
+        datetime expires_at
+        datetime revoked_at "nullable"
     }
     PLAYERS {
         uuid id PK
@@ -232,6 +250,20 @@ fields — no joins to live tables — so editing or deleting master data never 
 `Player.team_id` → `teams.id` uses `ondelete="RESTRICT"` at the DB level, but team deletion
 is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never
 fires in practice.
+
+**Teams, members and invitations**: `team_members` says who belongs to a team (composite primary
+key `(team_id, user_id)`, role `owner` or `member`, enforced by a `CHECK` so adding `admin` later is a
+one-line change). `user_id` is a Supabase user id and deliberately *not* a foreign key: `auth.users`
+is in another schema that local SQLite doesn't have. Creating a team inserts its creator as `owner` in
+the same transaction. `team_invitations` holds multi-use invite links: only the SHA-256 hash of the code
+is stored (`invite_code_hash`), so a database leak hands out no working invitation; a link stops working
+at `expires_at` or once `revoked_at` is set. Both tables go when their team does (`ON DELETE CASCADE`).
+The endpoints that use them come later (see [[Roadmap: Backend]]).
+
+**Owner columns are required**: `teams.owner_id`, `players.user_id` and `saved_lineups.user_id` are
+`NOT NULL`. The migration that made them so deleted the rows from before sign-in existed (they had no
+owner, so nobody could ever see them again). That was acceptable only because the dev project was the
+single database holding such rows; it is not a pattern for data that matters.
 
 **Async loading gotcha**: `Team.players` and `SavedLineup.player_snapshots` are
 `relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships
@@ -347,7 +379,7 @@ database safe to put behind a public API. It does four things:
    you. The function's `search_path` is pinned to empty (a follow-up migration, after Supabase's
    Security Advisor flagged it); it only uses `pg_catalog` functions, which are always searched.
 4. **The `lineup_app` role**: not the owner (so RLS applies to it), `NOBYPASSRLS`, no `CREATE` on the
-   schema, `SELECT/INSERT/UPDATE/DELETE` on the four app tables only (not on `alembic_version`, so a
+   schema, `SELECT/INSERT/UPDATE/DELETE` on the six app tables only (not on `alembic_version`, so a
    compromised API can't rewrite the migration history) and the same default privileges on future
    tables. An interim policy `app_all ... USING (true)` lets the API through, because the API is the
    only client; #21 replaces it with team-scoped policies. A new table therefore starts out *denied*

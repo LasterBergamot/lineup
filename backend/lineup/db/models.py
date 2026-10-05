@@ -1,4 +1,5 @@
-"""ORM tables: teams, players, saved lineups and their frozen player snapshots.
+"""ORM tables: teams, their members and invitations, players, saved lineups and their frozen
+player snapshots.
 
 A saved lineup is a *snapshot*: it copies team, opponent and player names as plain text, so
 deleting a team or player later never changes history. The `source_*_id` columns are nullable
@@ -9,8 +10,18 @@ access (it raises `MissingGreenlet`).
 
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 
-from sqlalchemy import UUID, Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import (
+    UUID,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lineup.db.base import Base
@@ -26,9 +37,10 @@ class Team(Base):
     """A club's team. Doubles as a roster (its `players`) and, when `is_public`, as an entry
     in the shared opponent pool.
 
-    `owner_id` is always NULL until real auth exists. A team that still has roster players
-    cannot be deleted (`players.team_id` is `ON DELETE RESTRICT`; the service reports it as 409
-    before the database ever has to).
+    `owner_id` is the Supabase user id (`sub`) of the user who created the team, who is also
+    its first `owner` row in `team_members`. A team that still has roster players cannot be
+    deleted (`players.team_id` is `ON DELETE RESTRICT`; the service reports it as 409 before
+    the database ever has to).
 
     """
 
@@ -36,8 +48,7 @@ class Team(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    # owner_id is nullable pre-Auth; becomes NOT NULL when Supabase Auth is wired in
-    owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID, nullable=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     # Whether this team is visible to other users in the shared opponent pool
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -48,9 +59,78 @@ class Team(Base):
     )
 
 
+class TeamRole(str, Enum):
+    """What a user may do in a team. Stored as text (not a database enum) so that adding a role
+    later, such as `admin`, is a one-line constraint change instead of a type migration."""
+
+    OWNER = "owner"
+    MEMBER = "member"
+
+
+_ROLE_CHECK = "role IN ('owner', 'member')"
+
+
+class TeamMember(Base):
+    """A user's membership of a team: the row that says "this user may see and edit this team".
+
+    `user_id` is a Supabase user id. It is deliberately not a foreign key: `auth.users` lives in
+    another schema that SQLite (local and tests) doesn't have. Rows disappear with their team
+    (`ON DELETE CASCADE`). The composite primary key means a user can be in a team only once.
+
+    """
+
+    __tablename__ = "team_members"
+    __table_args__ = (
+        CheckConstraint(_ROLE_CHECK, name="ck_team_members_role"),
+        Index("ix_team_members_user_id", "user_id"),
+    )
+
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        UUID, ForeignKey("teams.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True)
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=TeamRole.MEMBER.value
+    )
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class TeamInvitation(Base):
+    """A multi-use invite link into a team. Only the SHA-256 hash of the code is stored
+    (`invite_code_hash`): the plaintext is shown once, when the link is created, so a database
+    leak doesn't hand out working invitations.
+
+    A link works until `expires_at` or until it is revoked (`revoked_at` set), and admits people
+    with the bound `role`. `email` is reserved for a later e-mail-bound variant.
+
+    """
+
+    __tablename__ = "team_invitations"
+    __table_args__ = (
+        CheckConstraint(_ROLE_CHECK, name="ck_team_invitations_role"),
+        Index("ix_team_invitations_team_id", "team_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        UUID, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+    )
+    invited_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
+    invite_code_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False
+    )
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    role: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=TeamRole.MEMBER.value
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
 class Player(Base):
     """A roster entry: a person's name and NSSZ (federation registration) number, optionally
-    assigned to a team. `user_id` is NULL until real auth exists.
+    assigned to a team. `user_id` is the Supabase user id of whoever created it.
 
     Deleting a player is always safe: saved lineups hold copies, not references.
 
@@ -64,8 +144,7 @@ class Player(Base):
     team_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID, ForeignKey("teams.id", ondelete="RESTRICT"), nullable=True
     )
-    # user_id nullable pre-Auth
-    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID, nullable=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     team: Mapped["Team | None"] = relationship("Team", back_populates="players")
@@ -98,8 +177,7 @@ class SavedLineup(Base):
     assistant_coach: Mapped[str | None] = mapped_column(String(200), nullable=True)
     team_leader: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ball_thrower: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    # user_id nullable pre-Auth
-    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID, nullable=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
     # Optional soft references for reuse/cloning; nulled out if the source is

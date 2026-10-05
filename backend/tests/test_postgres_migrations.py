@@ -32,7 +32,14 @@ pytestmark = pytest.mark.skipif(
     not POSTGRES_URL, reason="POSTGRES_TEST_URL is not set (needs a real Postgres)"
 )
 
-APP_TABLES = ["lineup_player_snapshots", "players", "saved_lineups", "teams"]
+APP_TABLES = [
+    "lineup_player_snapshots",
+    "players",
+    "saved_lineups",
+    "team_invitations",
+    "team_members",
+    "teams",
+]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -161,8 +168,8 @@ class TestAppRole:
             await conn.execute(text("SET LOCAL ROLE lineup_app"))
             await conn.execute(
                 text(
-                    "INSERT INTO teams (id, name, is_public, created_at) "
-                    "VALUES (gen_random_uuid(), 'RLS probe', true, now())"
+                    "INSERT INTO teams (id, name, owner_id, is_public, created_at) "
+                    "VALUES (gen_random_uuid(), 'RLS probe', gen_random_uuid(), true, now())"
                 )
             )
             assert await conn.scalar(text("SELECT count(*) FROM teams")) == 1
@@ -171,6 +178,38 @@ class TestAppRole:
             async with engine.begin() as conn:
                 await conn.execute(text("SET LOCAL ROLE lineup_app"))
                 await conn.execute(text("SELECT * FROM alembic_version"))
+
+    async def test_app_can_use_the_team_membership_tables(self, engine):
+        """The new tables need their own policy: RLS denies the app until one exists."""
+        async with engine.begin() as conn:
+            await conn.execute(text("SET LOCAL ROLE lineup_app"))
+            await conn.execute(
+                text(
+                    "INSERT INTO teams (id, name, owner_id, is_public, created_at) "
+                    "VALUES ('00000000-0000-0000-0000-000000000001', 'T', "
+                    "gen_random_uuid(), true, now())"
+                )
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO team_members (team_id, user_id, role, joined_at) "
+                    "VALUES ('00000000-0000-0000-0000-000000000001', "
+                    "gen_random_uuid(), 'owner', now())"
+                )
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO team_invitations (id, team_id, invited_by, "
+                    "invite_code_hash, role, expires_at, created_at) VALUES "
+                    "(gen_random_uuid(), '00000000-0000-0000-0000-000000000001', "
+                    "gen_random_uuid(), repeat('a', 64), 'member', now(), now())"
+                )
+            )
+            assert await conn.scalar(text("SELECT count(*) FROM team_members")) == 1
+            assert await conn.scalar(text("SELECT count(*) FROM team_invitations")) == 1
+            await conn.execute(text("DELETE FROM teams"))
+            # ON DELETE CASCADE removed the dependants as well
+            assert await conn.scalar(text("SELECT count(*) FROM team_members")) == 0
 
     async def test_a_new_table_denies_the_app_until_a_policy_exists(self, engine):
         """Default privileges hand the app DML on new tables, RLS keeps it out."""

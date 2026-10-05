@@ -64,6 +64,6 @@ platform's built-in tooling.
 
 ## Team collaboration
 
-Sits at the intersection of backend (`team_members`/`team_invitations` schema + endpoints)
+Sits at the intersection of backend (`team_members`/`team_invitations` endpoints; the schema is done)
 and frontend (accept/generate-invite UI) — tracked in detail on both of those pages. No
 independent cross-cutting work identified beyond what's already listed there.

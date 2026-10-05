@@ -30,7 +30,7 @@ class TeamResponse(BaseModel):
 
     id: uuid.UUID
     name: str
-    owner_id: uuid.UUID | None
+    owner_id: uuid.UUID
     is_public: bool
     created_at: datetime
 
