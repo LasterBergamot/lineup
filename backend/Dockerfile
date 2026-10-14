@@ -2,7 +2,7 @@
 # image; the Dependabot docker ecosystem (.github/dependabot.yml) bumps tag and digest together.
 
 # --- builder: resolve and install the Python dependencies -------------------------------
-FROM python:3.13-slim@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f AS builder
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /usr/local/bin/uv
 
@@ -21,7 +21,7 @@ RUN uv sync --frozen --no-dev
 COPY . .
 
 # --- runtime: LibreOffice + the app, running as an unprivileged user --------------------
-FROM python:3.13-slim@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f AS runtime
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS runtime
 
 # LibreOffice converts the .docx to PDF. The template is authored in Calibri / Calibri Light
 # (proprietary, absent here), so we also install the libre metric-compatible substitutes:
