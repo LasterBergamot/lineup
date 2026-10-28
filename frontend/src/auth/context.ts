@@ -20,15 +20,19 @@ export interface AuthValue {
   session: Session | null;
   /** The Supabase user id (`sub` claim); the only identity detail the UI needs. */
   userId: string | null;
-  /** Why sign-in is unavailable, when `status` is `unconfigured`. */
+  /**
+   * Why sign-in is unavailable, when `status` is `unconfigured`. Developer-facing English (it
+   * names the missing `VITE_*` settings), so it is deliberately not translated.
+   */
   configError: string | null;
   /** Set when the API rejected the token, so the sign-in page can explain why we are back. */
   notice: "session-expired" | null;
   /**
    * Starts Google sign-in (the browser leaves for Google and comes back to `/sign-in`).
-   * Resolves to a user-facing error message if it could not start, otherwise `null`.
+   * Resolves to `"start-failed"` if it could not start (the page shows a translated message),
+   * otherwise `null`.
    */
-  signInWithGoogle: () => Promise<string | null>;
+  signInWithGoogle: () => Promise<"start-failed" | null>;
   /** Ends the session on this device only. */
   signOut: () => Promise<void>;
 }

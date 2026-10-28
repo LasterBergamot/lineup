@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { describeError } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 
@@ -25,9 +26,10 @@ export function QueryBoundary<T>({
   skeleton: ReactNode;
   children: (data: T) => ReactNode;
 }) {
+  const { t } = useTranslation();
   if (query.isPending) {
     return (
-      <div role="status" aria-busy="true" aria-label="Loading">
+      <div role="status" aria-busy="true" aria-label={t("common.loading")}>
         {skeleton}
       </div>
     );
@@ -35,9 +37,9 @@ export function QueryBoundary<T>({
   if (query.isError || query.data === undefined) {
     return (
       <div role="alert" className="flex flex-col items-start gap-3 border bg-card p-4 text-sm">
-        <p>{describeError(query.error)}</p>
+        <p>{describeError(query.error, t)}</p>
         <Button size="sm" variant="outline" onClick={() => void query.refetch()}>
-          Try again
+          {t("common.tryAgain")}
         </Button>
       </div>
     );

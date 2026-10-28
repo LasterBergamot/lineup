@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate, useLocation } from "react-router";
 import { useAuth } from "@/auth/context";
 import { readReturnPath, rememberReturnPath, safeReturnPath } from "@/auth/return-path";
 import { BackendStatusBanner } from "@/backend-status/banner";
 import { Brand } from "@/components/brand";
+import { LanguageSwitch } from "@/components/language-switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,10 +17,11 @@ import { Skeleton } from "@/components/ui/skeleton";
  * while the visitor is still choosing an account.
  */
 export function SignInPage() {
+  const { t } = useTranslation();
   const { status, configError, notice, signInWithGoogle } = useAuth();
   const location = useLocation();
   const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   if (status === "signed-in") return <Navigate to={readReturnPath()} replace />;
 
@@ -26,12 +29,12 @@ export function SignInPage() {
 
   async function start() {
     setStarting(true);
-    setError(null);
+    setFailed(false);
     rememberReturnPath(from);
     const failure = await signInWithGoogle();
     // On success the browser is already leaving for Google, so the button stays busy.
     if (failure) {
-      setError(failure);
+      setFailed(true);
       setStarting(false);
     }
   }
@@ -39,25 +42,26 @@ export function SignInPage() {
   return (
     <div className="flex min-h-dvh flex-col">
       <BackendStatusBanner />
+      <div className="flex justify-end p-4 pb-0">
+        <LanguageSwitch />
+      </div>
       <main className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="gap-4">
             <Brand />
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>
-              Sign in with your Google account to manage your team&apos;s roster and lineups.
-            </CardDescription>
+            <CardTitle>{t("auth.signIn.title")}</CardTitle>
+            <CardDescription>{t("auth.signIn.description")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {status === "loading" ? (
-              <div role="status" aria-busy="true" aria-label="Loading">
+              <div role="status" aria-busy="true" aria-label={t("common.loading")}>
                 <Skeleton className="h-10 w-full" />
               </div>
             ) : (
               <>
                 {notice === "session-expired" && (
                   <p role="status" className="text-sm text-muted-foreground">
-                    Your session has ended. Please sign in again.
+                    {t("auth.signIn.sessionEnded")}
                   </p>
                 )}
                 {status === "unconfigured" && (
@@ -65,9 +69,9 @@ export function SignInPage() {
                     {configError}
                   </p>
                 )}
-                {error && (
+                {failed && (
                   <p role="alert" className="text-sm text-destructive">
-                    {error}
+                    {t("auth.signIn.startFailed")}
                   </p>
                 )}
                 <Button
@@ -76,7 +80,7 @@ export function SignInPage() {
                   disabled={status === "unconfigured"}
                   onClick={() => void start()}
                 >
-                  Continue with Google
+                  {t("auth.signIn.continue")}
                 </Button>
               </>
             )}

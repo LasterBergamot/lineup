@@ -124,6 +124,8 @@ The whole app sits behind **Google sign-in**: the sign-in page (`/sign-in`) hand
 
 The first screen is the **one-off lineup form** (`/`): fill in the match, the staff and up to 15 players and download the sheet as PDF or DOCX. It calls `POST /lineups` and stores nothing; it validates with the same limits as the API and shows the API's own field errors if one slips through. For PDFs run the API with `task build && task up` (LibreOffice is only in the container), otherwise only DOCX works.
 
+The UI is **Hungarian by default** and English is selectable (`react-i18next`; the HU/EN switch is in the account panel and on the sign-in page). The texts live in `frontend/src/i18n/locales/hu.json` and `en.json`; a component never contains a literal string (ESLint's `i18next/no-literal-string` fails `task fe:lint`) and a test fails when the two files differ in their keys. The choice is kept in localStorage under `lineup-lang` (the only thing stored besides the sign-in session and the theme) and `<html lang>` follows it. The `.docx` template, the API and the sentences the API returns for a rejected field stay as they are, so those few sentences appear in English.
+
 The hosted API is expected to sleep when idle, so the app asks `GET /health` as soon as it loads and, if the answer takes more than ~1.5 s, shows a non-blocking "server is starting up" banner (set `VITE_COLD_START_NOTICE=false` to turn it off on always-on hosting). Data regions show skeletons meanwhile, and failed requests are retried with backoff only when the failure looks temporary. See *Current State: Frontend* on the wiki.
 
 ## Environment variables
@@ -328,9 +330,10 @@ lineup/
 │       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
 │       ├── auth/                    # Google sign-in: config.ts (env check), supabase.ts (sign-in-only client), provider/context, require-auth, return-path, events
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
-│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), brand, theme-toggle, nav-items, query-boundary, ui/ (shadcn-style)
+│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, ui/ (shadcn-style)
 │       ├── features/lineup/         # One-off lineup form: schema.ts (Zod), generate.ts, download.ts, lineup-form.tsx
 │       ├── features/teams/          # Teams of the signed-in user: api.ts (list/create), provider/context, team-gate, onboarding, create-team-form
+│       ├── i18n/                    # react-i18next setup (index.ts), error-key.ts (translated form errors), locales/hu.json + en.json
 │       ├── pages/                   # One file per route
 │       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, clean-text.ts (shared Zod text rule)
 │       └── test/                    # setup.ts (Vitest + Testing Library), auth.tsx (fake auth client, renderApp)

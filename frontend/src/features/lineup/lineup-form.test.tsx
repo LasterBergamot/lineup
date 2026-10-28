@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach } from "vitest";
+import { i18n } from "@/i18n";
 import { ApiError } from "@/api/errors";
 import { LineupForm, SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
 
@@ -62,6 +63,29 @@ describe("LineupForm", () => {
     expect(screen.getByLabelText("Match")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText("Name is required")).toBeInTheDocument();
     expect(generateLineup).not.toHaveBeenCalled();
+  });
+
+  it("re-translates the errors on screen when the language changes", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    expect(await screen.findByText("Match is required")).toBeInTheDocument();
+    await act(() => i18n.changeLanguage("hu"));
+    expect(screen.getByText("Mérkőzés megadása kötelező")).toBeInTheDocument();
+    expect(screen.getByText("Név megadása kötelező")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mérkőzés")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "PDF letöltése" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "1. játékos" })).toBeInTheDocument();
+  });
+
+  it("shows cap colours in the current language but submits the Hungarian value", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(screen.getByRole("option", { name: "White" })).toHaveValue("Fehér");
+    await act(() => i18n.changeLanguage("hu"));
+    expect(screen.getByRole("option", { name: "Kék" })).toHaveValue("Kék");
+    await user.selectOptions(screen.getByLabelText("Sapka színe"), "Kék");
+    expect(screen.getByLabelText("Sapka színe")).toHaveValue("Kék");
   });
 
   it("adds players with the next free cap number, up to 15, and removes them", async () => {

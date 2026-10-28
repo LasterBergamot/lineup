@@ -6,6 +6,7 @@ import {
   request,
   requestWithResponse,
 } from "@/api/errors";
+import { i18n } from "@/i18n";
 
 const ok = (data: unknown) =>
   Promise.resolve({ data, response: new Response(null, { status: 200 }) });
@@ -59,6 +60,12 @@ describe("describeError", () => {
     [500, /went wrong on our side/i],
   ])("explains status %i", (status, message) => {
     expect(describeError(new ApiError(status))).toMatch(message);
+  });
+
+  it("answers in the language it is given", () => {
+    const t = i18n.getFixedT("hu");
+    expect(describeError(new ApiError(0), t)).toMatch(/nem érhető el/);
+    expect(describeError(new Error("x"), t)).toBe("Valami hiba történt. Kérjük, próbálja újra.");
   });
 
   it("stays generic for unknown errors and never echoes server text", () => {

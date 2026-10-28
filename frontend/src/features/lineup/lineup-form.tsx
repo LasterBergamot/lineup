@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useFieldArray, useForm, type FieldPath } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { describeError, fieldErrors } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,17 +17,26 @@ import {
   nextFreeCapNumber,
   type LineupFormValues,
 } from "@/features/lineup/schema";
+import { translateError } from "@/i18n/error-key";
 import { useAfterDelay } from "@/lib/use-after-delay";
 
 /** How long a PDF may take before we explain that the first one after a break is slower. */
 export const SLOW_PDF_NOTICE_MS = 5000;
 
+/** Sample values for the placeholders: real Hungarian data formats, the same in both languages. */
+const EXAMPLES = {
+  match: "SZVTK - Csongrád",
+  division: "OB II.",
+  team: "SZVTK",
+  date: "2024. 12. 21.",
+};
+
 const STAFF_FIELDS = [
-  ["coach", "Coach"],
-  ["doctor", "Doctor"],
-  ["assistant_coach", "Assistant coach"],
-  ["team_leader", "Team leader"],
-  ["ball_thrower", "Ball thrower"],
+  ["coach", "fields.coach"],
+  ["doctor", "fields.doctor"],
+  ["assistant_coach", "fields.assistantCoach"],
+  ["team_leader", "fields.teamLeader"],
+  ["ball_thrower", "fields.ballThrower"],
 ] as const;
 
 /**
@@ -35,6 +45,7 @@ const STAFF_FIELDS = [
  * only (no localStorage drafts), because they include players' names and NSSZ numbers.
  */
 export function LineupForm() {
+  const { t } = useTranslation();
   const {
     register,
     handleSubmit,
@@ -81,42 +92,44 @@ export function LineupForm() {
     <form onSubmit={submitAs("pdf")} noValidate className="flex flex-col gap-6" autoComplete="off">
       <Card>
         <CardHeader>
-          <CardTitle>Match</CardTitle>
+          <CardTitle>{t("lineup.sections.match")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <Field label="Match" error={errors.match?.message}>
-            {(props) => <Input {...props} placeholder="SZVTK - Csongrád" {...register("match")} />}
+          <Field label={t("fields.match")} error={errors.match?.message}>
+            {(props) => <Input {...props} placeholder={EXAMPLES.match} {...register("match")} />}
           </Field>
-          <Field label="Division" error={errors.division?.message}>
-            {(props) => <Input {...props} placeholder="OB II." {...register("division")} />}
+          <Field label={t("fields.division")} error={errors.division?.message}>
+            {(props) => (
+              <Input {...props} placeholder={EXAMPLES.division} {...register("division")} />
+            )}
           </Field>
-          <Field label="Team name" error={errors.team_name?.message}>
-            {(props) => <Input {...props} placeholder="SZVTK" {...register("team_name")} />}
+          <Field label={t("fields.teamName")} error={errors.team_name?.message}>
+            {(props) => <Input {...props} placeholder={EXAMPLES.team} {...register("team_name")} />}
           </Field>
-          <Field label="Cap colour" error={errors.cap?.message}>
+          <Field label={t("fields.capColour")} error={errors.cap?.message}>
             {(props) => (
               <Select {...props} {...register("cap")}>
                 {CAP_COLOURS.map((colour) => (
                   <option key={colour} value={colour}>
-                    {colour}
+                    {t(`lineup.caps.${colour}`)}
                   </option>
                 ))}
               </Select>
             )}
           </Field>
-          <Field label="Date" error={errors.date?.message}>
-            {(props) => <Input {...props} placeholder="2024. 12. 21." {...register("date")} />}
+          <Field label={t("fields.date")} error={errors.date?.message}>
+            {(props) => <Input {...props} placeholder={EXAMPLES.date} {...register("date")} />}
           </Field>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Staff</CardTitle>
+          <CardTitle>{t("lineup.sections.staff")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          {STAFF_FIELDS.map(([name, label]) => (
-            <Field key={name} label={label} error={errors[name]?.message}>
+          {STAFF_FIELDS.map(([name, labelKey]) => (
+            <Field key={name} label={t(labelKey)} error={errors[name]?.message}>
               {(props) => <Input {...props} {...register(name)} />}
             </Field>
           ))}
@@ -126,9 +139,9 @@ export function LineupForm() {
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-4">
           <CardTitle>
-            Players{" "}
+            {t("lineup.sections.players")}{" "}
             <span className="text-sm font-normal text-muted-foreground">
-              ({fields.length} of {MAX_PLAYERS})
+              {t("lineup.playerCount", { count: fields.length, max: MAX_PLAYERS })}
             </span>
           </CardTitle>
           <Button
@@ -138,18 +151,18 @@ export function LineupForm() {
             onClick={addPlayer}
             disabled={fields.length >= MAX_PLAYERS}
           >
-            <Plus /> Add player
+            <Plus /> {t("lineup.addPlayer")}
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {playersError && (
             <p role="alert" className="text-sm text-destructive">
-              {playersError}
+              {translateError(playersError, t)}
             </p>
           )}
           {fields.map((field, index) => {
             const rowErrors = errors.players?.[index];
-            const label = `Player ${index + 1}`;
+            const label = t("lineup.player", { number: index + 1 });
             return (
               <div
                 key={field.id}
@@ -157,7 +170,7 @@ export function LineupForm() {
                 aria-label={label}
                 className="grid grid-cols-[5rem_1fr_auto] items-start gap-3 md:grid-cols-[5rem_1fr_14rem_auto]"
               >
-                <Field label="Cap no." error={rowErrors?.cap_number?.message}>
+                <Field label={t("fields.capNo")} error={rowErrors?.cap_number?.message}>
                   {(props) => (
                     <Input
                       {...props}
@@ -169,11 +182,11 @@ export function LineupForm() {
                     />
                   )}
                 </Field>
-                <Field label="Name" error={rowErrors?.name?.message}>
+                <Field label={t("fields.name")} error={rowErrors?.name?.message}>
                   {(props) => <Input {...props} {...register(`players.${index}.name`)} />}
                 </Field>
                 <Field
-                  label="NSSZ number"
+                  label={t("fields.nsszNumber")}
                   error={rowErrors?.nssz_number?.message}
                   className="col-span-2 col-start-1 row-start-2 md:col-span-1 md:col-start-auto md:row-start-auto"
                 >
@@ -184,7 +197,7 @@ export function LineupForm() {
                   variant="ghost"
                   size="icon"
                   className="mt-[1.625rem]"
-                  aria-label={`Remove ${label.toLowerCase()}`}
+                  aria-label={t("lineup.removePlayer", { number: index + 1 })}
                   onClick={() => remove(index)}
                   disabled={fields.length === 1}
                 >
@@ -199,24 +212,22 @@ export function LineupForm() {
       <div className="flex flex-col gap-3">
         {generate.isError && (
           <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
-            {rejectedByServer
-              ? "The server rejected some of the details. Please check the highlighted fields."
-              : describeError(generate.error)}
+            {rejectedByServer ? t("errors.serverRejectedFields") : describeError(generate.error, t)}
           </p>
         )}
         {showSlowNotice && (
           <p role="status" className="text-sm text-muted-foreground">
-            Generating the PDF — the first one after a break takes a bit longer.
+            {t("lineup.slowPdf")}
           </p>
         )}
         {generate.isSuccess && (
           <p role="status" className="text-sm text-muted-foreground">
-            Downloaded {generate.data.filename}.
+            {t("lineup.downloaded", { filename: generate.data.filename })}
           </p>
         )}
         <div className="flex flex-wrap gap-3">
           <Button type="submit" loading={pendingFormat === "pdf"} disabled={generate.isPending}>
-            Download PDF
+            {t("lineup.downloadPdf")}
           </Button>
           <Button
             type="button"
@@ -225,7 +236,7 @@ export function LineupForm() {
             disabled={generate.isPending}
             onClick={submitAs("docx")}
           >
-            Download DOCX
+            {t("lineup.downloadDocx")}
           </Button>
         </div>
       </div>

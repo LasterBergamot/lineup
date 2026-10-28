@@ -1,0 +1,134 @@
+{
+  "language": {
+    "label": "Nyelv",
+    "hu": "Magyar",
+    "en": "English"
+  },
+  "common": {
+    "loading": "Betöltés",
+    "tryAgain": "Próbálja újra"
+  },
+  "nav": {
+    "sidebar": "Oldalsáv",
+    "bottom": "Alsó sáv",
+    "lineup": "Rajtlista",
+    "roster": "Keret",
+    "saved": "Mentett"
+  },
+  "theme": {
+    "switchToLight": "Váltás világos témára",
+    "switchToDark": "Váltás sötét témára"
+  },
+  "account": {
+    "signOut": "Kijelentkezés",
+    "role": {
+      "owner": "tulajdonos",
+      "member": "tag",
+      "unknown": "ismeretlen szerep"
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "Bejelentkezés",
+      "description": "Jelentkezzen be Google-fiókjával, hogy kezelhesse csapata keretét és rajtlistáit.",
+      "continue": "Folytatás Google-lal",
+      "sessionEnded": "A munkamenet lejárt. Kérjük, jelentkezzen be újra.",
+      "startFailed": "Nem sikerült elindítani a bejelentkezést. Kérjük, próbálja újra."
+    }
+  },
+  "backend": {
+    "waking": "A szerver indul — ez ingyenes tárhelyünkön akár 30 másodpercig is eltarthat. Köszönjük a türelmét.",
+    "elapsed": "({{seconds, number}} mp)",
+    "dbPaused": "Az adatbázis szünetel (ingyenes csomag). Kérje meg az alkalmazás üzemeltetőjét, hogy indítsa újra; addig a mentett adatok nem érhetők el.",
+    "down": "A szerver jelenleg nem érhető el."
+  },
+  "errors": {
+    "unknown": "Valami hiba történt. Kérjük, próbálja újra.",
+    "network": "A szerver nem érhető el. Ellenőrizze a kapcsolatot, és próbálja újra.",
+    "rejected": "A megadott adatok egy részét elutasítottuk. Kérjük, ellenőrizze őket, és próbálja újra.",
+    "busy": "A szerver foglalt vagy éppen indul. Kérjük, próbálja újra egy pillanat múlva.",
+    "timeout": "A szerver túl sokáig válaszolt. Kérjük, próbálja újra.",
+    "server": "Hiba történt a szerver oldalán. Kérjük, próbálja újra.",
+    "serverRejectedFields": "A szerver elutasította a megadott adatok egy részét. Kérjük, ellenőrizze a kiemelt mezőket."
+  },
+  "validation": {
+    "required": "{{field}} megadása kötelező",
+    "tooLong": "{{field}} legfeljebb {{max, number}} karakter lehet",
+    "unsupportedCharacters": "{{field}} nem támogatott karaktereket tartalmaz",
+    "capNumber": "Adjon meg egy 1 és 15 közötti sapkaszámot",
+    "capColour": "Válasszon sapkaszínt",
+    "minPlayers": "Adjon hozzá legalább egy játékost",
+    "maxPlayers": "Egy rajtlistán legfeljebb {{max, number}} játékos szerepelhet",
+    "uniqueCapNumber": "A sapkaszámoknak különbözniük kell",
+    "uniqueNssz": "Az NSSZ számoknak különbözniük kell"
+  },
+  "fields": {
+    "match": "Mérkőzés",
+    "division": "Osztály",
+    "teamName": "Csapat neve",
+    "capColour": "Sapka színe",
+    "date": "Dátum",
+    "coach": "Edző",
+    "doctor": "Hivatalos orvos",
+    "assistantCoach": "Segédedző",
+    "teamLeader": "Csapatvezető",
+    "ballThrower": "Labdabedobó",
+    "capNo": "Sapkaszám",
+    "name": "Név",
+    "nsszNumber": "NSSZ szám",
+    "inviteLink": "Meghívó hivatkozás"
+  },
+  "lineup": {
+    "title": "Rajtlista",
+    "description": "Töltse ki a mérkőzés adatait és a játékosokat, majd töltse le a rajtlistát PDF vagy DOCX formátumban. Semmit sem mentünk el.",
+    "sections": {
+      "match": "Mérkőzés",
+      "staff": "Stáb",
+      "players": "Játékosok"
+    },
+    "playerCount": "({{count, number}} / {{max, number}})",
+    "addPlayer": "Játékos hozzáadása",
+    "player": "{{number, number}}. játékos",
+    "removePlayer": "{{number, number}}. játékos törlése",
+    "caps": {
+      "Fehér": "Fehér",
+      "Kék": "Kék"
+    },
+    "slowPdf": "A PDF készül — a szünet utáni első kicsit tovább tart.",
+    "downloaded": "Letöltve: {{filename}}.",
+    "downloadPdf": "PDF letöltése",
+    "downloadDocx": "DOCX letöltése"
+  },
+  "teams": {
+    "onboarding": {
+      "title": "Üdvözöljük a Lineupban",
+      "intro": "Még nem tagja egyetlen csapatnak sem. Hozza létre a csapatát a kezdéshez, vagy csatlakozzon egy meghívóval.",
+      "createTitle": "Csapat létrehozása",
+      "createDescription": "A csapat az Ön klubjának közös munkaterülete: a kerete és a mentett rajtlistái. Ön lesz a tulajdonosa.",
+      "joinTitle": "Csatlakozás meghívó hivatkozással",
+      "joinDescription": "Hamarosan: nyissa meg a csapat tulajdonosától kapott hivatkozást, vagy illessze be ide."
+    },
+    "form": {
+      "teamNamePlaceholder": "pl. SZVTK",
+      "listInDirectory": "A csapat nevének megjelenítése az ellenfélkatalógusban",
+      "listInDirectoryHint": "Így más csapatok kiválaszthatják Önt ellenfélként. Csak a név látszik, a keret és a rajtlisták soha. Ezt később módosíthatja.",
+      "submit": "Csapat létrehozása"
+    }
+  },
+  "pages": {
+    "notFound": {
+      "title": "Az oldal nem található",
+      "description": "Ez a cím nem tartozik egyetlen oldalhoz sem.",
+      "back": "Vissza a rajtlistához"
+    },
+    "comingSoon": "Hamarosan",
+    "roster": {
+      "title": "Keret",
+      "description": "Kezelje csapatát és játékosait, amint elérhető a bejelentkezés."
+    },
+    "saved": {
+      "title": "Mentett rajtlisták",
+      "description": "Böngészze, tekintse meg és generálja újra a mentett rajtlistákat."
+    }
+  }
+}

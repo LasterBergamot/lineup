@@ -1,36 +1,39 @@
 import { z } from "zod";
+import { errorKey } from "@/i18n/error-key";
 import { cleanText as text } from "@/lib/clean-text";
 
 export const CAP_COLOURS = ["Fehér", "Kék"] as const;
 
 export const MAX_PLAYERS = 15;
 
+const CAP_NUMBER_ERROR = errorKey("validation.capNumber");
+
 const playerSchema = z.object({
   cap_number: z
-    .number({ error: "Enter a cap number from 1 to 15" })
-    .int("Enter a cap number from 1 to 15")
-    .min(1, "Enter a cap number from 1 to 15")
-    .max(MAX_PLAYERS, "Enter a cap number from 1 to 15"),
-  name: text(200, "Name"),
-  nssz_number: text(50, "NSSZ number"),
+    .number({ error: CAP_NUMBER_ERROR })
+    .int(CAP_NUMBER_ERROR)
+    .min(1, CAP_NUMBER_ERROR)
+    .max(MAX_PLAYERS, CAP_NUMBER_ERROR),
+  name: text(200, "fields.name"),
+  nssz_number: text(50, "fields.nsszNumber"),
 });
 
 /** The one-off lineup form; the shape is exactly the API's `LineupRequest`. */
 export const lineupSchema = z.object({
-  match: text(200, "Match"),
-  division: text(100, "Division"),
-  team_name: text(120, "Team name"),
-  cap: z.enum(CAP_COLOURS, { error: "Choose a cap colour" }),
-  date: text(50, "Date"),
-  coach: text(200, "Coach"),
-  doctor: text(200, "Doctor"),
-  assistant_coach: text(200, "Assistant coach"),
-  team_leader: text(200, "Team leader"),
-  ball_thrower: text(200, "Ball thrower"),
+  match: text(200, "fields.match"),
+  division: text(100, "fields.division"),
+  team_name: text(120, "fields.teamName"),
+  cap: z.enum(CAP_COLOURS, { error: errorKey("validation.capColour") }),
+  date: text(50, "fields.date"),
+  coach: text(200, "fields.coach"),
+  doctor: text(200, "fields.doctor"),
+  assistant_coach: text(200, "fields.assistantCoach"),
+  team_leader: text(200, "fields.teamLeader"),
+  ball_thrower: text(200, "fields.ballThrower"),
   players: z
     .array(playerSchema)
-    .min(1, "Add at least one player")
-    .max(MAX_PLAYERS, `A lineup has at most ${MAX_PLAYERS} players`)
+    .min(1, errorKey("validation.minPlayers"))
+    .max(MAX_PLAYERS, errorKey("validation.maxPlayers", { max: MAX_PLAYERS }))
     .superRefine((players, ctx) => {
       const seenCaps = new Set<number>();
       const seenNssz = new Set<string>();
@@ -39,7 +42,7 @@ export const lineupSchema = z.object({
           ctx.addIssue({
             code: "custom",
             path: [index, "cap_number"],
-            message: "Cap numbers must be unique",
+            message: errorKey("validation.uniqueCapNumber"),
           });
         }
         seenCaps.add(player.cap_number);
@@ -49,7 +52,7 @@ export const lineupSchema = z.object({
           ctx.addIssue({
             code: "custom",
             path: [index, "nssz_number"],
-            message: "NSSZ numbers must be unique",
+            message: errorKey("validation.uniqueNssz"),
           });
         }
         seenNssz.add(nssz);

@@ -1,10 +1,7 @@
+import { useTranslation } from "react-i18next";
 import { ComingSoon } from "@/pages/coming-soon";
 
 export function RosterPage() {
-  return (
-    <ComingSoon
-      title="Roster"
-      description="Manage your team and its players once sign-in is available."
-    />
-  );
+  const { t } = useTranslation();
+  return <ComingSoon title={t("pages.roster.title")} description={t("pages.roster.description")} />;
 }
