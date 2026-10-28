@@ -37,14 +37,16 @@ before the public deploy, and the public deploy comes before inviting anyone.
 | D1 | **Two environments only: dev + prod.** No separate test environment. | Decided |
 | D2 | **Branches: `develop` → dev, `main` → prod.** Feature branches PR into `develop` (the default branch). A release is a `develop` → `main` PR, which later tags a version (#17). Hotfixes branch off `main` and are merged back into `develop`. | Decided |
 | D3 | **Monorepo with `backend/` and `frontend/` at the root** (see §4). | Decided |
-| D4 | **FE stack:** React + TypeScript + Vite, Tailwind, shadcn/ui, TanStack Query, React Router, React Hook Form + Zod, client generated from `/openapi.json` (openapi-typescript + openapi-fetch), pdf.js for previews, Vitest + Playwright. | Decided |
+| D4 | **FE stack:** React + TypeScript + Vite, Tailwind, shadcn/ui, TanStack Query, React Router, React Hook Form + Zod, react-i18next (D12), client generated from `/openapi.json` (openapi-typescript + openapi-fetch), pdf.js for previews, Vitest + Playwright. | Decided |
 | D5 | **Hosting:** API on Fly.io (scale to zero), FE on Cloudflare Pages. | Decided |
 | D6 | **Auth:** Google OAuth through Supabase Auth. The FE uses `@supabase/supabase-js` for sign-in only; all data goes through FastAPI. The API validates the JWT against the project's JWKS. | Decided |
 | D7 | **Dev behaves like prod** (same sign-in and invite flow). Access to dev is limited by keeping the Google OAuth consent screen in **Testing** mode, with a list of test users (see §6.4). | Decided |
-| D8 | **Supabase free-tier pause:** a weekly GitHub Actions cron calls `/health?db=1`. The FE detects a paused DB and says so (see §5.3). | Decided |
+| D8 | **Supabase free-tier pause:** a GitHub Actions cron runs **twice a week** (Mon + Thu, so one failed run is not enough to let it pause). It starts as `SELECT 1` through the pooler (#156), independent of Fly, and gains `/health?db=1` once the API is deployed. The FE detects a paused DB and says so (see §5.3). | Decided |
 | D9 | **Milestones:** **"M3 – Dev preview"** holds the dev-preview work (auth, teams and invitations, UI, dev deployment); **"M2 – Prod"** is the prod milestone. Phase 1 issues stay in M1, since Phase 1 is a subset of it. | Decided |
 | D10 | **Team/ownership model:** teams as workspaces, owner + member roles, multi-use invite links, name-only public opponent directory, invite links that expire after 24 h by default (see §6). | Decided |
 | D11 | **UI theme: Polaris** (tweakcn, shadcn tokens). Its spec lives in `frontend/DESIGN.md`. AstroVista was dropped. | Decided |
+| D12 | **UI language: Hungarian by default, English selectable** (react-i18next, #155). Done first in Phase 6 so every new screen uses `t()` from the start; the choice is kept in localStorage (disclose in #94). The `.docx` template and the API are unchanged. | Decided |
+| D13 | **Versions: one repo-wide SemVer tag `vX.Y.Z`** for backend and frontend (the FE client is generated from the backend spec, so they move together). A manual `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub Release; pre-1.0 tags are cut from `develop` when a feature set lands on dev, `v1.0.0`+ from `main`. Images are tagged `lineup:<version>` so an older version can be deployed; going back needs expand/contract migrations (#17). | Decided |
 
 ### Supabase JS and the "disabled API"
 The setting turned off on the dev project is the **Data API** (PostgREST: auto-generated
@@ -142,7 +144,10 @@ must be done:
 - [ ] #8 CD workflow on push to `develop`: Alembic `upgrade head` (session-pooler URL from GitHub
       secrets), then `flyctl deploy`, then poll `/health?db=1` with a cold-start-tolerant retry,
       then the Pages deploy. If the health check fails, Fly keeps the previous release.
-- [ ] **new** Weekly keep-alive cron (D8, §5.3)
+- [ ] #156 Keep-alive cron, twice a week (D8, §5.3). It can land before Fly: `SELECT 1` through the pooler
+      with a `KEEPALIVE_DATABASE_URL` Actions secret that the owner sets.
+- [ ] #17 Tags and releases (D13): the `release` workflow, a test that the two version files match,
+      a baseline `v0.1.0` on `develop` once the first dev deploy works, `lineup:<version>` image tags.
 - [ ] Billing/usage alerts on Fly.io and Supabase (#13)
 
 ### Phase 5 — Invitations
@@ -151,6 +156,8 @@ must be done:
       `/join/:code` page that survives the Google sign-in round trip.
 
 ### Phase 6 — Feature-complete UI
+- [ ] #155 i18n (hu default, en), **first**: the existing screens (sign-in, onboarding, lineup form,
+      backend banner) are converted in the same item, so the screens below use `t()` from the start (D12).
 - [ ] **new** Roster management (teams, players, opponent directory search)
 - [ ] **new** Lineup creator: roster pick or free text, cap-number validation, opponent combobox
       (directory + recent opponents + free text), Preview panel.
@@ -237,7 +244,7 @@ built around that:
   while the status is `waking`. 4xx responses are never retried. Client timeouts are generous
   (PDF ≥ 120 s, matching `CONVERSION_TIMEOUT_SECONDS`).
 - **What happens if Supabase pauses anyway?** (Free projects pause after about a week of
-  inactivity. The weekly cron should prevent it, but GitHub disables scheduled workflows in
+  inactivity. The twice-weekly cron (#156) should prevent it, but GitHub disables scheduled workflows in
   repos with no activity for 60 days, and the cron itself can fail.)
   - **Supabase Auth is paused too**, so Google sign-in fails, not just data access.
   - The API stays up: `/health` → 200, `/health?db=1` → 503, DB endpoints → errors. The one-off
@@ -384,6 +391,9 @@ Endpoints (amends #51):
   skeletons and the wake-up banner.
 - Phase 4: a push to `develop` deploys both sides. After ≥ 15 min idle, the first page load shows
   the banner, then data. The first PDF finishes under 120 s.
+- Phase 6 i18n (#155): switching the language changes all visible text and a reload keeps it; no hard-coded
+  user-facing string is left.
+- #156 keep-alive: a manual `workflow_dispatch` run succeeds and prints no secret.
 - Phase 5: the invite link works end-to-end with a second Google account. Expired/revoked →
   410/404. A non-owner can't invite (403).
 
@@ -411,3 +421,4 @@ Endpoints (amends #51):
 | 2026-10-05 | Phase 2, PR 3: the first screen, a one-off lineup form (React Hook Form + a Zod schema that mirrors the API limits) calling `POST /lineups` and downloading the PDF or DOCX; API 422s are mapped onto the fields, a PDF-wait message appears after 5 s, nothing is persisted client-side. Verified in Chromium against a real container: a 15-player PDF and a DOCX downloaded, with `ő`/`ű` in the file name. Decisions for #20 recorded in `Roadmap-Frontend.md`; Phase 2 is complete. | #121, #20, PR #128 |
 | 2026-10-05 | Phase 3, frontend: Google sign-in through `@supabase/supabase-js` (sign-in only, PKCE, publishable key only: a secret key is refused), `AuthProvider` + route guard, the token on every API call except `/health` (a 401 signs out, a 503 shows the retry box, never a sign-in loop), a same-site-only return path, and team onboarding (create a team; invite-link field disabled until #51) with the current team and sign-out in the shell. Unit-tested with a fake auth client; checked in Chromium at phone and desktop sizes against a local backend and the `scripts/smoke_auth.py` stand-in (43 checks: redirect to sign-in, OAuth start URL, onboarding, token header, 401/503 states). The real Google round trip waits for the manual #101 setup. | #129, PR #130 |
 | 2026-10-28 | Phase 3 rolled out on the dev Supabase project: migrations `a3d5f7c91e26` and `e5b8c2d41f70` applied through the session pooler (they delete the pre-auth dev rows), `supabase-smoke` passed as `lineup_app` (team, player, saved lineup, DOCX generate, delete), the Google OAuth client and Supabase Google provider set up per `Auth-Setup.md`, and a real Google sign-in tried in the UI (onboarding, team, API calls with the token). | #101, #129, PR #153 |
+| 2026-10-28 | Plan amended: i18n added as D12 and the first Phase 6 item (#155), versions and releases as D13 (#17 moved to M3: one repo-wide `vX.Y.Z` tag, a manual `release` workflow instead of semantic-release because commits are `#N - subject`), and the Supabase keep-alive made twice-weekly with its own issue (#156, D8). Backlog issues #157–#164 filed (APM, Claude Code guard rails, Playwright, Schemathesis, mutation testing, PDF load test, dev container, Supabase backup). `CLAUDE.md` turned into a router with path-scoped rules (#154, PR #165) and skills pinned to model aliases (#76, PR #166), both open. | #154, #155, #156, #17, #76 |
