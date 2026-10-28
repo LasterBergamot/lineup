@@ -46,8 +46,12 @@ external services.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
-| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod) |
+| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod). It also makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
+| `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc`, `/openapi.json`; always off when `ENV=production` |
+| `MAX_BODY_BYTES` | `262144` | Request body cap in bytes; bigger bodies get `413` |
+| `RATE_LIMIT_GENERATE_PER_USER` / `RATE_LIMIT_GENERATE_PER_IP` | `10` / `30` | Document generations per minute per signed-in user / per client IP (`429` + `Retry-After`). In-memory, per process |
+| `CLIENT_IP_HEADER` | unset | Header with the real client IP for the per-IP limit (Fly.io: `Fly-Client-IP`); set it only when the proxy overwrites it. Unset = TCP peer address |
 | `SUPABASE_URL` | unset | Supabase project URL; the API derives the token issuer and JWKS address from it. Unset = protected routes answer `503` (see [[Auth Setup]]) |
 | `PDF_MAX_CONCURRENT` | `2` | Max parallel LibreOffice conversions; extra requests wait 10 s, then get `503` + `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |

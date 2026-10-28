@@ -4,6 +4,7 @@ paths:
   - "backend/.dockerignore"
   - "backend/docker/**"
   - "compose.yml"
+  - "compose.e2e.yml"
 ---
 
 # Container, fonts and Compose
@@ -22,5 +23,6 @@ The template is authored in Calibri/Calibri Light (proprietary). The container s
 
 ## Day to day
 
+- `compose.e2e.yml` (repo root) is layered on top of `compose.yml` by `task test-e2e` only (`-f compose.yml -f compose.e2e.yml`). `POST /lineups` needs a token, so it sets `SUPABASE_URL=http://localhost:9999` on `api` and adds a `jwks` sidecar (same `lineup` image, `network_mode: "service:api"`, `python -m http.server` on `127.0.0.1:9999`) serving the public key that `scripts/e2e_keys.py` wrote to the git-ignored `.e2e-auth/public`. Uvicorn's default proxy-header handling is left alone: behind Fly the client IP comes from `CLIENT_IP_HEADER=Fly-Client-IP`, not from trusting `X-Forwarded-For`.
 - `compose.yml` uses `image: lineup`, not `build:` — so `task build`/`task rebuild` is always needed before `task up`
 - To fully reset: `task down` → `docker rmi lineup` → `docker image prune` → `task rebuild` → `task up`

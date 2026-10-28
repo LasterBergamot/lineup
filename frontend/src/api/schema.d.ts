@@ -41,8 +41,9 @@ export interface paths {
          * Create Lineup
          * @description Generate a lineup sheet from the request body and return it as a file download.
          *
-         *     `format=pdf` (default) converts through LibreOffice, which only exists in the container;
-         *     `format=docx` returns the filled template directly. Nothing is stored.
+         *     Requires a signed-in user and is rate limited (429 with `Retry-After`) because PDF conversion
+         *     is expensive. `format=pdf` (default) converts through LibreOffice, which only exists in the
+         *     container; `format=docx` returns the filled template directly. Nothing is stored.
          */
         post: operations["create_lineup_lineups_post"];
         delete?: never;
@@ -119,6 +120,8 @@ export interface paths {
         /**
          * Generate From Saved Lineup
          * @description Generate a document from a previously saved lineup.
+         *
+         *     Rate limited (429 with `Retry-After`) because PDF conversion is expensive.
          */
         post: operations["generate_from_saved_lineup_lineups_saved__lineup_id__generate_post"];
         delete?: never;
@@ -761,6 +764,20 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request body larger than the server limit. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -769,6 +786,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Too many requests; wait for the `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -828,6 +852,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SavedLineupResponse"];
                 };
+            };
+            /** @description Request body larger than the server limit. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -931,6 +962,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Too many requests; wait for the `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

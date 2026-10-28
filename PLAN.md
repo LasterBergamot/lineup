@@ -135,7 +135,11 @@ must be done:
 - #93 Sentry PII scrubbing (required before any `SENTRY_DSN` is set)
 - #97 frontend privacy/security baseline
 
-#96 (API hardening) should land with the public deploy.
+#96 (API hardening) has to land before the public deploy (#13); it is done below.
+- [x] #96 API hardening: security headers + `Cache-Control: no-store` on every response, body size
+      cap (413), in-memory rate limits on both generate endpoints (429), `POST /lineups` now needs
+      sign-in, `/docs` off under `ENV=production`, fail-closed production config. For the Fly
+      deploy set `CLIENT_IP_HEADER=Fly-Client-IP` (PR #171).
 - [ ] #13 Fly.io app `lineup-dev`: `auto_stop_machines`, `min_machines_running = 0`, ~1 GB RAM
       for LibreOffice. Secrets via `fly secrets`: pooler `DATABASE_URL`, `ENV=production`,
       Supabase JWKS URL, `CORS_ORIGINS`.
@@ -287,7 +291,7 @@ still allowed for teams not in the DB yet.
   - `user_id` on players/lineups becomes `created_by` (audit only, not used for access).
 - Access rule everywhere: *the caller is a member of the row's team*. One rule makes the code,
   the tests and the later RLS (#21) simple.
-- The stateless one-off `POST /lineups` stays as it is.
+- The one-off `POST /lineups` stays stateless, but since #96 it needs sign-in and is rate limited like the generate endpoint of saved lineups.
 
 ### 6.2 Roles: owner + member (drop "admin" for now)
 - **member**: full read/write on the team's roster and lineups, and can see the member list.
@@ -424,3 +428,4 @@ Endpoints (amends #51):
 | 2026-10-28 | Phase 3 rolled out on the dev Supabase project: migrations `a3d5f7c91e26` and `e5b8c2d41f70` applied through the session pooler (they delete the pre-auth dev rows), `supabase-smoke` passed as `lineup_app` (team, player, saved lineup, DOCX generate, delete), the Google OAuth client and Supabase Google provider set up per `Auth-Setup.md`, and a real Google sign-in tried in the UI (onboarding, team, API calls with the token). | #101, #129, PR #153 |
 | 2026-10-28 | Plan amended: i18n added as D12 and the first Phase 6 item (#155), versions and releases as D13 (#17 moved to M3: one repo-wide `vX.Y.Z` tag, a manual `release` workflow instead of semantic-release because commits are `#N - subject`), and the Supabase keep-alive made twice-weekly with its own issue (#156, D8). Backlog issues #157–#164 filed (APM, Claude Code guard rails, Playwright, Schemathesis, mutation testing, PDF load test, dev container, Supabase backup). `CLAUDE.md` turned into a router with path-scoped rules (#154, PR #165) and skills pinned to model aliases (#76, PR #166), both merged. | #154, #155, #156, #17, #76, PR #167 |
 | 2026-10-28 | Phase 4: `keepalive.yml` (#156): `SELECT 1` through the Supabase pooler on Mondays and Thursdays (plus `workflow_dispatch`), `psql` from the runner and no third-party actions, accepts the app's asyncpg URL form. The owner still sets the `KEEPALIVE_DATABASE_URL` secret, runs it once by hand and checks two scheduled runs. | #156, PR #168 |
+| 2026-10-28 | Phase 4: API hardening (#96): `lineup/security/` with security headers and `no-store` on every response, a 256 KiB body cap (413), an in-house in-memory sliding-window rate limiter (per IP before sign-in, per user after; shared by both generate endpoints; 429 + `Retry-After`), `POST /lineups` requires sign-in, `/docs` off with `ENV=production` (or `DOCS_ENABLED=false`), and `validate_production_config()` (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`). The e2e test signs in with a throw-away key (`scripts/e2e_keys.py`, `compose.e2e.yml`). Limiter state is per process: fine for one Fly machine. | #96, PR #171 |
