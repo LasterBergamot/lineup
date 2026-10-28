@@ -19,11 +19,16 @@ jobs:
     name: Ping the dev database
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # No third-party actions on purpose: `psql` ships with the runner image.
+    # No third-party actions on purpose: `psql` ships with the runner image (PostgreSQL 16 on
+    # Ubuntu 24.04, 18 on 26.04, which `ubuntu-latest` moves to by 19 Nov 2026,
+    # actions/runner-images#14748). If a future image drops it, the run fails and GitHub emails.
     steps:
       - name: SELECT 1 through the transaction pooler
         env:
-          # The least-privilege `lineup_app` pooler URL, set by the owner as an Actions secret.
+          # The least-privilege `lineup_app` pooler URL, set by the owner as an Actions secret,
+          # in plain libpq form: `postgresql://lineup_app.<ref>:<password>@<pooler-host>:6543/postgres?sslmode=require`.
+          # Not the app's `postgresql+asyncpg://…?ssl=require&prepared_statement_cache_size=0`:
+          # libpq rejects the driver suffix and every asyncpg-only query parameter.
           # The secret is only ever read through `env:`, so it is masked and never echoed.
           KEEPALIVE_DATABASE_URL: ${{ secrets.KEEPALIVE_DATABASE_URL }}
         run: |
@@ -31,13 +36,11 @@ jobs:
             echo "::error::The KEEPALIVE_DATABASE_URL Actions secret is not set."
             exit 1
           fi
-          # Accept the app's own URL form too: libpq wants neither the SQLAlchemy driver
-          # suffix nor the asyncpg `ssl=` spelling.
-          url="${KEEPALIVE_DATABASE_URL/postgresql+asyncpg:/postgresql:}"
-          url="${url/ssl=require/sslmode=require}"
-          if psql "$url" --no-psqlrc --quiet --tuples-only --no-align --command "SELECT 1" >/dev/null; then
+          # Only stdout is discarded: psql's own error (never the password) stays in the log,
+          # so a bad URL reads differently from an unreachable or paused database.
+          if psql "$KEEPALIVE_DATABASE_URL" --no-psqlrc --quiet --tuples-only --no-align --command "SELECT 1" >/dev/null; then
             echo "Database answered."
           else
-            echo "::error::The database did not answer. It may be paused: Supabase dashboard -> Restore project."
+            echo "::error::The ping failed (see the psql message above). Check the secret's URL first; if it is fine, the project may be paused: Supabase dashboard -> Restore project."
             exit 1
           fi
