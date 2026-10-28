@@ -172,7 +172,8 @@ Four GitHub Actions workflows (`.github/workflows/`):
   fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
   checks the same thing on every PR.
 - **`keepalive.yml`** — on Mondays and Thursdays (and by hand): runs `SELECT 1` through the Supabase
-  transaction pooler with the `KEEPALIVE_DATABASE_URL` Actions secret, so the free-tier dev project never
+  transaction pooler with the `KEEPALIVE_DATABASE_URL` Actions secret (a plain `postgresql://…?sslmode=require`
+  URL, not the app's asyncpg one, which `psql` rejects), so the free-tier dev project never
   reaches its inactivity pause (a paused project also takes Supabase Auth down). Twice a week means one
   failed run is not enough to let it pause; GitHub emails the person who last changed the `cron:` line
   when a run fails. It uses no third-party actions (`psql` ships with the runner). GitHub disables scheduled
