@@ -131,7 +131,8 @@ A subset of M1. The rest of M1 follows at its own pace.
 ### Phase 4 — Dev deployment + CD
 **Compliance gate (#92):** before anyone outside the team gets access to dev, the following
 must be done:
-- #94 GDPR documentation pack
+- #94 GDPR documentation pack (its data inventory and notice must list the browser storage from #155 and the
+  rate-limit counters from #96: see the 2026-10-28 comment on #94)
 - #93 Sentry PII scrubbing (required before any `SENTRY_DSN` is set)
 - #97 frontend privacy/security baseline
 
@@ -139,7 +140,8 @@ must be done:
 - [x] #96 API hardening: security headers + `Cache-Control: no-store` on every response, body size
       cap (413), in-memory rate limits on both generate endpoints (429), `POST /lineups` now needs
       sign-in, `/docs` off under `ENV=production`, fail-closed production config. For the Fly
-      deploy set `CLIENT_IP_HEADER=Fly-Client-IP` (PR #171).
+      deploy set `CLIENT_IP_HEADER=Fly-Client-IP` (PR #171). `supabase-smoke` passed against
+      the new code on 2026-10-28 (as `lineup_app`).
 - [ ] #13 Fly.io app `lineup-dev`: `auto_stop_machines`, `min_machines_running = 0`, ~1 GB RAM
       for LibreOffice. Secrets via `fly secrets`: pooler `DATABASE_URL`, `ENV=production`,
       Supabase JWKS URL, `CORS_ORIGINS`.
@@ -149,8 +151,8 @@ must be done:
       secrets), then `flyctl deploy`, then poll `/health?db=1` with a cold-start-tolerant retry,
       then the Pages deploy. If the health check fails, Fly keeps the previous release.
 - [x] #156 Keep-alive cron, twice a week (D8, §5.3). It can land before Fly: `SELECT 1` through the pooler
-      with a `KEEPALIVE_DATABASE_URL` Actions secret that the owner sets. (Workflow in PR #168; the owner still
-      sets the secret and checks two scheduled runs.)
+      with a `KEEPALIVE_DATABASE_URL` Actions secret that the owner sets. (Workflow in PR #168; the owner set the secret and
+      verified a manual run on 2026-10-28. Glance at the first scheduled Monday/Thursday runs.)
 - [ ] #17 Tags and releases (D13): the `release` workflow, a test that the two version files match,
       a baseline `v0.1.0` on `develop` once the first dev deploy works, `lineup:<version>` image tags.
 - [ ] Billing/usage alerts on Fly.io and Supabase (#13)
@@ -432,3 +434,4 @@ Endpoints (amends #51):
 | 2026-10-28 | Phase 4: `keepalive.yml` (#156): `SELECT 1` through the Supabase pooler on Mondays and Thursdays (plus `workflow_dispatch`), `psql` from the runner and no third-party actions, accepts the app's asyncpg URL form. The owner still sets the `KEEPALIVE_DATABASE_URL` secret, runs it once by hand and checks two scheduled runs. | #156, PR #168 |
 | 2026-10-28 | Phase 4: API hardening (#96): `lineup/security/` with security headers and `no-store` on every response, a 256 KiB body cap (413), an in-house in-memory sliding-window rate limiter (per IP before sign-in, per user after; shared by both generate endpoints; 429 + `Retry-After`), `POST /lineups` requires sign-in, `/docs` off with `ENV=production` (or `DOCS_ENABLED=false`), and `validate_production_config()` (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`). The e2e test signs in with a throw-away key (`scripts/e2e_keys.py`, `compose.e2e.yml`). Limiter state is per process: fine for one Fly machine. | #96, PR #171 |
 | 2026-10-28 | Phase 6, #155: Hungarian by default, English selectable (react-i18next; `src/i18n/` with `hu.json` + `en.json`). Every existing screen uses `t()`; Zod schemas emit error keys that `Field` translates at render time, `describeError()` and the nav labels are translated, `<html lang>` follows the language, and the language switch is in the account panel and on the sign-in page. The choice is the only new storage (`lineup-lang`, strictly necessary preference). `eslint-plugin-i18next` (`no-literal-string`) fails the build on a hard-coded string. Checked in Chromium at 360 px and 1280 px. Known gap: server 422 sentences stay English. | #155, PR #172 |
+| 2026-10-28 | Follow-up to #171 and #172: `supabase-smoke` passed against dev Supabase with the new code (team, player, saved lineup, DOCX generate with `no-store`/HSTS/nosniff headers, no-token `POST /lineups` → 401, delete; run on a spare port because the dev container held `:8000`); the browser-storage entries and rate-limit counters to disclose were posted on #94; #156 keep-alive verified with a manual run. The Fly app (#13) and Cloudflare Pages deploy are done separately by the owner. | #94, #96, #155, #156 |
