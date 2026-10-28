@@ -336,3 +336,44 @@ class TestClaudeContextRouter:
         assert not unlisted, (
             f"rules missing from the CLAUDE.md router table: {unlisted}"
         )
+
+
+SKILL_FILES = sorted((REPO_ROOT / ".claude" / "skills").glob("*/SKILL.md"))
+AGENT_FILES = sorted((REPO_ROOT / ".claude" / "agents").glob("*.md"))
+MODEL_ALIASES = {"opus", "sonnet", "haiku", "inherit"}
+EFFORT_LEVELS = {"low", "medium", "high", "xhigh", "max"}
+
+
+def _frontmatter_value(path: Path, key: str) -> str | None:
+    """Return a top-level frontmatter value of a skill or agent file, or None if absent."""
+    match = re.match(r"---\n(.*?)\n---\n", path.read_text(), re.DOTALL)
+    assert match, f"{path} has no frontmatter"
+    found = re.search(rf"^{key}:\s*(\S+)\s*$", match.group(1), re.MULTILINE)
+    return found.group(1) if found else None
+
+
+class TestSkillModelAliases:
+    """Skills and agents pin a model *alias*, so they follow the newest model of a tier."""
+
+    def test_skills_were_found(self):
+        assert SKILL_FILES, "expected skills in .claude/skills/"
+
+    @pytest.mark.parametrize(
+        "path", SKILL_FILES + AGENT_FILES, ids=lambda p: p.parent.name or p.stem
+    )
+    def test_model_is_an_alias_never_a_full_id(self, path):
+        model = _frontmatter_value(path, "model")
+        assert model is None or model in MODEL_ALIASES, (
+            f"{path.relative_to(REPO_ROOT)}: model {model!r} is not one of {sorted(MODEL_ALIASES)}. "
+            "Use an alias: it resolves to the newest model of that tier, while a full ID "
+            "such as claude-sonnet-5-5 goes stale at the next release."
+        )
+
+    @pytest.mark.parametrize(
+        "path", SKILL_FILES + AGENT_FILES, ids=lambda p: p.parent.name or p.stem
+    )
+    def test_effort_is_a_valid_level(self, path):
+        effort = _frontmatter_value(path, "effort")
+        assert effort is None or effort in EFFORT_LEVELS, (
+            f"{path.relative_to(REPO_ROOT)}: effort {effort!r} is not one of {sorted(EFFORT_LEVELS)}"
+        )

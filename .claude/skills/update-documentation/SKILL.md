@@ -1,6 +1,7 @@
 ---
 name: update-documentation
 description: Update documentation/ (the GitHub wiki mirror), README.md, CLAUDE.md, and any other project docs that are out of sync with the current state of the project. Use after making a change that affects architecture, API surface, data model, dev workflow, or planned work — or whenever asked to sync/update docs or the wiki content.
+model: sonnet
 ---
 
 Keep every doc in the repo honest, not just `documentation/`. `documentation/` is the source
