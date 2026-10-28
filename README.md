@@ -51,11 +51,12 @@ There are two environments (dev and prod), so there are two long-lived branches.
 
 ## Continuous Integration
 
-Three GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
+Four GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
 
 - **`.github/workflows/ci.yml`** — on every PR (and push) against `develop` or `main`: a `Frontend` job (ESLint + Prettier, type check, Vitest, production build, and a check that the generated API client still matches the backend's OpenAPI spec; it has no path filter, so it reports on every PR), and the backend jobs: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
 - **`.github/workflows/docs-check.yml`** — on every PR: fails if the diff touches code or config without touching `README.md`, `CLAUDE.md`, `.claude/rules/`, `.claude/context/` or `documentation/` (escape hatch: the `no-docs` label). `ci.yml` additionally runs `task docs:check`, which fails when the generated part of `documentation/References.md` is stale.
 - **`.github/workflows/wiki-sync.yml`** — on push to `develop` that touches `documentation/**`: mirrors those files into the GitHub wiki (and fails if a file in `documentation/` is missing from its page map).
+- **`.github/workflows/keepalive.yml`** — on Mondays and Thursdays (and by hand): a `SELECT 1` through the Supabase pooler (Actions secret `KEEPALIVE_DATABASE_URL`) so the free-tier dev project is never paused for inactivity. If you've been away for a long time, check the Actions tab: GitHub disables scheduled workflows after 60 days without repo activity.
 
 If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
 

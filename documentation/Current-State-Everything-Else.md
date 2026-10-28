@@ -143,7 +143,7 @@ again on async DB code.
 
 ## Continuous Integration
 
-Three GitHub Actions workflows (`.github/workflows/`):
+Four GitHub Actions workflows (`.github/workflows/`):
 
 - **`ci.yml`** — runs on every PR (and push) against `develop` or `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
@@ -171,6 +171,13 @@ Three GitHub Actions workflows (`.github/workflows/`):
   explicit, so a page missing from it would silently never be published: the workflow now
   fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
   checks the same thing on every PR.
+- **`keepalive.yml`** — on Mondays and Thursdays (and by hand): runs `SELECT 1` through the Supabase
+  transaction pooler with the `KEEPALIVE_DATABASE_URL` Actions secret, so the free-tier dev project never
+  reaches its inactivity pause (a paused project also takes Supabase Auth down). Twice a week means one
+  failed run is not enough to let it pause; GitHub emails the person who last changed the `cron:` line
+  when a run fails. It uses no third-party actions (`psql` ships with the runner). GitHub disables scheduled
+  workflows after 60 days without repo activity, and a disabled workflow doesn't fail, so after a long break
+  check the Actions tab and re-enable it.
 
 `ci.yml` has four jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
 Prettier, the type check, the Vitest suite and the production build, then `task fe:api:check`, which
