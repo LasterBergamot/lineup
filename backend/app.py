@@ -1,4 +1,4 @@
-"""FastAPI application entry point: wires up CORS, the error handler, the routers and Sentry.
+"""FastAPI application entry point: wires up the middleware, the error handler, the routers and Sentry.
 
 Run with `uvicorn app:app` (the container does this). Each feature lives in its own package
 under `lineup/` (router -> service -> repository) and is registered below.
@@ -19,6 +19,9 @@ from lineup.db.engine import engine
 from lineup.health.router import router as health_router
 from lineup.players.router import router as players_router
 from lineup.saved_lineups.router import router as saved_lineups_router
+from lineup.security.body_limit import BodySizeLimitMiddleware
+from lineup.security.config import read_docs_enabled, validate_production_config
+from lineup.security.headers import SecurityHeadersMiddleware
 from lineup.teams.router import router as teams_router
 
 # Error monitoring only, no performance tracing/APM (traces_sample_rate=0.0) — sized for the
@@ -43,24 +46,40 @@ def parse_cors_origins(raw: str | None) -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create missing tables at startup, unless Alembic owns the schema.
+    """Check the production config, then create missing tables unless Alembic owns the schema.
+
+    With `ENV=production` the app refuses to start (`ValueError`) when the database or sign-in
+    settings are missing or insecure, see `validate_production_config`.
 
     The tables are created straight from the ORM models for local SQLite and tests. With
     `ENV=production` (any real Postgres, dev or prod) startup leaves the schema alone, because
     Alembic migrations are the only thing allowed to change it there.
     """
+    validate_production_config()
     if os.getenv("ENV") != "production":
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     yield
 
 
+# Interactive docs are off in production (and optionally elsewhere via DOCS_ENABLED=false).
+# `app.openapi()` still works without the route, which is what scripts/dump_openapi.py uses.
+docs_enabled = read_docs_enabled(os.getenv("DOCS_ENABLED"), os.getenv("ENV"))
+
 app = FastAPI(
     title="Lineup API",
     description="Generates water polo lineup documents.",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url="/docs" if docs_enabled else None,
+    redoc_url="/redoc" if docs_enabled else None,
+    openapi_url="/openapi.json" if docs_enabled else None,
 )
+
+# Middleware order matters: each add_middleware wraps everything added before it, so the last
+# one added is outermost. Body limit innermost, then CORS (so a 413 still gets CORS headers and
+# the browser can read it), then the security headers around all of it.
+app.add_middleware(BodySizeLimitMiddleware)
 
 cors_origins = parse_cors_origins(os.getenv("CORS_ORIGINS"))
 if cors_origins:
@@ -74,6 +93,8 @@ if cors_origins:
         expose_headers=["Content-Disposition"],
         allow_credentials=False,
     )
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_exception_handler(IntegrityError, handle_integrity_error)
 

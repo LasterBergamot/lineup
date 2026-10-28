@@ -79,7 +79,7 @@ Check (it may take up to 30 seconds after `task up`; retry a few times):
 curl -sf http://127.0.0.1:8000/health
 ```
 
-Expected: `{"status":"ok"}`. The API docs are at `http://127.0.0.1:8000/docs`.
+Expected: `{"status":"ok"}`. The API docs are at `http://127.0.0.1:8000/docs` (unless `ENV=production` or `DOCS_ENABLED=false` is set, which switches them off; use `/health` to check the API is up).
 
 ## 6. Migrations
 
@@ -95,7 +95,7 @@ This applies the Alembic migrations to the **host's** `backend/lineup.db` (the d
 
 ## 7. End-to-end PDF check (recommended)
 
-`task test-e2e` builds the image again, starts its **own** container, runs the real
+`task test-e2e` builds the image again, makes a throw-away signing key (`.e2e-auth/`), starts its **own** container (port 8000 must be free), runs the real
 PDF-conversion fidelity test and then **stops the container**, including the one from step 5.
 Tell the user before running it.
 

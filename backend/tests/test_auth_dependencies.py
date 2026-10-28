@@ -462,7 +462,6 @@ async def test_dependency_fails_closed_when_the_keys_are_unreachable(monkeypatch
 
 PUBLIC_ROUTES = {
     ("GET", "/health"),
-    ("POST", "/lineups"),  # stateless one-off; see Current-State-Backend.md
     ("GET", "/openapi.json"),
     ("GET", "/docs"),
     ("GET", "/docs/oauth2-redirect"),

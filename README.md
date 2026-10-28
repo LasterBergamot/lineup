@@ -12,7 +12,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 **Persistence layer** (`/teams`, `/players`, `/lineups/saved`): so a lineup can be built from a saved roster instead of retyping everything. Each module (`backend/lineup/teams/`, `backend/lineup/players/`, `backend/lineup/saved_lineups/`) has the same four files: `router.py` (HTTP), `schemas.py` (validation), `service.py` (business rules) and `repository.py` (SQL). Data is stored with SQLAlchemy (async) in a database chosen by the `DATABASE_URL` environment variable: local SQLite by default, Supabase Postgres when configured. Schema changes are managed by Alembic migrations. A saved lineup is a *frozen snapshot* (names copied as text), so deleting a team or player later never alters history.
 
-**Authentication:** every route except `GET /health`, the stateless one-off `POST /lineups` and the API docs requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. A team is a workspace: its members share its roster and saved lineups; invitation links to add members are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
+**Authentication:** every route except `GET /health` and the API docs (off when `ENV=production`) requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. A team is a workspace: its members share its roster and saved lineups; invitation links to add members are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
 
 **Repo layout:** all the Python lives in `backend/` and the React web app lives in `frontend/` (see [Frontend](#frontend)); the repo root keeps only shared tooling — `Taskfile.yml`, `compose.yml`, `.github/`, `.claude/`, `documentation/`. Python commands must run with `backend/` as the working directory, because Alembic's config, the `resources/` template paths, pytest's rootdir and the default `./lineup.db` are all cwd-relative. The `task` commands handle that for you (they `cd backend`), so you can run them from the repo root.
 
@@ -135,8 +135,13 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
-| `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name |
+| `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name. It also makes startup **fail closed**: the app refuses to start unless `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` (or `verify-full`, preferred) and `SUPABASE_URL` is set, and it turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
+| `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc` and `/openapi.json`. Always off when `ENV=production`, whatever this says. The frontend's client is generated offline (`task fe:api`), so it never needs the route |
+| `MAX_BODY_BYTES` | `262144` | Largest request body (256 KiB). Bigger ones get `413`, checked on `Content-Length` and again while streaming |
+| `RATE_LIMIT_GENERATE_PER_USER` | `10` | Document generations per minute and signed-in user (`POST /lineups`, `POST /lineups/saved/{id}/generate` share it). Over the limit: `429` + `Retry-After` |
+| `RATE_LIMIT_GENERATE_PER_IP` | `30` | The same, per client IP; checked before sign-in so it also throttles bad-token floods |
+| `CLIENT_IP_HEADER` | unset | Header that carries the real client IP, for the per-IP limit (Fly.io: `Fly-Client-IP`). Only set it when the proxy overwrites that header; unset = the socket peer's address (behind a proxy that is the proxy, so everyone shares one bucket) |
 | `SUPABASE_URL` | unset | Project URL (`https://<ref>.supabase.co`). The API derives the token issuer and the signing-key (JWKS) address from it. Unset = every protected route answers `503` (fail closed). Must be `https` (plain `http` only for localhost). See `documentation/Auth-Setup.md` (wiki: *Auth Setup*) |
 | `PDF_MAX_CONCURRENT` | `2` | How many LibreOffice conversions may run at once. Each is a separate process of a few hundred MB; extra requests wait up to 10 s, then get `503` with `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error reporting. Leave unset locally, in CI and in tests |
@@ -171,7 +176,7 @@ task build
 task up
 ```
 
-Starts the API server at `http://127.0.0.1:8000`. Interactive docs are available at `http://127.0.0.1:8000/docs`. You can monitor and manage containers using [lazydocker](https://github.com/jesseduffield/lazydocker).
+Starts the API server at `http://127.0.0.1:8000`. Interactive docs are available at `http://127.0.0.1:8000/docs` (they are switched off with `ENV=production` or `DOCS_ENABLED=false`; `GET /health` is the probe that is always there). You can monitor and manage containers using [lazydocker](https://github.com/jesseduffield/lazydocker).
 
 ### `GET /health`
 
@@ -179,7 +184,7 @@ Health probe for the container, deploys and uptime checks. `GET /health` answers
 
 ### `POST /lineups`
 
-Generates a lineup document from the provided data. Every text field has a maximum length (match, name and staff fields 200, team name 120, division 100, date 50, NSSZ number 50 characters); longer values are rejected with `422`.
+Generates a lineup document from the provided data. Requires `Authorization: Bearer <Supabase access token>`. Every text field has a maximum length (match, name and staff fields 200, team name 120, division 100, date 50, NSSZ number 50 characters); longer values are rejected with `422`.
 
 **Query parameters:**
 
@@ -225,7 +230,9 @@ Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"; 
 
 The header carries the name twice. HTTP headers are latin-1, so a team name with `ő`/`ű` can't go into plain `filename="..."`. The real UTF-8 name goes in `filename*` (RFC 6266), which browsers prefer; `filename` is an accent-stripped ASCII fallback (`Szőreg` → `Szoreg`).
 
-**Errors:** `422` for invalid input, `503` (with `Retry-After`) if every PDF conversion slot stays busy for 10 s (see `PDF_MAX_CONCURRENT`), `504` if LibreOffice doesn't finish the PDF conversion within 120 s (the whole LibreOffice process group is then killed), `500` for any other rendering failure. The same rendering, headers and errors apply to `POST /lineups/saved/{id}/generate`. Conversion runs in a worker thread, so a slow PDF never blocks the other endpoints.
+**Auth and limits:** `POST /lineups` needs a signed-in user like every data route (`401` otherwise). Both generate endpoints are rate limited per user and per IP (`429` with `Retry-After`), and request bodies over 256 KiB get `413`. Every response carries the security headers (HSTS, `nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` / CSP `frame-ancestors 'none'`) and `Cache-Control: no-store`, because all payloads are personal data or generated documents.
+
+**Errors:** `401` without a valid token, `413` for an oversized body, `422` for invalid input, `429` when the rate limit is exceeded, `503` (with `Retry-After`) if every PDF conversion slot stays busy for 10 s (see `PDF_MAX_CONCURRENT`), `504` if LibreOffice doesn't finish the PDF conversion within 120 s (the whole LibreOffice process group is then killed), `500` for any other rendering failure. The same rendering, headers and errors apply to `POST /lineups/saved/{id}/generate`. Conversion runs in a worker thread, so a slow PDF never blocks the other endpoints.
 
 ### Teams, Players & Saved Lineups
 
@@ -272,7 +279,7 @@ POST /lineups/saved
 | `task db:postgres` | Switch `backend/.env` to the Supabase pooler (`DATABASE_URL` + `ENV=production`) |
 | `task db:sqlite` | Switch `backend/.env` back to local SQLite                             |
 | `task test`     | Run tests with coverage (100%)                                  |
-| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity |
+| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; needs host port 8000 free) |
 | `task lint`     | Lint the codebase with ruff                                     |
 | `task format`   | Format the codebase with ruff                                   |
 | `task build`    | Build the container image                                       |
@@ -304,8 +311,9 @@ POST /lineups/saved
 lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
+├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md, Auth-Setup.md)
-├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
+├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                         # settings.json; skills/; rules/ (path-scoped, auto-loaded); context/ (read on demand); commands/
 ├── PLAN.md  CLAUDE.md  README.md    # Working plan; assistant router (detail in .claude/rules + .claude/context); this file
@@ -370,6 +378,11 @@ lineup/
     │   ├── auth/
     │   │   ├── dependencies.py          # get_current_user_id(): verifies the Bearer JWT, 401/503 otherwise
     │   │   └── tokens.py                # JWT verification + JWKS cache
+    │   ├── security/
+    │   │   ├── headers.py               # Security headers + Cache-Control: no-store on every response (ASGI middleware)
+    │   │   ├── body_limit.py            # Request body size cap (MAX_BODY_BYTES), 413
+    │   │   ├── rate_limit.py            # In-memory sliding-window limiter for the generate endpoints, 429
+    │   │   └── config.py                # DOCS_ENABLED parsing + fail-closed ENV=production startup check
     │   ├── common/
     │   │   ├── types.py                 # CleanStr* / OptionalCleanStr* input types
     │   │   └── errors.py                # IntegrityError -> 409 handler
@@ -393,6 +406,7 @@ lineup/
     │   ├── test_auth_dependencies.py    # JWT verification, JWKS cache, 401 on every protected route
     │   ├── test_tenant_isolation.py     # Two users can't reach each other's rows (404); teammates share theirs
     │   ├── helpers.py                   # ensure_team()/create_player(): most API tests need a team first
+    │   ├── test_security.py             # Security headers, body cap, rate limits (429), docs exposure, production config check
     │   ├── test_health.py               # /health liveness + readiness
     │   ├── test_db_urls.py              # to_asyncpg_url()
     │   ├── test_app_role.py             # lineup.db.app_role (password + .env rewrite, fake engine)

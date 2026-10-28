@@ -21,8 +21,10 @@ import os
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
+import jwt
 import pytest
 
 pdfplumber = pytest.importorskip("pdfplumber")
@@ -32,6 +34,12 @@ pytestmark = pytest.mark.e2e
 BASE_URL = os.environ.get("LINEUP_API_URL", "http://127.0.0.1:8000")
 READINESS_TIMEOUT_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 180
+
+# `task test-e2e` runs scripts/e2e_keys.py before starting the container and compose.e2e.yml makes
+# the container trust that key (SUPABASE_URL=http://localhost:9999 inside its namespace).
+AUTH_DIR = Path(os.environ.get("E2E_AUTH_DIR", Path(__file__).parents[2] / ".e2e-auth"))
+E2E_ISSUER = "http://localhost:9999/auth/v1"
+E2E_KEY_ID = "e2e-key"
 
 REFERENCE_PDF = Path(__file__).parent / "resources" / "expected-rajtlista.pdf"
 
@@ -93,7 +101,7 @@ def _wait_for_server() -> bool:
     deadline = time.monotonic() + READINESS_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen(f"{BASE_URL}/docs", timeout=2) as resp:
+            with urllib.request.urlopen(f"{BASE_URL}/health", timeout=2) as resp:
                 if resp.status == 200:
                     return True
         except (urllib.error.URLError, OSError):
@@ -109,6 +117,29 @@ def _find_word(words, text):
     return None
 
 
+def _access_token() -> str:
+    """A token for a made-up user, signed with the throw-away key the container trusts."""
+    private_key = AUTH_DIR / "private.pem"
+    if not private_key.exists():
+        pytest.skip(
+            f"No e2e signing key at {private_key}; run the whole flow with `task test-e2e`."
+        )
+    now = int(time.time())
+    claims = {
+        "sub": str(uuid.uuid4()),
+        "aud": "authenticated",
+        "iss": E2E_ISSUER,
+        "iat": now,
+        "exp": now + 3600,
+    }
+    return jwt.encode(
+        claims,
+        private_key.read_text(),
+        algorithm="ES256",
+        headers={"kid": E2E_KEY_ID},
+    )
+
+
 @pytest.fixture(scope="session")
 def generated_pdf_bytes() -> bytes:
     if not _wait_for_server():
@@ -119,13 +150,33 @@ def generated_pdf_bytes() -> bytes:
     request = urllib.request.Request(
         f"{BASE_URL}/lineups?format=pdf",
         data=json.dumps(PAYLOAD).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {_access_token()}",
+        },
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
         assert resp.status == 200
         assert resp.headers["content-type"] == "application/pdf"
+        # The API is public: no browser or proxy may keep a copy of the roster document.
+        assert resp.headers["cache-control"] == "no-store"
+        assert resp.headers["x-content-type-options"] == "nosniff"
         return resp.read()
+
+
+def test_post_lineups_without_a_token_is_rejected():
+    if not _wait_for_server():
+        pytest.skip(f"Lineup API not reachable at {BASE_URL}")
+    request = urllib.request.Request(
+        f"{BASE_URL}/lineups",
+        data=json.dumps(PAYLOAD).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS)
+    assert exc.value.code == 401
 
 
 @pytest.fixture(scope="session")

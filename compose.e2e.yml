@@ -1,0 +1,48 @@
+# Extra Compose file for `task test-e2e` only (docker compose -f compose.yml -f compose.e2e.yml).
+#
+# POST /lineups needs a signed-in user, so the API under test must be able to verify a token.
+# SUPABASE_URL may only be plain http for localhost, so a tiny sidecar that shares the API's
+# network namespace serves the test's public signing key on localhost:9999. The key pair is made
+# fresh for each run by scripts/e2e_keys.py into ./.e2e-auth (git-ignored).
+services:
+  api:
+    environment:
+      SUPABASE_URL: http://localhost:9999
+
+  jwks:
+    image: lineup
+    # Same namespace as the API, so "localhost" in SUPABASE_URL reaches this server.
+    network_mode: "service:api"
+    depends_on:
+      - api
+    entrypoint: []
+    command:
+      [
+        "python",
+        "-m",
+        "http.server",
+        "9999",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "/jwks",
+      ]
+    volumes:
+      - ./.e2e-auth/public:/jwks:ro
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # `up --wait` fails on a container without a healthcheck (newer Compose, e.g. on CI), and the
+    # image's own check targets the API, so give the sidecar one that fetches the key it serves.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9999/auth/v1/.well-known/jwks.json')",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 15

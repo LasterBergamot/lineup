@@ -43,7 +43,7 @@ changes the frontend build tells you.
 Three things in this picture surprise newcomers:
 
 1. **Document generation and the database are separate.** `POST /lineups` needs no database at
-   all; it just fills the template. Saved lineups use the database to *gather* the data, then
+   all (only a signed-in user); it just fills the template. Saved lineups use the database to *gather* the data, then
    hand the same generation code a ready-made object.
 2. **The frontend is a separate program with its own toolchain.** It is written in TypeScript, built
    with Node and pnpm, and never imports Python code; the only contract between the two sides is the
@@ -148,7 +148,11 @@ the DTO, `DocumentManager` writes the values into the template, and for PDFs `Pd
 LibreOffice in a private temporary profile with a 120 second timeout. Only a couple of conversions run
 at once (each is a heavy process), so a request that has to wait too long gets a 503. Both generate
 endpoints share `lineup/api/file_response.py`, which maps failures to HTTP codes (busy → 503,
-timeout → 504, anything else → 500).
+timeout → 504, anything else → 500). Around all of this sits `lineup/security/` (#96): middleware
+adds security headers and `Cache-Control: no-store` to every response and refuses oversized bodies
+(413), and the two generate endpoints carry a per-user and a per-IP rate limit (429). With
+`ENV=production` the app also refuses to start with an insecure database/auth setup and serves no
+`/docs`.
 
 ## 6. Why saved lineups are snapshots
 
@@ -168,10 +172,10 @@ task test           # run the tests (must report 100% coverage)
 task lint           # ruff
 task serve          # local API on :8000, DOCX only; tables are created automatically
 task build && task up    # full API in a container, with PDF output
-task test-e2e       # real-conversion tests against the container
+task test-e2e       # real-conversion tests against the container (needs port 8000 free)
 ```
 
-Then open `http://localhost:8000/docs` for the interactive API docs.
+Then open `http://localhost:8000/docs` for the interactive API docs (they are off when `ENV=production` or `DOCS_ENABLED=false`; `/health` always answers).
 
 To run the web app as well, install Node.js (current LTS) and pnpm, then:
 
