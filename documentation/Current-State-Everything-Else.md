@@ -159,7 +159,7 @@ Three GitHub Actions workflows (`.github/workflows/`):
   `scripts/check_docs_touched.sh`, which fails when the diff touches code or config paths
   (`backend/lineup/`, `backend/alembic/`, `backend/app.py`, `pyproject.toml`, `Dockerfile`,
   `.env.example`, `compose.yml`, `Taskfile.yml`, `scripts/`, workflows, `frontend/src/`)
-  but none of `README.md`, `CLAUDE.md` or `documentation/`. The escape hatch for changes that
+  but none of `README.md`, `CLAUDE.md`, `.claude/rules/`, `.claude/context/` or `documentation/`. The escape hatch for changes that
   genuinely need no documentation is the `no-docs` label together with a
   `No doc impact: <reason>` line in the PR description. Dependabot PRs are skipped. The job
   is read-only (`contents: read`) and passes labels through `env:` rather than interpolating
@@ -223,6 +223,15 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 
 ## Claude Code tooling
 
+**Project context is split by area so a session loads only what it needs.** `CLAUDE.md` is a router (summary, always-on
+rules, a "working on X → read Y" table, capped at 100 lines by a test). The detail lives in
+`.claude/rules/*.md`, each with a `paths:` list in its frontmatter: Claude Code loads a rule only when it reads or edits a
+matching file (for example `backend-db.md` for `backend/lineup/db/**`). `.claude/context/*.md` (workflow, the pre-PR
+Dependabot checklist, the skills description) is read on demand by the router and the skills. A rule without `paths:` would
+load every session, so a test requires every rule to be path-scoped and every glob to match a file. The built-in Explore
+and Plan subagents load neither `CLAUDE.md` nor the rules, so a prompt to them names the rule file to read. Editing any of
+these files counts as a docs change for CI's docs gate. The file tree lives only in `README.md`.
+
 The repo ships project skills in `.claude/skills/` for the workflows that repeat. Each one is a
 Markdown playbook Claude follows when a request matches its description. They exist so these
 procedures run the same way every time instead of being reconstructed from memory:
@@ -232,10 +241,10 @@ procedures run the same way every time instead of being reconstructed from memor
 | `repo-audit` | opus | audit the whole repo (code, docs/infra/CI, GitHub state) with three parallel explorers, verify the serious findings, then reconcile them with issues and the board — the process behind epics #40–#46 |
 | `compliance-audit` | opus | check the repo against GDPR, the Hungarian rules and the OWASP baseline (`requirements.md` next to the skill: what is required, why, where to look), then turn the gaps into issues under epic #92. `quick <issue#\|branch>` is a few-minute check of a single feature, run when its implementation starts and as a `create-pr` gate, so privacy work is planned up front rather than found later |
 | `new-issue` | haiku | file or restructure an issue the project's way: Problem/Evidence/Proposal/Acceptance body, `type:`/`area:`/`priority:` labels, milestone, board fields, parent epic, blocked-by links |
-| `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `CLAUDE.md`) |
+| `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `.claude/context/pr-checklist.md`) |
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
 | `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
-| `update-documentation` | — | sync `README.md`, `CLAUDE.md` and `documentation/` after a change |
+| `update-documentation` | — | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
 | `setup-project` | — | set up a fresh clone |
 
 `model:` in a skill's frontmatter pins the model only while that skill runs: opus for the

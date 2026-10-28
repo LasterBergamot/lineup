@@ -17,7 +17,8 @@ approving a plan is not approval for a batch of writes).
 
 ## 1. Context
 
-1. Read `CLAUDE.md`, and skim `README.md` and `documentation/Roadmap-*.md`.
+1. Read `CLAUDE.md` (the router), the files in `.claude/rules/` and `.claude/context/`, and skim
+   `README.md` and `documentation/Roadmap-*.md`.
 2. `git log --oneline -40` and `git status`, to know what changed since the last audit.
    Search the issues for "Found in the Oct 2026 repository audit" to see what is already tracked.
 
@@ -36,7 +37,7 @@ verified against the code rather than guessed.
   - owner/user filtering consistency, and fail-open behaviour when the id is `None`;
   - header and filename injection; input limits; layering violations; dead code;
   - tests that assert the wrong thing; the coverage config.
-- **Docs, infra and CI.** Read: `CLAUDE.md`, `README.md`, `documentation/*`, `Taskfile.yml`,
+- **Docs, infra and CI.** Read: `CLAUDE.md`, `.claude/rules/*`, `.claude/context/*`, `README.md`, `documentation/*`, `Taskfile.yml`,
   `compose.yml`, `.gitignore`, `.github/**`, `backend/Dockerfile`, `backend/.dockerignore`,
   `backend/.env.example`,
   `.claude/**`. Hunt for:
@@ -92,7 +93,7 @@ should be.
 
 ## 5. Apply (after approval)
 
-- **Hotfix:** follow `CLAUDE.md`. Write tests (coverage stays at 100 %), run `task lint`,
+- **Hotfix:** follow "Branches and environments" in `.claude/context/workflow.md`. Write tests (coverage stays at 100 %), run `task lint`,
   `task test` and `task test-e2e` if the PDF/container path changed, then run the
   `update-documentation` skill. Branch, commit and PR each need explicit approval; use the
   `create-pr` skill for the PR.

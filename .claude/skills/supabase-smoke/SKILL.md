@@ -4,7 +4,7 @@ description: Run the live smoke test against the dev Supabase project — start 
 model: haiku
 ---
 
-CLAUDE.md asks for this after any model or engine change. SQLite tolerated two bugs that
+`.claude/rules/backend-db.md` asks for this after any model or engine change. SQLite tolerated two bugs that
 broke on Supabase: aware datetimes rejected by asyncpg, and `DuplicatePreparedStatementError`
 behind the pooler. This runs the real path end to end.
 

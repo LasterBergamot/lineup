@@ -33,7 +33,7 @@ existing commit (a typo, a lint fix, a review remark) goes into that commit, not
 Once the branch is pushed, rewriting it needs `git push --force-with-lease` (never plain
 `--force`, never on `develop`/`main`). Ask the user first, as for any push.
 
-## 2. Dependabot (required by CLAUDE.md)
+## 2. Dependabot (required by `.claude/context/pr-checklist.md`)
 
 Run the `triage-dependabot` skill. Merging any non-blocking PR it finds needs the user's
 confirmation. If something was merged, it also brings this branch up to date: merge `develop`,
@@ -57,13 +57,13 @@ Run `task test-e2e` too if the diff touches `backend/lineup/document/`, `backend
 or `compose.yml`. It
 needs Docker and stops the running `lineup` container at the end; tell the user beforehand.
 
-Check that every new or changed module has tests (CLAUDE.md "Tests" conventions), and that
+Check that every new or changed module has tests (`.claude/rules/backend-tests.md`), and that
 no new ruff `S` ignores were added outside the two documented spots.
 
 ## 4. Docs
 
 Always run the `update-documentation` skill, whatever the diff. It covers `README.md`,
-`CLAUDE.md`, the docstrings of the code the diff touches and `documentation/` (the wiki mirror, including the Newcomer Guide and
+`CLAUDE.md`, `.claude/rules/` and `.claude/context/`, the docstrings of the code the diff touches and `documentation/` (the wiki mirror, including the Newcomer Guide and
 References pages, and `task docs:references` for the generated block). Commit the result,
 after approval.
 
@@ -97,7 +97,7 @@ Closes #N / Refs #M (what part)
 - Dependabot PRs: … (merged / blocking + reason)
 
 ## Docs
-- Updated: … (README / CLAUDE.md / documentation pages), or `No doc impact: <reason>`
+- Updated: … (README / CLAUDE.md / `.claude/` rules / documentation pages), or `No doc impact: <reason>`
 
 ## Test plan
 - [x] `task lint`

@@ -38,7 +38,7 @@ gate. Single pass, no subagents, no GitHub writes.
 
 ### 1. Context
 
-- Read `CLAUDE.md` and `PLAN.md`, `documentation/Privacy-and-Security.md` if it exists, and
+- Read `CLAUDE.md` (the router; open the `.claude/rules/` file for the area you audit) and `PLAN.md`, `documentation/Privacy-and-Security.md` if it exists, and
   epic #92 with its sub-issues.
 - Search the issues for "compliance audit" to find what is already tracked. `repo-audit`
   covers general bugs and drift; this skill covers only the regulatory and standards checks.

@@ -77,7 +77,7 @@ Three things in this picture surprise newcomers:
 | **Ruff** | Linter and formatter, including security rules and a check that public code has a docstring | Catches bugs, style issues and undocumented code before review | `task lint`, `task format` |
 | **pytest** | Test runner; coverage must stay at 100% | Safety net for refactoring | `backend/tests/` |
 | **GitHub Actions** | Runs lint, tests, the container test and a docs check on every PR | Nothing broken reaches `develop` | `.github/workflows/` |
-| **Claude Code + skills** | An AI assistant with project rules and recipes | Repetitive workflows (PRs, issues, audits) are written down once | `CLAUDE.md`, `.claude/skills/` |
+| **Claude Code + skills** | An AI assistant with project rules and recipes | Repetitive workflows (PRs, issues, audits) are written down once | `CLAUDE.md`, `.claude/rules/`, `.claude/context/`, `.claude/skills/` |
 
 ## 4. Glossary
 
@@ -214,7 +214,8 @@ copy `backend/.env.example` to `backend/.env`, fill it in and use `task db:postg
 5. **Document the code and the docs in the same change**: give every new public module, class, function or
    method a docstring (what it is for and why, not a restatement of its name; `task lint` fails on a
    missing one), then update `README.md` (how to use it), the matching page under
-   `documentation/` (how it works), and `CLAUDE.md` (conventions). If nothing needs documenting,
+   `documentation/` (how it works), and the rule file in `.claude/rules/` for the area (conventions;
+   `.claude/context/claude-code.md` says which one). If nothing needs documenting,
    say `No doc impact: <reason>` in the PR. CI's docs check enforces this.
 6. **Open a PR into `develop`.** CI must be green. PRs are merged with a **merge commit** (never
    squash or rebase), so keep your branch history tidy with `git commit --amend` or `--fixup`.
@@ -265,4 +266,8 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 - [[Current State: Everything Else]] for CI, containers and conventions.
 - [[Roadmap: Everything Else]], `PLAN.md` and the GitHub issues/board for what's coming.
 - [[References]] for the official documentation of every tool above.
-- `CLAUDE.md` if you work with Claude Code: it holds the conventions the assistant follows.
+- `CLAUDE.md` if you work with Claude Code. It is a short router, on purpose: an assistant that
+  loads every convention for every task wastes its context window and follows the rules less well.
+  So the conventions are split by area into `.claude/rules/*.md`, which Claude Code loads by
+  itself only when it reads or edits a matching file (the `paths:` list at the top of each rule),
+  and `.claude/context/*.md` (workflow, pre-PR checklist, skills), which is read on demand.

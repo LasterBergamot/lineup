@@ -20,7 +20,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 ## AI Assistant
 
-This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root contains the project context that Claude Code reads automatically at the start of every session.
+This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root is a short router that Claude Code reads at the start of every session: what the project is, the always-on rules, and a table that says where the detail for each area lives. That detail sits in `.claude/rules/` (one file per area, loaded automatically when Claude reads or edits a matching file) and `.claude/context/` (workflow, pre-PR checklist and skills, read on demand), so a session on the frontend doesn't carry the database notes. `.claude/context/claude-code.md` explains the layout and says which file to update for which kind of change.
 
 Recurring workflows are packaged as project skills in `.claude/skills/`. Claude picks one up when a request matches its description, or you can call it directly as `/<name>`. Several pin a model in their frontmatter (`model:`), so heavy analysis runs on a stronger model and mechanical steps on a cheaper one, whatever the session default is:
 
@@ -29,10 +29,10 @@ Recurring workflows are packaged as project skills in `.claude/skills/`. Claude 
 | `repo-audit` | opus | audit the whole repo (code, docs/infra/CI, GitHub state) with three parallel explorers, verify the serious findings, then reconcile them with issues and the board — the process behind epics #40–#46 |
 | `compliance-audit` | opus | check the repo against GDPR, the Hungarian rules and the OWASP baseline (`requirements.md` next to the skill: what is required, why, where to look), then turn the gaps into issues under epic #92. `quick <issue#\|branch>` is a few-minute check of a single feature, run when its implementation starts and as a `create-pr` gate, so privacy work is planned up front rather than found later |
 | `new-issue` | haiku | file or restructure an issue the project's way: Problem/Evidence/Proposal/Acceptance body, `type:`/`area:`/`priority:` labels, milestone, board fields, parent epic, blocked-by links |
-| `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `CLAUDE.md`) |
+| `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `.claude/context/pr-checklist.md`) |
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
 | `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
-| `update-documentation` | — | sync `README.md`, `CLAUDE.md` and `documentation/` after a change |
+| `update-documentation` | — | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
 | `setup-project` | — | set up a fresh clone |
 
 Skills that touch GitHub, git or the database still ask before every state-changing command. `.claude/settings.json` is the shared project config: it lets `task lint`/`task test` run without a prompt and blocks Claude from reading `.env` files (at the root and in `backend/`). Personal overrides go in the git-ignored `.claude/settings.local.json`.
@@ -43,7 +43,7 @@ The `documentation/` folder is the source of truth for the project's [GitHub wik
 
 **Keeping the docs current is part of every change, in the code too.** New or changed public code needs a docstring explaining what it is for and why (`task lint` fails on a missing one; tests and migration revisions are exempt).
 
-**Keeping the docs current is part of every change.** A PR that touches code or config (`backend/lineup/`, `Dockerfile`, `compose.yml`, `Taskfile.yml`, workflows, …) must also update `README.md`, `CLAUDE.md` or a page under `documentation/`, or say `No doc impact: <reason>` and carry the `no-docs` label. The `Docs updated` check fails otherwise (run `scripts/check_docs_touched.sh origin/develop HEAD` to try it locally). The dependency tables in `documentation/References.md` are generated: run `task docs:references` after changing a dependency, `Dockerfile` or workflow (`task docs:check` verifies it, and CI runs it).
+**Keeping the docs current is part of every change.** A PR that touches code or config (`backend/lineup/`, `Dockerfile`, `compose.yml`, `Taskfile.yml`, workflows, …) must also update `README.md`, `CLAUDE.md`, a file under `.claude/rules/` or `.claude/context/`, or a page under `documentation/`, or say `No doc impact: <reason>` and carry the `no-docs` label. The `Docs updated` check fails otherwise (run `scripts/check_docs_touched.sh origin/develop HEAD` to try it locally). The dependency tables in `documentation/References.md` are generated: run `task docs:references` after changing a dependency, `Dockerfile` or workflow (`task docs:check` verifies it, and CI runs it).
 
 ## Branches
 
@@ -54,7 +54,7 @@ There are two environments (dev and prod), so there are two long-lived branches.
 Three GitHub Actions workflows run automatically on GitHub — no local setup or invocation needed to benefit from them:
 
 - **`.github/workflows/ci.yml`** — on every PR (and push) against `develop` or `main`: a `Frontend` job (ESLint + Prettier, type check, Vitest, production build, and a check that the generated API client still matches the backend's OpenAPI spec; it has no path filter, so it reports on every PR), and the backend jobs: lints (`ruff check`, including flake8-bandit's `S` security rules), checks formatting (`ruff format --check`), runs the test suite with 100% coverage enforcement, then builds the container, runs the real PDF-conversion e2e test, and scans the built image for vulnerabilities with Trivy (report-only — findings are visible in the job log and the repo's Security tab, but never fail the build, since the LibreOffice-based image has a CVE surface that can't be fully remediated).
-- **`.github/workflows/docs-check.yml`** — on every PR: fails if the diff touches code or config without touching `README.md`, `CLAUDE.md` or `documentation/` (escape hatch: the `no-docs` label). `ci.yml` additionally runs `task docs:check`, which fails when the generated part of `documentation/References.md` is stale.
+- **`.github/workflows/docs-check.yml`** — on every PR: fails if the diff touches code or config without touching `README.md`, `CLAUDE.md`, `.claude/rules/`, `.claude/context/` or `documentation/` (escape hatch: the `no-docs` label). `ci.yml` additionally runs `task docs:check`, which fails when the generated part of `documentation/References.md` is stale.
 - **`.github/workflows/wiki-sync.yml`** — on push to `develop` that touches `documentation/**`: mirrors those files into the GitHub wiki (and fails if a file in `documentation/` is missing from its page map).
 
 If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
@@ -301,14 +301,15 @@ POST /lineups/saved
 lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
-├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md)
-├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client)
-├── .github/                         # CI workflows, PR template + Dependabot config
-├── .claude/                         # Shared Claude Code settings, skills, commands
-├── PLAN.md  CLAUDE.md               # Working plan and assistant context
+├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md, Auth-Setup.md)
+├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
+├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
+├── .claude/                         # settings.json; skills/; rules/ (path-scoped, auto-loaded); context/ (read on demand); commands/
+├── PLAN.md  CLAUDE.md  README.md    # Working plan; assistant router (detail in .claude/rules + .claude/context); this file
 ├── frontend/                        # React + TypeScript + Vite web app (pnpm)
 │   ├── DESIGN.md                    # Polaris theme spec
 │   ├── package.json  pnpm-lock.yaml # Dependencies and scripts (packageManager pins pnpm)
+│   ├── eslint.config.js  tsconfig.json  index.html
 │   ├── vite.config.ts               # Vite + Tailwind + Vitest config, /api dev proxy
 │   ├── .env.example                 # VITE_* settings (public values only)
 │   ├── public/                      # Static files (favicon, theme-init.js)
@@ -316,13 +317,14 @@ lineup/
 │       ├── main.tsx  app.tsx        # Entry point, providers and route table
 │       ├── index.css                # Tailwind + Polaris design tokens (light/dark)
 │       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
-│       ├── auth/                    # Google sign-in: config check, Supabase client (sign-in only), provider, route guard
+│       ├── auth/                    # Google sign-in: config.ts (env check), supabase.ts (sign-in-only client), provider/context, require-auth, return-path, events
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
-│       ├── components/              # App shell (sidebar / bottom nav), theme toggle, query-boundary, ui/ (shadcn-style)
-│       ├── features/lineup/         # One-off lineup form: Zod schema, API call, download, form
-│       ├── features/teams/          # Teams of the signed-in user: list, create (onboarding), team gate
+│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), brand, theme-toggle, nav-items, query-boundary, ui/ (shadcn-style)
+│       ├── features/lineup/         # One-off lineup form: schema.ts (Zod), generate.ts, download.ts, lineup-form.tsx
+│       ├── features/teams/          # Teams of the signed-in user: api.ts (list/create), provider/context, team-gate, onboarding, create-team-form
 │       ├── pages/                   # One file per route
-│       └── lib/                     # cn(), theme hook
+│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, clean-text.ts (shared Zod text rule)
+│       └── test/                    # setup.ts (Vitest + Testing Library), auth.tsx (fake auth client, renderApp)
 └── backend/                         # All Python; the working directory for Python commands
     ├── main.py                          # CLI entry point
     ├── app.py                           # FastAPI application entry point
@@ -358,10 +360,17 @@ lineup/
     │   ├── db/
     │   │   ├── base.py                  # DeclarativeBase
     │   │   ├── engine.py                # DB engine (SQLite/Postgres aware), get_session() dependency
+    │   │   ├── app_role.py              # `task db:create-app-role`: lineup_app password + .env rewrite
+    │   │   ├── urls.py                  # to_asyncpg_url(): plain postgresql:// -> postgresql+asyncpg://
     │   │   └── models.py                # Team, Player, SavedLineup, LineupPlayerSnapshot
     │   ├── auth/
     │   │   ├── dependencies.py          # get_current_user_id(): verifies the Bearer JWT, 401/503 otherwise
     │   │   └── tokens.py                # JWT verification + JWKS cache
+    │   ├── common/
+    │   │   ├── types.py                 # CleanStr* / OptionalCleanStr* input types
+    │   │   └── errors.py                # IntegrityError -> 409 handler
+    │   ├── health/
+    │   │   └── router.py                # GET /health, /health?db=1
     │   ├── teams/                       # schemas / repository / service / router
     │   ├── players/                     # schemas / repository / service / router
     │   └── saved_lineups/                # schemas / repository / service / router
@@ -377,7 +386,17 @@ lineup/
     │   ├── test_pdf_conversion_e2e.py   # Real-conversion fidelity tests (container)
     │   ├── test_water_polo_lineup_creator.py  # Creator unit tests
     │   ├── test_water_polo_lineup_dto.py      # DTO and builder unit tests
-    │   ├── test_auth_dependencies.py    # Auth dependency unit test
+    │   ├── test_auth_dependencies.py    # JWT verification, JWKS cache, 401 on every protected route
+    │   ├── test_tenant_isolation.py     # Two users can't reach each other's rows (404); teammates share theirs
+    │   ├── helpers.py                   # ensure_team()/create_player(): most API tests need a team first
+    │   ├── test_health.py               # /health liveness + readiness
+    │   ├── test_db_urls.py              # to_asyncpg_url()
+    │   ├── test_app_role.py             # lineup.db.app_role (password + .env rewrite, fake engine)
+    │   ├── test_postgres_migrations.py  # RLS / roles / grants on a real Postgres (skipped without POSTGRES_TEST_URL)
+    │   ├── test_migrations.py           # Data migrations on a throw-away SQLite file
+    │   ├── test_smoke_auth.py           # scripts/smoke_auth.py tokens are accepted by the real verifier
+    │   ├── test_input_hardening.py      # Control chars/blanks, unknown team_id, source-or-text, duplicate NSSZ, ordering
+    │   ├── test_docs_tooling.py         # scripts/ (References generator, docs gate), wiki PAGE_MAP, Claude context guards
     │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate, Postgres pool settings)
     │   ├── test_db_models.py            # ORM model unit tests
     │   ├── test_teams.py                # Teams API + repository tests
