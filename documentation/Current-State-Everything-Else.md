@@ -176,8 +176,8 @@ Three GitHub Actions workflows (`.github/workflows/`):
 Prettier, the type check, the Vitest suite and the production build, then `task fe:api:check`, which
 regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
 and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
-It deliberately has no path filter, so it reports on every PR and can be made a required check later
-(it is not one yet). **Lint & test** runs ruff, the tests at 100% coverage, the References check and
+It deliberately has no path filter, so it reports on every PR, which is what lets it be a required check
+on `develop` and `main`. **Lint & test** runs ruff, the tests at 100% coverage, the References check and
 `task migrate-check` (migrations applied to SQLite, then `alembic check`). **Migrations (Postgres)** starts
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`

@@ -109,9 +109,10 @@ A subset of M1. The rest of M1 follows at its own pace.
       This meets #20's acceptance.
 
 ### Phase 3 — Real auth on dev
-- [ ] #101 (split from #39) Google provider on the dev Supabase project. `get_current_user_id()`
-      validates the JWT via JWKS and returns `sub`. (Code done in PR #122; still open: the manual
-      Google Cloud + Supabase dashboard setup, see `documentation/Auth-Setup.md`.)
+- [x] #101 (split from #39) Google provider on the dev Supabase project. `get_current_user_id()`
+      validates the JWT via JWKS and returns `sub`. (Code in PR #122; the manual Google Cloud +
+      Supabase dashboard setup, see `documentation/Auth-Setup.md`, was done and a real sign-in
+      verified on 2026-10-28.)
 - [x] #47 fail closed (401 without a valid token) (PR #122)
 - [x] #19 `team_members` / `team_invitations` schema (as amended by §6) (PR #125)
 - [x] #49 team-scoped access for players and saved lineups (PR #127)
@@ -120,9 +121,10 @@ A subset of M1. The rest of M1 follows at its own pace.
 - [x] #52 NOT NULL owner/user ids. On dev the existing rows can simply be wiped instead of
       backfilled. (PR #125)
 - [x] #129 FE: sign-in page, token on every call, onboarding ("no team yet → create one or
-      paste an invite link"). (PR #130; the invite-link field is shown disabled until #51. A real
-      Google sign-in can only be tried once the manual console setup of #101 is done.)
-- [ ] Run the `supabase-smoke` skill after the model changes.
+      paste an invite link"). (PR #130; the invite-link field is shown disabled until #51. The
+      real Google sign-in was tried on 2026-10-28 after the #101 setup.)
+- [x] Run the `supabase-smoke` skill after the model changes (2026-10-28, as `lineup_app`, after
+      applying the Phase 3 migrations to the dev Supabase project).
 
 ### Phase 4 — Dev deployment + CD
 **Compliance gate (#92):** before anyone outside the team gets access to dev, the following
@@ -408,3 +410,4 @@ Endpoints (amends #51):
 | 2026-10-05 | Phase 3, PR 3: the team is the workspace. `players.team_id` and `saved_lineups.team_id` required, `created_by` audit-only, all access through `team_members` (404 for non-members, 403 for non-owner members on owner actions), source ids resolved as the caller, `is_public` toggle + id/name-only pool, `GET /teams/{id}/opponents/recent`, team delete blocked by saved lineups, FE client regenerated. Applying migrations to dev Supabase + smoke test left to the owner. | #49, #48, #50, #127 |
 | 2026-10-05 | Phase 2, PR 3: the first screen, a one-off lineup form (React Hook Form + a Zod schema that mirrors the API limits) calling `POST /lineups` and downloading the PDF or DOCX; API 422s are mapped onto the fields, a PDF-wait message appears after 5 s, nothing is persisted client-side. Verified in Chromium against a real container: a 15-player PDF and a DOCX downloaded, with `ő`/`ű` in the file name. Decisions for #20 recorded in `Roadmap-Frontend.md`; Phase 2 is complete. | #121, #20, PR #128 |
 | 2026-10-05 | Phase 3, frontend: Google sign-in through `@supabase/supabase-js` (sign-in only, PKCE, publishable key only: a secret key is refused), `AuthProvider` + route guard, the token on every API call except `/health` (a 401 signs out, a 503 shows the retry box, never a sign-in loop), a same-site-only return path, and team onboarding (create a team; invite-link field disabled until #51) with the current team and sign-out in the shell. Unit-tested with a fake auth client; checked in Chromium at phone and desktop sizes against a local backend and the `scripts/smoke_auth.py` stand-in (43 checks: redirect to sign-in, OAuth start URL, onboarding, token header, 401/503 states). The real Google round trip waits for the manual #101 setup. | #129, PR #130 |
+| 2026-10-28 | Phase 3 rolled out on the dev Supabase project: migrations `a3d5f7c91e26` and `e5b8c2d41f70` applied through the session pooler (they delete the pre-auth dev rows), `supabase-smoke` passed as `lineup_app` (team, player, saved lineup, DOCX generate, delete), the Google OAuth client and Supabase Google provider set up per `Auth-Setup.md`, and a real Google sign-in tried in the UI (onboarding, team, API calls with the token). | #101, #129, PR #153 |
