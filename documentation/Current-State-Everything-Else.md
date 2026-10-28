@@ -244,11 +244,16 @@ procedures run the same way every time instead of being reconstructed from memor
 | `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `.claude/context/pr-checklist.md`) |
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
 | `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
-| `update-documentation` | — | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
-| `setup-project` | — | set up a fresh clone |
+| `update-documentation` | sonnet | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
+| `setup-project` | haiku (high effort) | set up a fresh clone: explicit steps, each with an expected result |
 
 `model:` in a skill's frontmatter pins the model only while that skill runs: opus for the
-cross-cutting analysis, haiku for templated steps. Every skill that writes to GitHub, git or
+cross-cutting analysis, sonnet for the multi-step git/docs work, haiku for templated steps.
+The value is always an alias (`opus`, `sonnet`, `haiku`): Claude Code resolves it to the newest
+model of that tier, so the skills follow new releases by themselves, and a test rejects a
+full model ID. If a skill seems to run an older model, check the
+`ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` environment variables on your machine: they
+override what the aliases resolve to. Every skill that writes to GitHub, git or
 Supabase asks before each state-changing command. The shared `.claude/settings.json` lets
 `task lint`/`task test` run without prompting and denies reading `.env*` (at the root and in `backend/`), so credentials
 never enter the conversation.
