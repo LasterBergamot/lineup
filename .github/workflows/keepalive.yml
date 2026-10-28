@@ -1,0 +1,43 @@
+name: Supabase keep-alive
+
+# The free tier pauses a project after about a week without activity, and Supabase Auth
+# pauses with it. Two runs a week (Mon + Thu) mean one failed run is not enough to let it
+# pause. GitHub emails the person who last changed the `cron:` line when a run fails, but it
+# silently disables scheduled workflows after 60 days without repo activity: after a long
+# break, check the Actions tab and re-enable this workflow (PLAN.md §5.3).
+
+on:
+  schedule:
+    - cron: "17 6 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping the dev database
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # No third-party actions on purpose: `psql` ships with the runner image.
+    steps:
+      - name: SELECT 1 through the transaction pooler
+        env:
+          # The least-privilege `lineup_app` pooler URL, set by the owner as an Actions secret.
+          # The secret is only ever read through `env:`, so it is masked and never echoed.
+          KEEPALIVE_DATABASE_URL: ${{ secrets.KEEPALIVE_DATABASE_URL }}
+        run: |
+          if [ -z "$KEEPALIVE_DATABASE_URL" ]; then
+            echo "::error::The KEEPALIVE_DATABASE_URL Actions secret is not set."
+            exit 1
+          fi
+          # Accept the app's own URL form too: libpq wants neither the SQLAlchemy driver
+          # suffix nor the asyncpg `ssl=` spelling.
+          url="${KEEPALIVE_DATABASE_URL/postgresql+asyncpg:/postgresql:}"
+          url="${url/ssl=require/sslmode=require}"
+          if psql "$url" --no-psqlrc --quiet --tuples-only --no-align --command "SELECT 1" >/dev/null; then
+            echo "Database answered."
+          else
+            echo "::error::The database did not answer. It may be paused: Supabase dashboard -> Restore project."
+            exit 1
+          fi

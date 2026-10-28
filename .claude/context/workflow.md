@@ -45,6 +45,10 @@ Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SUPABASE_URL`, `P
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 
+## Scheduled workflows
+
+`.github/workflows/keepalive.yml` (#156) runs `SELECT 1` through the Supabase transaction pooler every Monday and Thursday (and on `workflow_dispatch`), so the free-tier dev project never reaches its inactivity pause. It needs the `KEEPALIVE_DATABASE_URL` Actions secret (the `lineup_app` pooler URL; the app's `postgresql+asyncpg://…?ssl=require` form is accepted); the workflow fails with an error if the secret is missing. It uses no third-party actions. GitHub disables scheduled workflows after 60 days without repo activity and a disabled workflow doesn't fail, so after a long break check the Actions tab and re-enable it (`PLAN.md` §5.3). Once the API is deployed it should also call `/health?db=1`.
+
 ## Branches and environments
 
 Two environments only (dev + prod, no separate test env), so two long-lived branches:
