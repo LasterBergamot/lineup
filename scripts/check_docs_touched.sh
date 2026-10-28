@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Fails when a change touches code/config paths but none of README.md, CLAUDE.md or
-# documentation/. Usage: scripts/check_docs_touched.sh [base-ref] [head-ref]
+# Fails when a change touches code/config paths but none of README.md, CLAUDE.md,
+# .claude/rules/, .claude/context/ or documentation/. Usage: scripts/check_docs_touched.sh [base-ref] [head-ref]
 # Escape hatch: PR_LABELS (comma-separated) containing "no-docs".
 set -euo pipefail
 
@@ -8,7 +8,7 @@ base="${1:-origin/develop}"
 head="${2:-HEAD}"
 
 code_re='^(backend/(lineup/|alembic/|app\.py$|main\.py$|pyproject\.toml$|Dockerfile$|\.env\.example$)|frontend/src/|scripts/|compose\.yml$|Taskfile\.yml$|\.github/workflows/)'
-docs_re='^(README\.md$|CLAUDE\.md$|documentation/)'
+docs_re='^(README\.md$|CLAUDE\.md$|documentation/|\.claude/(rules|context)/)'
 
 if [[ ",${PR_LABELS:-}," == *",no-docs,"* ]]; then
   echo "Label 'no-docs' is set: skipping the docs check."
@@ -27,7 +27,7 @@ if grep -Eq "$docs_re" <<<"$changed"; then
   exit 0
 fi
 
-echo "This change touches code or config but none of README.md, CLAUDE.md or documentation/." >&2
+echo "This change touches code or config but none of README.md, CLAUDE.md, .claude/rules/, .claude/context/ or documentation/." >&2
 echo "Update the docs (see the update-documentation skill), or, if nothing needs documenting," >&2
 echo "add the 'no-docs' label and put 'No doc impact: <reason>' in the PR description." >&2
 echo >&2

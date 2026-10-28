@@ -6,7 +6,8 @@ description: Update documentation/ (the GitHub wiki mirror), README.md, CLAUDE.m
 Keep every doc in the repo honest, not just `documentation/`. `documentation/` is the source
 of truth for the project's GitHub wiki — it's mirrored 1:1 into the wiki by
 `.github/workflows/wiki-sync.yml` on every push to `develop` that touches `documentation/**` —
-but `README.md`, `CLAUDE.md`, and any other doc file (e.g. `backend/.env.example`) can drift
+but `README.md`, `CLAUDE.md`, the rule and context files under `.claude/rules/` and
+`.claude/context/`, and any other doc file (e.g. `backend/.env.example`) can drift
 out of sync with the code just as easily, and should be checked and updated in the same pass
 rather than treated as someone else's job.
 
@@ -56,8 +57,12 @@ files, not `documentation/`'s filesystem-safe filenames.
 7. Check `README.md` for the same change: API behavior, prerequisites, available tasks,
    project structure tree, or examples that no longer match reality. Update it directly (not
    via the wiki-sync path — `README.md` isn't mirrored anywhere).
-8. Check `CLAUDE.md` too: module list, API shape, container setup, tasks, conventions, or
-   project structure that changed. Update it directly.
+8. Check the assistant context too. `CLAUDE.md` is only a router; the detail lives in
+   `.claude/rules/` (one file per area, loaded by path) and `.claude/context/` (workflow, PR
+   checklist, skills). `.claude/context/claude-code.md` has the map from "what you changed" to
+   "which file to update". Update the module list, API shape, container setup, tasks or
+   conventions there directly, and keep `CLAUDE.md` itself under 100 lines (a test enforces it).
+   The project tree lives only in `README.md`.
 9. Check any other standalone doc referenced by the change (e.g. `backend/.env.example`) and
    update it if it's now stale, rather than assuming it's someone else's responsibility.
 10. Newcomer Guide: if the change alters the architecture, request flow, tooling, commands or

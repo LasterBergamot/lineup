@@ -4,7 +4,7 @@
 Closes #N / Refs #M
 
 ## Docs
-- Updated: … (README / CLAUDE.md / `documentation/` pages), or `No doc impact: <reason>` (and add the `no-docs` label)
+- Updated: … (README / CLAUDE.md / `.claude/rules` or `.claude/context` / `documentation/` pages), or `No doc impact: <reason>` (and add the `no-docs` label)
 
 ## Test plan
 - [ ] `task lint`

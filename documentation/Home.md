@@ -10,8 +10,9 @@ saved roster instead of a one-off request payload.
 - New here? Read the [[Newcomer Guide]] (what each tool is and why we use it, a glossary, one
   request walked through the code, how to make a first change). The repo's `README.md` covers
   setup and running; then read [[Current State: Backend]].
-- Day-to-day project context lives in the repo's `CLAUDE.md` (architecture, conventions,
-  dev workflow). This wiki is for the higher-level narrative and diagrams that don't belong
+- Day-to-day project context for AI assistants lives in the repo: `CLAUDE.md` is a short router
+  that points at `.claude/rules/` (conventions per area, loaded when you touch that area) and
+  `.claude/context/` (workflow, PR checklist). This wiki is for the higher-level narrative and diagrams that don't belong
   in either of those.
 
 ## Guides and references

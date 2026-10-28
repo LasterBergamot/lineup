@@ -1,11 +1,11 @@
 ---
 name: triage-dependabot
-description: Check open Dependabot security alerts and version-update PRs for LasterBergamot/lineup, classify each PR as blocking or non-blocking per CLAUDE.md, and (after the user confirms) rebase/merge the safe ones and bring the current branch up to date. Use before opening any PR (create-pr runs it), or when asked about dependency updates, Dependabot, or security alerts.
+description: Check open Dependabot security alerts and version-update PRs for LasterBergamot/lineup, classify each PR as blocking or non-blocking per `.claude/context/pr-checklist.md`, and (after the user confirms) rebase/merge the safe ones and bring the current branch up to date. Use before opening any PR (create-pr runs it), or when asked about dependency updates, Dependabot, or security alerts.
 model: sonnet
 ---
 
-This puts into practice the Dependabot rule in `CLAUDE.md` ("Before creating a PR …"). Read
-that section first; if it and this skill disagree, CLAUDE.md wins and this file is stale.
+This puts into practice the Dependabot rule in `.claude/context/pr-checklist.md`. Read that
+file first; if it and this skill disagree, the checklist wins and this file is stale.
 
 Everything up to step 4 is read-only. Rebasing, merging and commenting are state-changing:
 list what you intend to do and get an explicit go-ahead first.

@@ -1,5 +1,6 @@
 """Tests for the repo-level docs tooling in ../scripts and the wiki-sync page map."""
 
+import glob
 import importlib.util
 import os
 import re
@@ -239,7 +240,14 @@ class TestCheckDocsTouched:
         assert "no-docs" in result.stderr
 
     @pytest.mark.parametrize(
-        "docs_file", ["README.md", "CLAUDE.md", "documentation__Home.md"]
+        "docs_file",
+        [
+            "README.md",
+            "CLAUDE.md",
+            "documentation__Home.md",
+            ".claude__rules__backend-api.md",
+            ".claude__context__workflow.md",
+        ],
     )
     def test_passes_when_docs_change_alongside_code(self, git_repo, docs_file):
         _commit(git_repo, **{"Taskfile.yml": "x", docs_file: "changed"})
@@ -264,3 +272,67 @@ class TestWikiSyncPageMap:
         mapped = set(re.findall(r'\["([^"]+\.md)"\]=', workflow))
         pages = {path.name for path in (REPO_ROOT / "documentation").glob("*.md")}
         assert pages == mapped
+
+
+CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+RULES_DIR = REPO_ROOT / ".claude" / "rules"
+MAX_ROUTER_LINES = 100
+
+
+def _rule_globs(rule: Path) -> list[str] | None:
+    """Return the `paths:` globs from a rule file's frontmatter, or None if it has none."""
+    match = re.match(r"---\n(.*?)\n---\n", rule.read_text(), re.DOTALL)
+    if match is None or "paths:" not in match.group(1):
+        return None
+    return re.findall(r'^\s*-\s*"([^"]+)"\s*$', match.group(1), re.MULTILINE)
+
+
+class TestClaudeContextRouter:
+    """`CLAUDE.md` is a router: it stays small and every rule and target it names is real."""
+
+    def test_router_stays_small(self):
+        lines = CLAUDE_MD.read_text().count("\n")
+        assert lines <= MAX_ROUTER_LINES, (
+            f"CLAUDE.md has {lines} lines (max {MAX_ROUTER_LINES}). Move detail into "
+            ".claude/rules/ (path-scoped) or .claude/context/ so every session isn't loading it."
+        )
+
+    def test_every_path_the_router_names_exists(self):
+        tokens = re.findall(r"`([^`\s]+)`", CLAUDE_MD.read_text())
+        paths = {
+            token
+            for token in tokens
+            if re.fullmatch(r"[\w./-]+", token)
+            and ("/" in token or token.endswith(".md"))
+            and not token.startswith(("./", "/"))
+        }
+        missing = sorted(path for path in paths if not (REPO_ROOT / path).exists())
+        assert not missing, f"CLAUDE.md names paths that don't exist: {missing}"
+
+    def test_every_rule_is_path_scoped(self):
+        """A rule without `paths:` loads at session start, which defeats the router."""
+        rules = sorted(RULES_DIR.glob("*.md"))
+        assert rules, "expected rule files in .claude/rules/"
+        unscoped = [rule.name for rule in rules if not _rule_globs(rule)]
+        assert not unscoped, f"rules without `paths:` frontmatter: {unscoped}"
+
+    @pytest.mark.parametrize(
+        "rule", sorted(RULES_DIR.glob("*.md")), ids=lambda p: p.name
+    )
+    def test_every_glob_matches_a_file(self, rule):
+        for pattern in _rule_globs(rule) or []:
+            hits = glob.glob(
+                pattern, root_dir=REPO_ROOT, recursive=True, include_hidden=True
+            )
+            assert hits, f"{rule.name}: glob {pattern!r} matches nothing"
+
+    def test_every_rule_is_named_in_the_router(self):
+        router = CLAUDE_MD.read_text()
+        unlisted = [
+            rule.name
+            for rule in RULES_DIR.glob("*.md")
+            if f".claude/rules/{rule.name}" not in router
+        ]
+        assert not unlisted, (
+            f"rules missing from the CLAUDE.md router table: {unlisted}"
+        )
