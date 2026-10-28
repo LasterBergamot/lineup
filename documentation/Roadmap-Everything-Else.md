@@ -40,6 +40,19 @@ flowchart LR
   published from it. Once CD exists, each merge deploys to dev.
 - `main` only moves on a release (a `develop` → `main` PR) or a hotfix. Releases will later
   create the `vX.Y.Z` tag and deploy to prod.
+- **Versions (planned, #17):** one repo-wide SemVer tag `vX.Y.Z` covers backend and frontend, because the
+  frontend's API client is generated from the backend's spec and the two move together. A manually triggered
+  `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub
+  Release with notes from the merged PRs. (`python-semantic-release` was dropped: it reads Conventional Commits,
+  and our commits are `#N - subject`.) Pre-1.0 tags are cut from `develop` when a feature set lands on dev;
+  `v1.0.0` and later come from `main`. Container images are tagged `lineup:<version>`, so an older version can be
+  deployed. Going back is easy for code but not for the database: Alembic migrations only go forward in
+  practice, so a rollback across a schema change needs expand/contract migrations.
+- **Supabase keep-alive (planned, #156):** the free tier pauses a project after about a week without activity,
+  and Supabase Auth with it. A GitHub Actions cron runs twice a week (so one failed run isn't enough to let it
+  pause) and sends `SELECT 1` through the pooler; once the API is deployed it also calls `/health?db=1`. GitHub
+  disables scheduled workflows after 60 days without repo activity, so after a long break check the Actions tab
+  (details in `PLAN.md` §5.3).
 - A separate test/staging environment was considered and dropped: with a handful of users,
   dev already is the place to try things before prod.
 
