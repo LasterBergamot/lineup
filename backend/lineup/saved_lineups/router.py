@@ -18,6 +18,11 @@ from lineup.saved_lineups.schemas import (
     SavedLineupResponse,
 )
 from lineup.api.file_response import FileFormat, build_file_response
+from lineup.security.rate_limit import (
+    RATE_LIMIT_RESPONSES,
+    generate_ip_limit,
+    generate_user_limit,
+)
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
 
 router = APIRouter(prefix="/lineups/saved", tags=["saved-lineups"])
@@ -49,7 +54,12 @@ async def list_saved_lineups(
     return PaginatedSavedLineups(items=items, total=total, limit=limit, offset=offset)
 
 
-@router.post("", response_model=SavedLineupResponse, status_code=201)
+@router.post(
+    "",
+    response_model=SavedLineupResponse,
+    status_code=201,
+    responses={413: {"description": "Request body larger than the server limit."}},
+)
 async def create_saved_lineup(
     body: SavedLineupCreate,
     session: AsyncSession = Depends(get_session),
@@ -88,7 +98,13 @@ async def delete_saved_lineup(
     await service.delete_saved_lineup(session, lineup_id=lineup_id, user_id=user_id)
 
 
-@router.post("/{lineup_id}/generate")
+@router.post(
+    "/{lineup_id}/generate",
+    # The same two limits as POST /lineups: both cost a LibreOffice conversion. The per-IP one
+    # runs before sign-in, the per-user one after it.
+    dependencies=[Depends(generate_ip_limit), Depends(generate_user_limit)],
+    responses=RATE_LIMIT_RESPONSES,
+)
 async def generate_from_saved_lineup(
     lineup_id: uuid.UUID,
     file_format: Annotated[
@@ -98,7 +114,10 @@ async def generate_from_saved_lineup(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> Response:
-    """Generate a document from a previously saved lineup."""
+    """Generate a document from a previously saved lineup.
+
+    Rate limited (429 with `Retry-After`) because PDF conversion is expensive.
+    """
     lineup_response = await service.get_saved_lineup_or_404(
         session, lineup_id=lineup_id, user_id=user_id
     )

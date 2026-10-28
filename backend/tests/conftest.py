@@ -9,13 +9,28 @@ from app import app
 from lineup.auth.dependencies import get_current_user_id
 from lineup.db.base import Base
 from lineup.db.engine import enable_sqlite_foreign_keys, get_session
+from lineup.security.rate_limit import reset_limiters
 
-# ── Existing sync fixture (used by test_api.py — kept exactly as before) ──────
+# ── Sync fixtures (used by test_api.py) ───────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """The limiters keep their counters in module state: start every test from zero."""
+    reset_limiters()
+    yield
+    reset_limiters()
 
 
 @pytest.fixture
-def client():
-    return TestClient(app)
+def client(current_user):
+    """A TestClient signed in as `current_user` (POST /lineups needs a token).
+
+    Tests that need an anonymous caller build `TestClient(app)` themselves.
+    """
+    app.dependency_overrides[get_current_user_id] = lambda: current_user.id
+    yield TestClient(app)
+    app.dependency_overrides.pop(get_current_user_id, None)
 
 
 @pytest.fixture

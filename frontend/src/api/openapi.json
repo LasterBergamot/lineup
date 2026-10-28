@@ -1013,7 +1013,7 @@
     },
     "/lineups": {
       "post": {
-        "description": "Generate a lineup sheet from the request body and return it as a file download.\n\n`format=pdf` (default) converts through LibreOffice, which only exists in the container;\n`format=docx` returns the filled template directly. Nothing is stored.",
+        "description": "Generate a lineup sheet from the request body and return it as a file download.\n\nRequires a signed-in user and is rate limited (429 with `Retry-After`) because PDF conversion\nis expensive. `format=pdf` (default) converts through LibreOffice, which only exists in the\ncontainer; `format=docx` returns the filled template directly. Nothing is stored.",
         "operationId": "create_lineup_lineups_post",
         "parameters": [
           {
@@ -1047,6 +1047,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Missing or invalid access token."
+          },
+          "413": {
+            "description": "Request body larger than the server limit."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1056,8 +1062,16 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests; wait for the `Retry-After` seconds."
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Lineup",
         "tags": [
           "lineups"
@@ -1185,6 +1199,9 @@
             },
             "description": "Successful Response"
           },
+          "413": {
+            "description": "Request body larger than the server limit."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1298,7 +1315,7 @@
     },
     "/lineups/saved/{lineup_id}/generate": {
       "post": {
-        "description": "Generate a document from a previously saved lineup.",
+        "description": "Generate a document from a previously saved lineup.\n\nRate limited (429 with `Retry-After`) because PDF conversion is expensive.",
         "operationId": "generate_from_saved_lineup_lineups_saved__lineup_id__generate_post",
         "parameters": [
           {
@@ -1341,6 +1358,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests; wait for the `Retry-After` seconds."
           }
         },
         "security": [

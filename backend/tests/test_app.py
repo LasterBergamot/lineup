@@ -125,10 +125,125 @@ class TestCors:
         assert response.status_code == 400
 
 
+@pytest.fixture
+def reload_with_env(monkeypatch):
+    """Reloads `app` with the given environment variables (a None value = unset)."""
+
+    def _reload(**env: str | None) -> TestClient:
+        for name, value in env.items():
+            if value is None:
+                monkeypatch.delenv(name, raising=False)
+            else:
+                monkeypatch.setenv(name, value)
+        importlib.reload(app_module)
+        return TestClient(app_module.app)
+
+    return _reload
+
+
+DOC_PATHS = ["/docs", "/redoc", "/openapi.json"]
+
+
+class TestDocsExposure:
+    def test_docs_are_served_by_default(self, reload_with_env):
+        client = reload_with_env(DOCS_ENABLED=None, ENV=None)
+        assert [client.get(p).status_code for p in DOC_PATHS] == [200, 200, 200]
+
+    def test_docs_can_be_switched_off(self, reload_with_env):
+        client = reload_with_env(DOCS_ENABLED="false", ENV=None)
+        assert [client.get(p).status_code for p in DOC_PATHS] == [404, 404, 404]
+
+    def test_production_forces_the_docs_off(self, reload_with_env):
+        client = reload_with_env(DOCS_ENABLED="true", ENV="production")
+        assert [client.get(p).status_code for p in DOC_PATHS] == [404, 404, 404]
+
+    def test_the_openapi_spec_can_still_be_dumped_offline(self, reload_with_env):
+        """scripts/dump_openapi.py calls app.openapi() directly; it needs no route."""
+        reload_with_env(DOCS_ENABLED="false", ENV="production")
+        spec = app_module.app.openapi()
+        assert "/lineups" in spec["paths"]
+
+
+class TestProductionStartup:
+    def test_refuses_to_start_with_an_insecure_config(
+        self, reload_with_env, monkeypatch
+    ):
+        reload_with_env(ENV="production")
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("SUPABASE_URL", raising=False)
+        with pytest.raises(ValueError, match="Refusing to start"):
+            with TestClient(app_module.app):
+                pass
+
+    def test_refuses_a_database_url_without_tls(self, reload_with_env, monkeypatch):
+        reload_with_env(ENV="production", SUPABASE_URL="https://abc.supabase.co")
+        monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@h:6543/postgres")
+        with pytest.raises(ValueError, match="ssl=require"):
+            with TestClient(app_module.app):
+                pass
+
+    def test_starts_with_a_complete_production_config(
+        self, reload_with_env, monkeypatch
+    ):
+        reload_with_env(ENV="production", SUPABASE_URL="https://abc.supabase.co")
+        monkeypatch.setenv(
+            "DATABASE_URL", "postgresql+asyncpg://u:p@h:6543/postgres?ssl=verify-full"
+        )
+        with TestClient(app_module.app) as client:
+            assert client.get("/health").status_code == 200
+
+    def test_development_start_is_not_validated(self, reload_with_env, monkeypatch):
+        reload_with_env(ENV=None)
+        monkeypatch.delenv("SUPABASE_URL", raising=False)
+        with TestClient(app_module.app) as client:
+            assert client.get("/health").status_code == 200
+
+
+class TestMiddlewareStack:
+    def test_security_headers_are_on_a_preflight(self, reload_app):
+        client = reload_app("http://localhost:5173")
+        response = client.options(
+            "/lineups",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["x-content-type-options"] == "nosniff"
+
+    def test_a_413_still_carries_cors_headers_so_the_browser_can_read_it(
+        self, reload_app
+    ):
+        client = reload_app("http://localhost:5173")
+        response = client.post(
+            "/lineups",
+            content=b"x" * (300 * 1024),
+            headers={
+                "Origin": "http://localhost:5173",
+                "Content-Type": "application/json",
+            },
+        )
+        assert response.status_code == 413
+        assert (
+            response.headers["access-control-allow-origin"] == "http://localhost:5173"
+        )
+        assert response.headers["x-frame-options"] == "DENY"
+
+
 def teardown_module(module):
     import os
 
     os.environ.pop("SENTRY_DSN", None)
     os.environ.pop("CORS_ORIGINS", None)
+    os.environ.pop("DOCS_ENABLED", None)
+    os.environ.pop("ENV", None)
+    os.environ.pop("DATABASE_URL", None)
+    os.environ.pop("SUPABASE_URL", None)
+    os.environ.pop("MAX_BODY_BYTES", None)
+    os.environ.pop("CLIENT_IP_HEADER", None)
+    os.environ.pop("RATE_LIMIT_GENERATE_PER_IP", None)
+    os.environ.pop("RATE_LIMIT_GENERATE_PER_USER", None)
     with patch("sentry_sdk.init"):
         importlib.reload(app_module)

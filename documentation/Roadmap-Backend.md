@@ -20,6 +20,19 @@ serves the recently used opponents. Nobody can be *added* to a team yet. Still a
    are stored only as a SHA-256 hash; members list; leave / transfer ownership.
 2. **Replace the interim RLS policy** (#21) with team-scoped ones using the same membership rule.
 
+## Public exposure: what is done and what is left
+
+Done in #96 (see *Hardening for public exposure* in [[Current State: Backend]]): security headers,
+`Cache-Control: no-store`, a request body cap, rate limits on both generate endpoints, sign-in on
+`POST /lineups`, API docs off in production and a startup check that refuses an insecure
+`ENV=production` configuration. Still ahead:
+
+- Rate limits for invite preview/accept, added with the invitation endpoints (#51).
+- Move the limiter's counters to a shared store before running more than one API instance (today they
+  are per process, which is fine for a single scale-to-zero machine).
+- Move `DATABASE_URL` from `ssl=require` (encrypted, certificate not checked) to `ssl=verify-full`
+  with the Supabase CA once the production project exists; the startup check already accepts it.
+
 ## Supabase & OAuth integration
 
 1. **Authentication**

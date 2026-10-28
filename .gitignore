@@ -9,6 +9,9 @@ docs/
 .env.*
 !.env.example
 
+# Throw-away signing key made by `task test-e2e`
+.e2e-auth/
+
 # Local SQLite database (default DATABASE_URL)
 lineup.db
 

@@ -49,8 +49,11 @@ router serialises back through the response schema.
 
 ### Entry points
 
-- `app.py` — builds the FastAPI app, registers the four routers, optionally initialises Sentry,
-  and (unless `ENV=production`) creates missing tables on startup.
+- `app.py` — builds the FastAPI app, registers the routers and the security middleware,
+  optionally initialises Sentry, checks the production config on startup (fail closed) and
+  (unless `ENV=production`) creates missing tables on startup.
+- `lineup/security/` — API hardening: security headers, body size cap, rate limiter and the
+  startup config check, see [Hardening for public exposure](#hardening-for-public-exposure).
 - `main.py` — a small CLI that generates one hard-coded lineup to `resources/modified_rajtlista.docx`
   (`task run`); handy for trying the template without the API.
 - `lineup/db/engine.py` — creates the async SQLAlchemy engine from `DATABASE_URL` (details
@@ -62,16 +65,17 @@ router serialises back through the response schema.
 
 **Who may call what.** Every route needs a signed-in user (`Authorization: Bearer <Supabase access
 token>`) — otherwise `401 {"detail":"Not authenticated"}` — except: `GET /health` (probes must work
-without a login), the API docs (`/docs`, `/redoc`, `/openapi.json`) and `POST /lineups` (below).
+without a login) and the API docs (`/docs`, `/redoc`, `/openapi.json`, which are switched off when
+`ENV=production`, see [Hardening for public exposure](#hardening-for-public-exposure)).
 `tests/test_auth_dependencies.py` walks every registered route and fails if a new one is reachable
 without a token and is not on that short public list.
 
 ### Document generation
 
-`POST /lineups` is deliberately still **public**: it is stateless (nothing is read or stored), so
-there is no data to protect, and the e2e suite drives it against the container without a token.
-The catch is that it starts LibreOffice, so a public deployment needs rate limiting or a login on
-it before anyone outside the team can reach it — tracked in #96 (API hardening), a Phase 4 gate.
+`POST /lineups` is stateless (nothing is read or stored) but it starts LibreOffice, so anyone
+who could call it freely could exhaust a small machine. Since #96 it **requires sign-in** like every
+other data route and is rate limited (below). The end-to-end suite signs in with a throw-away key
+(`scripts/e2e_keys.py`, `compose.e2e.yml`).
 
 `POST /lineups?format=pdf|docx` — fills the template, converts to PDF (default) or returns
 DOCX directly, streams the file back with a `Content-Disposition: attachment` header.
@@ -90,6 +94,9 @@ so rendering, headers and error handling live in one place:
   team name with Hungarian `ő`/`ű` (or a `"`/`;`) can't go into a plain `filename="..."`. The
   header carries the real name in the RFC 6266 `filename*=UTF-8''...` form plus an
   accent-stripped ASCII `filename="..."` fallback for older clients.
+- **Limits**: both endpoints share a per-user (default 10/min) and a per-IP (30/min) rate limit and
+  answer **429** with `Retry-After` when exceeded; see
+  [Hardening for public exposure](#hardening-for-public-exposure).
 - **Errors**: a LibreOffice timeout returns **504** `"PDF conversion timed out"`; any other
   rendering failure returns **500** `"Document generation failed"` (details go to the log).
 - **Concurrency limit**: every PDF is a separate LibreOffice process (a few hundred MB each), so a burst
@@ -522,3 +529,29 @@ is a `404` (indistinguishable from an unknown id, so the API never confirms it e
 the `owner` role gets `403` for owner-only actions (rename, list/unlist, delete). Members are added by
 invitation links, which are the next step (see [[Roadmap: Backend]]). Using Supabase Postgres for the
 database is independent of this. Setup steps for Google and Supabase: [[Auth Setup]].
+
+## Hardening for public exposure
+
+Added in #96 before the API became reachable from the internet. Everything lives in
+`lineup/security/` and is wired up in `app.py`. The pattern is the same as `parse_cors_origins`:
+a small function reads an environment variable and raises `ValueError` with the variable's name,
+so a typo stops the deploy instead of silently weakening it.
+
+| Measure | Where | Behaviour |
+|---|---|---|
+| Security headers | `headers.py` (ASGI middleware) | Every response carries `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'`, `Permissions-Policy` and `Cache-Control: no-store`. `no-store` is on *every* response because every payload is personal data (rosters, lineups) or a generated document containing it |
+| Body size cap | `body_limit.py` | Bodies over `MAX_BODY_BYTES` (default 256 KiB) get `413`. A declared `Content-Length` is refused before reading anything; chunked bodies are counted while they stream |
+| Rate limits | `rate_limit.py` | Sliding window, 60 s, in memory. `POST /lineups` and `POST /lineups/saved/{id}/generate` share one per-IP budget (`RATE_LIMIT_GENERATE_PER_IP`, 30) that is checked before sign-in, and one per-user budget (`RATE_LIMIT_GENERATE_PER_USER`, 10). Over the limit: `429` + `Retry-After`. Neither the IP nor the user id is logged |
+| Docs exposure | `config.py` | `/docs`, `/redoc`, `/openapi.json` are served unless `DOCS_ENABLED=false`, and are always off with `ENV=production`. The frontend's client is generated offline by `scripts/dump_openapi.py` (`app.openapi()`), which needs no route |
+| Fail-closed production config | `config.py`, called from the app's lifespan | With `ENV=production` startup raises unless `DATABASE_URL` is set, uses `postgresql+asyncpg` and has `ssl=require` or `ssl=verify-full` (`sslmode=` also accepted), and `SUPABASE_URL` is set. `require` encrypts but does not verify the server certificate, so it logs a warning; `verify-full` needs the Supabase CA and is the goal. The check runs at startup, not at import, so tests and `dump_openapi.py` can import the app |
+
+Middleware order matters. Each `add_middleware` wraps what came before, so the security headers are
+outermost (even a `413` or a CORS preflight carries them), CORS is in the middle (so the browser can
+read a `413`) and the body limit is innermost.
+
+**Limits of the in-memory limiter.** The counters live in the process, so a restart forgets them and
+each instance counts alone. That is fine for the planned single scale-to-zero Fly machine; before
+running several instances, move the counters to a shared store. The per-IP limit needs the real client
+address: behind Fly's proxy the TCP peer is the proxy, so set `CLIENT_IP_HEADER=Fly-Client-IP` (Fly
+overwrites that header on every request). Do not point it at `X-Forwarded-For`, which a client can
+extend. Invite preview/accept limits are added with the invitation endpoints (#51).

@@ -148,8 +148,8 @@ sequenceDiagram
 
 `/` shows the one-off lineup form (`src/features/lineup/`), the UI for `POST /lineups`: match data
 (match, division, team name, cap colour, date), five staff names and 1 to 15 players (cap number,
-name, NSSZ number). Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, even
-though the endpoint it calls is still public (see #96); the token is sent along anyway.
+name, NSSZ number). Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
+since #96 the endpoint it calls requires the token too (rate limited: a `429` comes with `Retry-After`).
 
 - **Validation twice.** `schema.ts` mirrors the backend's limits (`CleanStr*` types and the
   `LineupRequest` validators): trimmed, required, length-capped, no control characters, cap numbers

@@ -18,7 +18,7 @@ echo `DATABASE_URL`.
 
 ```bash
 task db:status                      # must say "postgres (Supabase pooler: …)"
-curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/docs   # is something already on :8000?
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/health   # is something already on :8000?
 ```
 
 - If `db:status` reports SQLite, ask before running `task db:postgres`, since it edits
@@ -53,7 +53,7 @@ it works even if `.env` already sets the real project URL:
 cd backend && set -a && . ./.env && set +a && SUPABASE_URL=http://127.0.0.1:54399 uv run uvicorn app:app
 ```
 
-Wait until `/docs` answers 200. The local server has no LibreOffice, so it renders DOCX only.
+Wait until `/health` answers 200 (`/docs` is off under `ENV=production`, which the Supabase `.env` sets; startup also fails closed unless `DATABASE_URL` has `ssl=` and `SUPABASE_URL` is set). The local server has no LibreOffice, so it renders DOCX only.
 
 ## 3. Exercise the API
 
