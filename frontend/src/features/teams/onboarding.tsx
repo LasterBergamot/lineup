@@ -1,7 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { CreateTeamForm } from "@/features/teams/create-team-form";
+
+const INVITE_EXAMPLE = "https://…/join/…";
 
 /**
  * First-run screen for a signed-in user who belongs to no team yet. Everything in the app
@@ -10,22 +13,17 @@ import { CreateTeamForm } from "@/features/teams/create-team-form";
  * link field is visible but disabled, to say where that path will be rather than hide it.
  */
 export function Onboarding() {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Welcome to Lineup</h1>
-        <p className="text-muted-foreground">
-          You&apos;re not in a team yet. Create your team to start, or join one you&apos;ve been
-          invited to.
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">{t("teams.onboarding.title")}</h1>
+        <p className="text-muted-foreground">{t("teams.onboarding.intro")}</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Create a team</CardTitle>
-          <CardDescription>
-            A team is your club&apos;s shared workspace: its roster and saved lineups. You become
-            its owner.
-          </CardDescription>
+          <CardTitle>{t("teams.onboarding.createTitle")}</CardTitle>
+          <CardDescription>{t("teams.onboarding.createDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <CreateTeamForm />
@@ -33,15 +31,13 @@ export function Onboarding() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Join with an invite link</CardTitle>
-          <CardDescription>
-            Coming soon: open the link your team owner sent you, or paste it here.
-          </CardDescription>
+          <CardTitle>{t("teams.onboarding.joinTitle")}</CardTitle>
+          <CardDescription>{t("teams.onboarding.joinDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Field label="Invite link">
+          <Field label={t("fields.inviteLink")}>
             {(props) => (
-              <Input {...props} disabled placeholder="https://…/join/…" aria-disabled="true" />
+              <Input {...props} disabled placeholder={INVITE_EXAMPLE} aria-disabled="true" />
             )}
           </Field>
         </CardContent>

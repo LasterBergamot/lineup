@@ -1,3 +1,6 @@
+import type { TFunction } from "i18next";
+import { i18n } from "@/i18n";
+
 /** A failed API call. `status` is the HTTP status, or 0 when no response arrived at all. */
 export class ApiError extends Error {
   readonly status: number;
@@ -64,6 +67,9 @@ export interface FieldError {
  * Pulls per-field messages out of a FastAPI/Pydantic 422 body. These are validation sentences
  * written by us or Pydantic (never echoes of the input), so they are safe to show next to the
  * field. Entries that do not point at a request body field are skipped.
+ *
+ * The sentences are English only: they come from the server and are shown as received. Known
+ * gap of the Hungarian UI (#155); client-side validation, which runs first, is translated.
  */
 export function fieldErrors(error: unknown): FieldError[] {
   if (!(error instanceof ApiError) || error.status !== 422) return [];
@@ -79,20 +85,24 @@ export function fieldErrors(error: unknown): FieldError[] {
   return found;
 }
 
-/** A short, user-facing sentence for a failure. Deliberately generic: no server text is shown. */
-export function describeError(error: unknown): string {
-  if (!(error instanceof ApiError)) return "Something went wrong. Please try again.";
+/**
+ * A short, user-facing sentence for a failure, in the current UI language. Deliberately
+ * generic: no server text is shown. Components pass the `t` from `useTranslation()` so the
+ * sentence re-renders when the language switches; without it the global instance is used.
+ */
+export function describeError(error: unknown, t: TFunction = i18n.t): string {
+  if (!(error instanceof ApiError)) return t("errors.unknown");
   switch (error.status) {
     case 0:
-      return "Can't reach the server. Check your connection and try again.";
+      return t("errors.network");
     case 422:
-      return "Some of the entered details were rejected. Please check them and try again.";
+      return t("errors.rejected");
     case 502:
     case 503:
-      return "The server is busy or starting up. Please try again in a moment.";
+      return t("errors.busy");
     case 504:
-      return "The server took too long to respond. Please try again.";
+      return t("errors.timeout");
     default:
-      return "Something went wrong on our side. Please try again.";
+      return t("errors.server");
   }
 }

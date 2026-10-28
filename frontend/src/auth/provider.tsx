@@ -67,7 +67,7 @@ export function AuthProvider({ children, client }: { children: ReactNode; client
       provider: "google",
       options: { redirectTo: `${window.location.origin}/sign-in` },
     });
-    return error ? "We couldn't start the sign-in. Please try again." : null;
+    return error ? "start-failed" : null;
   }, [auth]);
 
   const signOut = useCallback(async () => {

@@ -45,7 +45,7 @@ before the public deploy, and the public deploy comes before inviting anyone.
 | D9 | **Milestones:** **"M3 – Dev preview"** holds the dev-preview work (auth, teams and invitations, UI, dev deployment); **"M2 – Prod"** is the prod milestone. Phase 1 issues stay in M1, since Phase 1 is a subset of it. | Decided |
 | D10 | **Team/ownership model:** teams as workspaces, owner + member roles, multi-use invite links, name-only public opponent directory, invite links that expire after 24 h by default (see §6). | Decided |
 | D11 | **UI theme: Polaris** (tweakcn, shadcn tokens). Its spec lives in `frontend/DESIGN.md`. AstroVista was dropped. | Decided |
-| D12 | **UI language: Hungarian by default, English selectable** (react-i18next, #155). Done first in Phase 6 so every new screen uses `t()` from the start; the choice is kept in localStorage (disclose in #94). The `.docx` template and the API are unchanged. | Decided |
+| D12 | **UI language: Hungarian by default, English selectable** (react-i18next, #155). Done first in Phase 6 so every new screen uses `t()` from the start; the choice is kept in localStorage under `lineup-lang` (disclose in #94). The `.docx` template and the API are unchanged. Server 422 sentences from the API stay English until the backend returns error codes. | Decided |
 | D13 | **Versions: one repo-wide SemVer tag `vX.Y.Z`** for backend and frontend (the FE client is generated from the backend spec, so they move together). A manual `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub Release; pre-1.0 tags are cut from `develop` when a feature set lands on dev, `v1.0.0`+ from `main`. Images are tagged `lineup:<version>` so an older version can be deployed; going back needs expand/contract migrations (#17). | Decided |
 
 ### Supabase JS and the "disabled API"
@@ -157,8 +157,10 @@ must be done:
       `/join/:code` page that survives the Google sign-in round trip.
 
 ### Phase 6 — Feature-complete UI
-- [ ] #155 i18n (hu default, en), **first**: the existing screens (sign-in, onboarding, lineup form,
+- [x] #155 i18n (hu default, en), **first**: the existing screens (sign-in, onboarding, lineup form,
       backend banner) are converted in the same item, so the screens below use `t()` from the start (D12).
+      New screens must add their texts to `frontend/src/i18n/locales/{hu,en}.json` (ESLint fails on a
+      hard-coded string in a component).
 - [ ] **new** Roster management (teams, players, opponent directory search)
 - [ ] **new** Lineup creator: roster pick or free text, cap-number validation, opponent combobox
       (directory + recent opponents + free text), Preview panel.
@@ -424,3 +426,4 @@ Endpoints (amends #51):
 | 2026-10-28 | Phase 3 rolled out on the dev Supabase project: migrations `a3d5f7c91e26` and `e5b8c2d41f70` applied through the session pooler (they delete the pre-auth dev rows), `supabase-smoke` passed as `lineup_app` (team, player, saved lineup, DOCX generate, delete), the Google OAuth client and Supabase Google provider set up per `Auth-Setup.md`, and a real Google sign-in tried in the UI (onboarding, team, API calls with the token). | #101, #129, PR #153 |
 | 2026-10-28 | Plan amended: i18n added as D12 and the first Phase 6 item (#155), versions and releases as D13 (#17 moved to M3: one repo-wide `vX.Y.Z` tag, a manual `release` workflow instead of semantic-release because commits are `#N - subject`), and the Supabase keep-alive made twice-weekly with its own issue (#156, D8). Backlog issues #157–#164 filed (APM, Claude Code guard rails, Playwright, Schemathesis, mutation testing, PDF load test, dev container, Supabase backup). `CLAUDE.md` turned into a router with path-scoped rules (#154, PR #165) and skills pinned to model aliases (#76, PR #166), both merged. | #154, #155, #156, #17, #76, PR #167 |
 | 2026-10-28 | Phase 4: `keepalive.yml` (#156): `SELECT 1` through the Supabase pooler on Mondays and Thursdays (plus `workflow_dispatch`), `psql` from the runner and no third-party actions, accepts the app's asyncpg URL form. The owner still sets the `KEEPALIVE_DATABASE_URL` secret, runs it once by hand and checks two scheduled runs. | #156, PR #168 |
+| 2026-10-28 | Phase 6, #155: Hungarian by default, English selectable (react-i18next; `src/i18n/` with `hu.json` + `en.json`). Every existing screen uses `t()`; Zod schemas emit error keys that `Field` translates at render time, `describeError()` and the nav labels are translated, `<html lang>` follows the language, and the language switch is in the account panel and on the sign-in page. The choice is the only new storage (`lineup-lang`, strictly necessary preference). `eslint-plugin-i18next` (`no-literal-string`) fails the build on a hard-coded string. Checked in Chromium at 360 px and 1280 px. Known gap: server 422 sentences stay English. | #155, PR #172 |

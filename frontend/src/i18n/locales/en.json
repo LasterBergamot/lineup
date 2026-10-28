@@ -1,0 +1,134 @@
+{
+  "language": {
+    "label": "Language",
+    "hu": "Magyar",
+    "en": "English"
+  },
+  "common": {
+    "loading": "Loading",
+    "tryAgain": "Try again"
+  },
+  "nav": {
+    "sidebar": "Sidebar",
+    "bottom": "Bottom",
+    "lineup": "Lineup",
+    "roster": "Roster",
+    "saved": "Saved"
+  },
+  "theme": {
+    "switchToLight": "Switch to light theme",
+    "switchToDark": "Switch to dark theme"
+  },
+  "account": {
+    "signOut": "Sign out",
+    "role": {
+      "owner": "owner",
+      "member": "member",
+      "unknown": "unknown role"
+    }
+  },
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "description": "Sign in with your Google account to manage your team's roster and lineups.",
+      "continue": "Continue with Google",
+      "sessionEnded": "Your session has ended. Please sign in again.",
+      "startFailed": "We couldn't start the sign-in. Please try again."
+    }
+  },
+  "backend": {
+    "waking": "The server is starting up — this can take up to ~30 seconds on our free hosting. Thanks for your patience.",
+    "elapsed": "({{seconds, number}} s)",
+    "dbPaused": "The database is paused (free tier). Ask the app administrator to resume it; saved data is unavailable until then.",
+    "down": "We can't reach the server right now."
+  },
+  "errors": {
+    "unknown": "Something went wrong. Please try again.",
+    "network": "Can't reach the server. Check your connection and try again.",
+    "rejected": "Some of the entered details were rejected. Please check them and try again.",
+    "busy": "The server is busy or starting up. Please try again in a moment.",
+    "timeout": "The server took too long to respond. Please try again.",
+    "server": "Something went wrong on our side. Please try again.",
+    "serverRejectedFields": "The server rejected some of the details. Please check the highlighted fields."
+  },
+  "validation": {
+    "required": "{{field}} is required",
+    "tooLong": "{{field}} can be at most {{max, number}} characters",
+    "unsupportedCharacters": "{{field}} contains unsupported characters",
+    "capNumber": "Enter a cap number from 1 to 15",
+    "capColour": "Choose a cap colour",
+    "minPlayers": "Add at least one player",
+    "maxPlayers": "A lineup has at most {{max, number}} players",
+    "uniqueCapNumber": "Cap numbers must be unique",
+    "uniqueNssz": "NSSZ numbers must be unique"
+  },
+  "fields": {
+    "match": "Match",
+    "division": "Division",
+    "teamName": "Team name",
+    "capColour": "Cap colour",
+    "date": "Date",
+    "coach": "Coach",
+    "doctor": "Doctor",
+    "assistantCoach": "Assistant coach",
+    "teamLeader": "Team leader",
+    "ballThrower": "Ball thrower",
+    "capNo": "Cap no.",
+    "name": "Name",
+    "nsszNumber": "NSSZ number",
+    "inviteLink": "Invite link"
+  },
+  "lineup": {
+    "title": "Lineup",
+    "description": "Fill in the match and the players, then download the lineup sheet as PDF or DOCX. Nothing is saved.",
+    "sections": {
+      "match": "Match",
+      "staff": "Staff",
+      "players": "Players"
+    },
+    "playerCount": "({{count, number}} of {{max, number}})",
+    "addPlayer": "Add player",
+    "player": "Player {{number, number}}",
+    "removePlayer": "Remove player {{number, number}}",
+    "caps": {
+      "Fehér": "White",
+      "Kék": "Blue"
+    },
+    "slowPdf": "Generating the PDF — the first one after a break takes a bit longer.",
+    "downloaded": "Downloaded {{filename}}.",
+    "downloadPdf": "Download PDF",
+    "downloadDocx": "Download DOCX"
+  },
+  "teams": {
+    "onboarding": {
+      "title": "Welcome to Lineup",
+      "intro": "You're not in a team yet. Create your team to start, or join one you've been invited to.",
+      "createTitle": "Create a team",
+      "createDescription": "A team is your club's shared workspace: its roster and saved lineups. You become its owner.",
+      "joinTitle": "Join with an invite link",
+      "joinDescription": "Coming soon: open the link your team owner sent you, or paste it here."
+    },
+    "form": {
+      "teamNamePlaceholder": "e.g. SZVTK",
+      "listInDirectory": "List the team name in the opponent directory",
+      "listInDirectoryHint": "Other teams can then pick you as an opponent. Only the name is shown, never your roster or lineups. You can change this later.",
+      "submit": "Create team"
+    }
+  },
+  "pages": {
+    "notFound": {
+      "title": "Page not found",
+      "description": "That address doesn't match anything here.",
+      "back": "Back to the lineup"
+    },
+    "comingSoon": "Coming soon",
+    "roster": {
+      "title": "Roster",
+      "description": "Manage your team and its players once sign-in is available."
+    },
+    "saved": {
+      "title": "Saved lineups",
+      "description": "Browse, preview and re-generate the lineups you saved."
+    }
+  }
+}

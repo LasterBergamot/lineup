@@ -39,6 +39,8 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | Radix UI | Accessible primitives under shadcn components (`Slot` for `asChild`) | [radix-ui.com](https://www.radix-ui.com/primitives) |
 | React Router | Client-side routes and the navigation links | [reactrouter.com](https://reactrouter.com/) |
 | React Hook Form, Zod | Form state and the validation schema that mirrors the API's limits | [react-hook-form.com](https://react-hook-form.com/) · [zod.dev](https://zod.dev/) |
+| i18next, react-i18next, i18next-browser-languagedetector | Hungarian / English UI texts, the `t()` hook and the stored language choice (`lineup-lang`) | [i18next.com](https://www.i18next.com/) · [react.i18next.com](https://react.i18next.com/) · [detector](https://github.com/i18next/i18next-browser-languageDetector) |
+| eslint-plugin-i18next | `no-literal-string` rule: fails lint on a hard-coded UI string | [github.com/edvardchen/eslint-plugin-i18next](https://github.com/edvardchen/eslint-plugin-i18next) |
 | TanStack Query | Data fetching, caching, retries (cold-start handling) | [tanstack.com/query](https://tanstack.com/query) |
 | openapi-typescript, openapi-fetch | Generate the typed API client from the backend's OpenAPI spec | [openapi-ts.dev](https://openapi-ts.dev/) |
 | Fontsource (Google Sans Flex) | The Polaris font, served from our own origin (no Google Fonts request) | [fontsource.org](https://fontsource.org/) |
@@ -157,9 +159,12 @@ Direct dependencies from `frontend/package.json`.
 | `class-variance-authority` | runtime | [npm](https://www.npmjs.com/package/class-variance-authority) |
 | `clsx` | runtime | [npm](https://www.npmjs.com/package/clsx) |
 | `eslint` | dev | [npm](https://www.npmjs.com/package/eslint) |
+| `eslint-plugin-i18next` | dev | [npm](https://www.npmjs.com/package/eslint-plugin-i18next) |
 | `eslint-plugin-react-hooks` | dev | [npm](https://www.npmjs.com/package/eslint-plugin-react-hooks) |
 | `eslint-plugin-react-refresh` | dev | [npm](https://www.npmjs.com/package/eslint-plugin-react-refresh) |
 | `globals` | dev | [npm](https://www.npmjs.com/package/globals) |
+| `i18next` | runtime | [npm](https://www.npmjs.com/package/i18next) |
+| `i18next-browser-languagedetector` | runtime | [npm](https://www.npmjs.com/package/i18next-browser-languagedetector) |
 | `jsdom` | dev | [npm](https://www.npmjs.com/package/jsdom) |
 | `lucide-react` | runtime | [npm](https://www.npmjs.com/package/lucide-react) |
 | `openapi-fetch` | runtime | [npm](https://www.npmjs.com/package/openapi-fetch) |
@@ -168,6 +173,7 @@ Direct dependencies from `frontend/package.json`.
 | `react` | runtime | [npm](https://www.npmjs.com/package/react) |
 | `react-dom` | runtime | [npm](https://www.npmjs.com/package/react-dom) |
 | `react-hook-form` | runtime | [npm](https://www.npmjs.com/package/react-hook-form) |
+| `react-i18next` | runtime | [npm](https://www.npmjs.com/package/react-i18next) |
 | `react-router` | runtime | [npm](https://www.npmjs.com/package/react-router) |
 | `tailwind-merge` | runtime | [npm](https://www.npmjs.com/package/tailwind-merge) |
 | `tailwindcss` | dev | [npm](https://www.npmjs.com/package/tailwindcss) |

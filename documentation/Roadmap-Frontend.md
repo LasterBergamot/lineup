@@ -15,12 +15,13 @@ behind it and what is still to come. The step-by-step plan, with issue numbers, 
 | Auth | `@supabase/supabase-js` for Google sign-in only; all data goes through FastAPI, which validates the JWT | Supabase's Data API stays off, so there is one place for access rules |
 | Theme | Polaris (deep teal, amber, square corners, light and dark) | Spec in `frontend/DESIGN.md` |
 | Fonts | Self-hosted (Fontsource), no third-party requests | Google Fonts would send visitors' IPs to Google (GDPR, #97) |
-| Language | Hungarian by default, English selectable (react-i18next, #155); done first in Phase 6, before the other screens | The users and the generated document are Hungarian, and translating later would mean touching every screen twice. The choice is kept in localStorage (a strictly necessary preference, disclosed in the privacy notice, #94) |
+| Language | Hungarian by default, English selectable (react-i18next, #155; **built**, the other Phase 6 screens add their texts to the two locale files) | The users and the generated document are Hungarian, and translating later would mean touching every screen twice. The choice is kept in localStorage (a strictly necessary preference, disclosed in the privacy notice, #94) |
 
 ## Where we are
 
 Done: skeleton and tooling, the cold-start-aware data layer, the one-off lineup form that calls
-`POST /lineups`, and sign-in with team onboarding (see [[Current State: Frontend]]); the real Google
+`POST /lineups`, sign-in with team onboarding and the Hungarian / English UI (#155; see
+[[Current State: Frontend]]); the real Google
 sign-in still waits for the console setup in [[Auth Setup]]. Next (`PLAN.md`): deployment to
 Cloudflare Pages (Phase 4), invitations (Phase 5), then roster, lineup creator with previews and
 saved lineups (Phase 6).

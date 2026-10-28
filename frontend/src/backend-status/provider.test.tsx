@@ -4,6 +4,7 @@ import { BackendStatusBanner } from "@/backend-status/banner";
 import { useBackendStatus } from "@/backend-status/context";
 import type { Probe, ProbeResult } from "@/backend-status/health";
 import { BackendStatusProvider, WAKING_AFTER_MS } from "@/backend-status/provider";
+import { i18n } from "@/i18n";
 
 beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: false }));
 afterEach(() => {
@@ -55,6 +56,15 @@ describe("BackendStatusProvider", () => {
     await act(async () => pending[0]!.resolve("ok"));
     expect(status()).toBe("ready");
     expect(screen.queryByText(/starting up/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the banner in Hungarian, with the elapsed time formatted for that language", async () => {
+    await i18n.changeLanguage("hu");
+    const { probe } = manualProbe();
+    renderWith(probe);
+    await act(() => vi.advanceTimersByTimeAsync(WAKING_AFTER_MS + 3000));
+    expect(screen.getByText(/A szerver indul/)).toBeInTheDocument();
+    expect(screen.getByText("(4 mp)")).toBeInTheDocument();
   });
 
   it("never shows the banner when the API answers quickly", async () => {

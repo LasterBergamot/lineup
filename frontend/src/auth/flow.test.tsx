@@ -31,6 +31,17 @@ describe("signed out", () => {
     expect(listTeams).not.toHaveBeenCalled();
   });
 
+  it("offers the language switch before signing in", async () => {
+    renderApp("/sign-in", null);
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Magyar" }));
+    expect(screen.getByRole("heading", { name: "Bejelentkezés" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Folytatás Google-lal" })).toBeInTheDocument();
+    expect(localStorage.getItem("lineup-lang")).toBe("hu");
+    await userEvent.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+
   it("starts Google sign-in, returning to this site's /sign-in page", async () => {
     const { auth } = renderApp("/roster", null);
     await userEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));

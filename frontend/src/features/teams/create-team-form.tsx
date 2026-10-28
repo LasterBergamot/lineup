@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { describeError, fieldErrors } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { teamFormSchema, type TeamFormValues } from "@/features/teams/schema";
  * is what moves the user out of onboarding.
  */
 export function CreateTeamForm() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { userId } = useAuth();
   const {
@@ -45,12 +47,12 @@ export function CreateTeamForm() {
       onSubmit={handleSubmit((values) => create.mutate(values))}
       className="flex flex-col gap-4"
     >
-      <Field label="Team name" error={errors.name?.message}>
+      <Field label={t("fields.teamName")} error={errors.name?.message}>
         {(props) => (
           <Input
             {...props}
             autoComplete="organization"
-            placeholder="e.g. SZVTK"
+            placeholder={t("teams.form.teamNamePlaceholder")}
             {...register("name")}
           />
         )}
@@ -58,20 +60,17 @@ export function CreateTeamForm() {
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" className="mt-0.5 size-4 accent-primary" {...register("isPublic")} />
         <span>
-          List the team name in the opponent directory
-          <span className="block text-muted-foreground">
-            Other teams can then pick you as an opponent. Only the name is shown, never your roster
-            or lineups. You can change this later.
-          </span>
+          {t("teams.form.listInDirectory")}
+          <span className="block text-muted-foreground">{t("teams.form.listInDirectoryHint")}</span>
         </span>
       </label>
       {create.isError && !rejectedByServer && (
         <p role="alert" className="text-sm text-destructive">
-          {describeError(create.error)}
+          {describeError(create.error, t)}
         </p>
       )}
       <Button type="submit" loading={create.isPending} className="self-start">
-        Create team
+        {t("teams.form.submit")}
       </Button>
     </form>
   );

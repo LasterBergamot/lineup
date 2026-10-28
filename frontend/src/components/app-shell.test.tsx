@@ -79,6 +79,40 @@ describe("AppShell", () => {
     expect(listTeams).toHaveBeenCalledTimes(1);
   });
 
+  it("switches the whole shell to Hungarian from the account panel", async () => {
+    await renderAt("/");
+    const sidebar = screen.getByRole("complementary");
+    await userEvent.click(within(sidebar).getByRole("button", { name: "Magyar" }));
+    const nav = screen.getByRole("navigation", { name: "Oldalsáv" });
+    expect(
+      within(nav)
+        .getAllByRole("link")
+        .map((a) => a.textContent),
+    ).toEqual(["Rajtlista", "Keret", "Mentett"]);
+    expect(screen.getByRole("navigation", { name: "Alsó sáv" })).toBeInTheDocument();
+    expect(within(sidebar).getByText("tulajdonos")).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: "Kijelentkezés" })).toBeInTheDocument();
+    expect(
+      within(sidebar).getByRole("button", { name: "Váltás sötét témára" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Rajtlista" })).toBeInTheDocument();
+  });
+
+  it("offers the language switch in the mobile header too", async () => {
+    await renderAt("/");
+    const header = screen.getByRole("banner");
+    await userEvent.click(within(header).getByRole("button", { name: "Magyar" }));
+    expect(within(header).getByRole("button", { name: "Kijelentkezés" })).toBeInTheDocument();
+  });
+
+  it("shows a role the app does not know without showing the raw API value", async () => {
+    listTeams.mockResolvedValue([{ ...teamsPage("SZVTK").items[0]!, role: "superuser" }]);
+    await renderAt("/");
+    const sidebar = screen.getByRole("complementary");
+    expect(within(sidebar).getByText("unknown role")).toBeInTheDocument();
+    expect(within(sidebar).queryByText("superuser")).not.toBeInTheDocument();
+  });
+
   it("signs out from the sidebar and from the mobile header", async () => {
     const { auth } = await renderAt("/");
     await userEvent.click(

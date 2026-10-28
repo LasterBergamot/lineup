@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "@/auth/context";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,12 +13,18 @@ import { TeamsProvider } from "@/features/teams/provider";
  * This is a convenience, not security: the API enforces access on every call.
  */
 export function RequireAuth() {
+  const { t } = useTranslation();
   const { status } = useAuth();
   const location = useLocation();
 
   if (status === "loading") {
     return (
-      <div role="status" aria-busy="true" aria-label="Loading" className="flex flex-col gap-4 p-8">
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label={t("common.loading")}
+        className="flex flex-col gap-4 p-8"
+      >
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full max-w-2xl" />
       </div>
