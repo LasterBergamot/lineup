@@ -1,0 +1,60 @@
+# Fly.io app for the dev environment (#13). Deploy from this directory: `cd backend && fly deploy --ha=false`
+# (the Docker build context is backend/, like `task build`). Setup runbook: documentation/Fly-Setup.md.
+#
+# Always pass --ha=false: without it the first deploy creates a second machine, and the
+# in-memory rate limits are only correct with exactly one.
+#
+# NO SECRETS HERE. DATABASE_URL, SUPABASE_URL and CORS_ORIGINS are set with `fly secrets set`
+# (see the runbook); this file is committed and only holds non-secret settings.
+
+# "-lb" = initials of the owner's GitHub handle (LasterBergamot), not "load balancer". App names are
+# unique across all of Fly.io and plain "lineup-dev" was taken.
+app = "lineup-dev-lb"
+
+# Amsterdam: the closest EU region to the dev Supabase project (AWS eu-west-1, Ireland), which
+# keeps personal data in the EU (compliance requirement G10). Fly has no Dublin region.
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Production mode: Alembic owns the schema, /docs is off and startup fails closed on a
+  # missing SUPABASE_URL or a DATABASE_URL without TLS. Not a secret, and keeping it here means
+  # a deploy can never run without it.
+  ENV = "production"
+  # Behind Fly's proxy the TCP peer is the proxy, so the per-IP rate limit reads the real
+  # client address from the header Fly overwrites on every request.
+  CLIENT_IP_HEADER = "Fly-Client-IP"
+  # Each LibreOffice conversion needs a few hundred MB and the machine has 1 GB, so convert
+  # one document at a time (extra requests wait, then get 503 + Retry-After).
+  PDF_MAX_CONCURRENT = "1"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Scale to zero: stop the machine when idle and start it on the next request. The Fly proxy
+  # holds that request while the machine boots (see PLAN.md section 5 for the frontend side).
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 10
+    hard_limit = 25
+
+  # Liveness only (no ?db=1), same as the image's HEALTHCHECK: a database outage must not make
+  # Fly mark a healthy API as failing. The grace period covers the Python start-up.
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+
+[[vm]]
+  # LibreOffice needs the memory; 1 GB is the floor for one conversion next to the API.
+  size = "shared-cpu-1x"
+  memory = "1gb"

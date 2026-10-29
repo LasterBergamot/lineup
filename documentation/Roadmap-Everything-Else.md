@@ -32,7 +32,7 @@ flowchart LR
     D -->|"release PR"| M[main]
     H[hotfix branch] -->|PR| M
     M -->|merge back| D
-    D -.->|"CD (planned, #8)"| DEV[dev: Fly.io + Cloudflare Pages + dev Supabase]
+    D -.->|"CD (planned, #8; app config done, #13)"| DEV[dev: Fly.io + Cloudflare Pages + dev Supabase]
     M -.->|"CD + version tag (planned, #17)"| PROD[prod]
 ```
 

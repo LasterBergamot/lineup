@@ -60,7 +60,7 @@ sequenceDiagram
 
 ## 3. Point the API at the project
 
-Set one variable (`backend/.env` locally, `fly secrets set` on Fly later):
+Set one variable (`backend/.env` locally, `fly secrets set` on Fly, see [[Fly Setup]]):
 
 ```
 SUPABASE_URL="https://<project-ref>.supabase.co"
