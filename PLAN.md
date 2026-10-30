@@ -147,7 +147,7 @@ must be done:
       Supabase JWKS URL, `CORS_ORIGINS`.
       *Config written* (`backend/fly.toml`, region `ams`, runbook `documentation/Fly-Setup.md`); still
       open: the owner creates the app, sets the secrets and runs the first `fly deploy --ha=false`, then this box is ticked. (Done 2026-10-30: the app is deployed and
-      `/health?db=1` answers 200; open: DPA, billing alerts and the real PDF cold-start test, which needs #175.) The first deploy created two machines (Fly's HA default); scale to one with `fly scale count 1`. #8's CD must use `--ha=false`.
+      `/health?db=1` answers 200; open: DPA, the Fly free trial ends after 2 hours of machine time or 7 days (add credits or a card before then), and the real PDF cold-start test, which needs #175.) The first deploy created two machines (Fly's HA default); scale to one with `fly scale count 1`. #8's CD must use `--ha=false`.
 - [ ] #175 FE deploy to Cloudflare Pages: `VITE_API_URL`, `VITE_SUPABASE_URL`,
       `VITE_SUPABASE_ANON_KEY`, and `VITE_COLD_START_NOTICE=true`. Every PR gets a preview URL.
 - [ ] #8 CD workflow on push to `develop`: Alembic `upgrade head` (session-pooler URL from GitHub
@@ -158,7 +158,10 @@ must be done:
       verified a manual run on 2026-10-28. Glance at the first scheduled Monday/Thursday runs.)
 - [ ] #17 Tags and releases (D13): the `release` workflow, a test that the two version files match,
       a baseline `v0.1.0` on `develop` once the first dev deploy works, `lineup:<version>` image tags.
-- [ ] Billing/usage alerts on Fly.io and Supabase (#13)
+- [ ] Billing (#13): Fly has **no billing alerts or spending cap** (its docs say so), and the free trial (no card, up to 2 h of
+      machine runtime or 7 days) ends soon after the first deploy. Before it ends add prepaid credits (the closest thing to a
+      cap) or a card, and check the month-to-date bill in the dashboard now and then. Supabase's free plan can't bill; keep the
+      billing email readable. See `documentation/Fly-Setup.md`, *Trial and billing*.
 
 ### Phase 5 — Invitations
 - [ ] #51 endpoints, in the link-based form of §6
@@ -440,3 +443,4 @@ Endpoints (amends #51):
 | 2026-10-28 | Follow-up to #171 and #172: `supabase-smoke` passed against dev Supabase with the new code (team, player, saved lineup, DOCX generate with `no-store`/HSTS/nosniff headers, no-token `POST /lineups` → 401, delete; run on a spare port because the dev container held `:8000`); the browser-storage entries and rate-limit counters to disclose were posted on #94; #156 keep-alive verified with a manual run. The Fly app (#13) and Cloudflare Pages deploy are done separately by the owner. | #94, #96, #155, #156 |
 | 2026-10-29 | Phase 4, #13 (config part): `backend/fly.toml` for the dev app `lineup-dev-lb` (region `ams`, the closest EU region to Supabase `eu-west-1`; scale to zero; 1 GB; `/health` check; `ENV=production`, `CLIENT_IP_HEADER`, `PDF_MAX_CONCURRENT=1` in `[env]`, secrets via `fly secrets`), a guard test (`tests/test_fly_config.py`) and the `Fly Setup` wiki page. The owner has not used Fly before, so the account, app creation, DPA, secrets and first deploy are manual steps in that page. | #13, PR #174 |
 | 2026-10-30 | Phase 4, #13: the owner created and deployed the Fly app `lineup-dev-lb` (name `lineup-dev` was taken; `-lb` = owner's initials). The first deploy made two machines (Fly's HA default); scaled to one with `fly scale count 1`, and `--ha=false` is now documented everywhere (the in-memory rate limiter needs exactly one). Checked live: `/health` and `/health?db=1` 200, `/docs` 404, `POST /lineups` without a token 401, security headers present, cold start of `/health` about 5 s. Still open on #13: DPA in the Fly Trust Center (not on the public legal page), billing alerts, PDF cold-start test. New issue #175 for the Cloudflare Pages deploy (sub-issue of #20, blocks #8). | #13, #175, PR #174 |
+| 2026-10-30 | Correction to #13: Fly has no billing alerts or spending limit (its docs say so), and a new account runs on a no-card trial of up to 2 h of machine runtime or 7 days. Runbook gets a *Trial and billing* section; the PLAN item is reworded to "add credits or a card before the trial ends, check the bill". | #13 |
