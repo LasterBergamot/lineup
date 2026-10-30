@@ -216,8 +216,18 @@ starts with `VITE_` is public, so only public values belong there (the Supabase 
 is one; the app refuses a secret one). What the browser keeps in localStorage: the Supabase session
 (needed to stay signed in), `lineup-theme` (light or dark) and `lineup-lang` (`hu` or `en`), all
 strictly necessary preferences to name in the privacy notice. The query cache is emptied on
-sign-out. The remaining
-browser-side baseline (CSP and security headers, no trackers, the privacy notice) is tracked in #97.
+sign-out. On Cloudflare Pages, `frontend/public/_headers` adds the baseline security headers (HSTS,
+`nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, `frame-ancestors
+'none'`) and Web Analytics stays off. The remaining browser-side baseline (the strict CSP, the
+privacy notice) is tracked in #97.
+
+## Hosting
+
+The build is plain static files, hosted on Cloudflare Pages (production branch `develop`, root
+directory `frontend`). The build variables are the public `VITE_*` values from `frontend/.env.example`.
+Pages serves `index.html` for unknown paths (there must be no `public/404.html`), so deep links reach
+the router. PR previews are static only: their origins are not in the API's `CORS_ORIGINS` or the
+Supabase redirect list, so sign-in does not work there. Setup steps: [[Pages Setup]].
 
 ## CI and dependencies
 
@@ -227,7 +237,7 @@ ecosystem). Details are in [[Current State: Everything Else]].
 
 ## Not built yet
 
-Roster screens, joining a team by invite link, team switching, saved-lineup previews, Cloudflare
-Pages deployment and committed browser (Playwright) tests. The sign-in code is covered by unit tests
+Roster screens, joining a team by invite link, team switching, saved-lineup previews, automatic deploys
+from `develop` (#8) and committed browser (Playwright) tests. The sign-in code is covered by unit tests
 and was checked in a real browser against a local stand-in for Supabase Auth, but a real Google
 sign-in only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].

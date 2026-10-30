@@ -32,6 +32,7 @@ jobs:
             ["References.md"]="References.md"
             ["Auth-Setup.md"]="Auth-Setup.md"
             ["Fly-Setup.md"]="Fly-Setup.md"
+            ["Pages-Setup.md"]="Pages-Setup.md"
             ["Current-State-Backend.md"]="Current-State:-Backend.md"
             ["Current-State-Everything-Else.md"]="Current-State:-Everything-Else.md"
             ["Current-State-Frontend.md"]="Current-State:-Frontend.md"

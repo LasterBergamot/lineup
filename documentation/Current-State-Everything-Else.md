@@ -114,6 +114,11 @@ git-ignored.
   and `CORS_ORIGINS` are set with `fly secrets set`. A test (`tests/test_fly_config.py`) fails on
   a non-EU region or a secret-looking key. The one-off setup is in [[Fly Setup]]; automatic
   deploys from `develop` (#8) are not built yet.
+- **Hosting (dev frontend):** Cloudflare Pages serves `frontend/` (build `pnpm build`, output
+  `dist`, production branch `develop`) and builds a static preview per PR. Only public `VITE_*`
+  values are set there; the baseline security headers live in `frontend/public/_headers`. Its
+  origin goes into the Fly `CORS_ORIGINS` secret and the Supabase redirect list. The one-off setup
+  is in [[Pages Setup]].
 
 ## Testing
 
