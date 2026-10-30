@@ -147,13 +147,13 @@ must be done:
       Supabase JWKS URL, `CORS_ORIGINS`.
       *Config written* (`backend/fly.toml`, region `ams`, runbook `documentation/Fly-Setup.md`); still
       open: the owner creates the app, sets the secrets and runs the first `fly deploy --ha=false`, then this box is ticked. (Done 2026-10-30: the app is deployed and
-      `/health?db=1` answers 200; open: DPA, the Fly free trial ends after 2 hours of machine time or 7 days (add credits or a card before then), and the real PDF cold-start test, which needs #175.) The first deploy created two machines (Fly's HA default); scale to one with `fly scale count 1`. #8's CD must use `--ha=false`.
-- [ ] #175 FE deploy to Cloudflare Pages: `VITE_API_URL`, `VITE_SUPABASE_URL`,
+      `/health?db=1` answers 200; open: DPA, the Fly free trial ends after 2 hours of machine time or 7 days (add credits or a card before then), and the real PDF cold-start test, which passed on 2026-10-30 from the deployed app, #175.) The first deploy created two machines (Fly's HA default); scale to one with `fly scale count 1`. #8's CD must use `--ha=false`.
+- [x] #175 FE deploy to Cloudflare Pages: `VITE_API_URL`, `VITE_SUPABASE_URL`,
       `VITE_SUPABASE_ANON_KEY`, and `VITE_COLD_START_NOTICE=true`. Every PR gets a preview URL.
-      *Repo side written* (PR #177: `frontend/public/_headers`, the `Pages Setup` runbook; deep links use Pages' built-in SPA
-      mode, so there is no `_redirects`); still open: the owner creates the Pages project, accepts the Cloudflare DPA, sets the
-      build variables, updates Fly `CORS_ORIGINS` and the Supabase Site URL/redirects, then runs the cold-start PDF test and ticks this box.
-      PR previews cannot sign in (their origin is not in `CORS_ORIGINS`): documented, not loosened.
+      (Repo side in PR #177; the site is live at `https://lineup-kfi.pages.dev`, built from `develop`, and PR #178 closes it out. Cloudflare added
+      `-kfi` because `lineup-dev` was taken. Deep links use Pages' built-in SPA mode, so there is no `_redirects`. Google sign-in works, the
+      security headers are live, and the cold-start PDF test passed on 2026-10-30. PR previews cannot sign in, since their origin is not in
+      `CORS_ORIGINS`: documented, not loosened. The Cloudflare DPA is left for the compliance gate, like Fly's.)
 - [ ] #8 CD workflow on push to `develop`: Alembic `upgrade head` (session-pooler URL from GitHub
       secrets), then `flyctl deploy`, then poll `/health?db=1` with a cold-start-tolerant retry,
       then the Pages deploy. If the health check fails, Fly keeps the previous release.
@@ -449,3 +449,4 @@ Endpoints (amends #51):
 | 2026-10-30 | Phase 4, #13: the owner created and deployed the Fly app `lineup-dev-lb` (name `lineup-dev` was taken; `-lb` = owner's initials). The first deploy made two machines (Fly's HA default); scaled to one with `fly scale count 1`, and `--ha=false` is now documented everywhere (the in-memory rate limiter needs exactly one). Checked live: `/health` and `/health?db=1` 200, `/docs` 404, `POST /lineups` without a token 401, security headers present, cold start of `/health` about 5 s. Still open on #13: DPA in the Fly Trust Center (not on the public legal page), billing alerts, PDF cold-start test. New issue #175 for the Cloudflare Pages deploy (sub-issue of #20, blocks #8). | #13, #175, PR #174 |
 | 2026-10-30 | Correction to #13: Fly has no billing alerts or spending limit (its docs say so), and a new account runs on a no-card trial of up to 2 h of machine runtime or 7 days. Runbook gets a *Trial and billing* section; the PLAN item is reworded to "add credits or a card before the trial ends, check the bill". | #13 |
 | 2026-10-30 | Phase 4, #175 (repo part): compliance quick-check (G9, G10, G14, S5, S6, S7, S10, S11, S13), baseline security headers in `frontend/public/_headers` with a guard test, no `404.html` so Pages keeps SPA mode, the `Pages Setup` wiki page (project settings, build variables, allow-lists, Web Analytics off, why PR previews cannot sign in) and the docs that point to it. The Cloudflare account, DPA, project, secrets and the cold-start test are manual steps for the owner. | #175, PR #177 |
+| 2026-10-30 | Phase 4, #175 done: the owner created the Pages project (production branch `develop`, root `frontend`, React (Vite) preset with the `pnpm` build command; the dashboard first offered the Workers flow, the Pages one is behind a link on the Create page), set the five public build variables, `CORS_ORIGINS` on Fly and the Supabase Site URL/redirects for `https://lineup-kfi.pages.dev`. Verified: the `_headers` set is served, `/some/deep/link` returns the app, the CORS preflight echoes the origin, Google sign-in works and the cold-start PDF test (after 15 min idle) passed and was fast. | #175, #13, PR #178 |

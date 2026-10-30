@@ -35,17 +35,22 @@ flowchart LR
 
 1. **Create a Cloudflare account** (a free plan is enough) at
    [dash.cloudflare.com](https://dash.cloudflare.com/sign-up).
-2. **Accept the DPA.** Cloudflare is a processor for the visitors' IP addresses, so accept the
-   [Cloudflare Customer DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) (Account home →
-   Legal, or follow that link while signed in) and list Cloudflare as a sub-processor in the GDPR
-   pack (#94). The site stores no personal data; it only serves static files.
-3. **Create the project.** Workers & Pages → Create → Pages → Connect to Git. When Cloudflare asks
+2. **Check the DPA.** Cloudflare is a processor for the visitors' IP addresses. Its
+   [Customer DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) is documented as part of the
+   agreement you accept when you sign up, so there is probably nothing separate to sign: confirm that
+   on that page, keep a copy, and list Cloudflare as a sub-processor in the GDPR pack (#94). This is
+   part of the compliance gate before anyone outside the team gets access. The site stores no personal data; it only serves static files.
+3. **Create the project.** Workers & Pages → Create → Pages → Connect to Git. Cloudflare's dashboard
+   may offer the newer *Workers* flow first ("Configure your Worker project", with a Deploy command
+   and no production-branch or output-directory fields). We want **Pages**: look for the
+   "Looking to deploy Pages? Get started" link near the bottom of the Create page. When Cloudflare asks
    which repositories its GitHub app may read, choose **Only select repositories** and pick
    `LasterBergamot/lineup` only. Then set:
 
    | Setting | Value |
    |---|---|
-   | Project name | `lineup-dev` (becomes `https://lineup-dev.pages.dev`; if taken, pick another and use it in the steps below) |
+   | Project name | `lineup-dev` (becomes `https://lineup-dev.pages.dev`). Names are unique across all of Cloudflare: if it is taken Cloudflare adds a suffix (ours is `lineup-kfi.pages.dev`). Read the real address from the project's Deployments page and use it in every step below. |
+   | Framework preset | React (Vite), or None. Either way, override the command below. |
    | Production branch | `develop` |
    | Root directory | `frontend` |
    | Build command | `pnpm install --frozen-lockfile && pnpm build` |
@@ -68,18 +73,18 @@ flowchart LR
    or push a commit).
 6. **Leave Web Analytics off.** Pages offers a one-click Cloudflare Web Analytics beacon. It would
    add a third-party script and a cookie-free but still tracking-style request, so keep it disabled
-   (project → Metrics). The privacy baseline (G14) is "no analytics or trackers".
+   (project → Metrics tab → Web Analytics). The privacy baseline (G14) is "no analytics or trackers".
 7. **Tell the API about the new origin.** From `backend/`:
 
    ```
-   fly secrets set CORS_ORIGINS='http://localhost:5173,https://lineup-dev.pages.dev'
+   fly secrets set CORS_ORIGINS='http://localhost:5173,https://<your-project>.pages.dev'
    ```
 
    `CORS_ORIGINS` is an exact-match list: scheme and host, no trailing slash, no wildcards. Setting
    it restarts the machine.
 8. **Tell Supabase Auth about it.** Supabase → Authentication → URL Configuration: set the **Site
-   URL** to `https://lineup-dev.pages.dev` and keep `http://localhost:5173/**` and
-   `https://lineup-dev.pages.dev/**` in the redirect allow-list (details in [[Auth Setup]]). The
+   URL** to `https://<your-project>.pages.dev` and keep `http://localhost:5173/**` and
+   `https://<your-project>.pages.dev/**` in the redirect allow-list (details in [[Auth Setup]]). The
    Google OAuth client needs no change, because Google redirects to Supabase, not to the app.
 9. **Check it.** Open the Pages URL: the app shell loads at once, and the "server is starting up"
    banner appears while the API wakes. Sign in with Google. Open `/some/deep/link`: it should show
@@ -92,7 +97,7 @@ migrations and the Fly deploy first and then publishes the frontend.
 
 ## Pull request previews
 
-Every pull request gets its own URL such as `https://<hash>.lineup-dev.pages.dev`, which is useful to
+Every pull request gets its own URL such as `https://<hash>.<your-project>.pages.dev`, which is useful to
 look at a change. **Sign-in and API calls do not work from a preview**: the origin is new for every
 deployment, so it is not in `CORS_ORIGINS` (an exact-match list on purpose) and not in the Supabase
 redirect allow-list. The preview shows the static UI and nothing more. To try a change end to end,
