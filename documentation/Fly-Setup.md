@@ -33,7 +33,7 @@ flowchart LR
 Commands run from `backend/` (the Docker build context, like `task build`).
 
 1. **Install the CLI and sign in.** Install `flyctl` ([fly.io/docs/flyctl/install](https://fly.io/docs/flyctl/install/)),
-   then `fly auth signup` (or `fly auth login`). Fly asks for a card even for small usage.
+   then `fly auth signup` (or `fly auth login`). A new account starts a free trial without a card (see *Trial and billing* below).
 2. **Create the app without deploying.** The name and region are already in `fly.toml`:
 
    ```
@@ -92,11 +92,32 @@ Commands run from `backend/` (the Docker build context, like `task build`).
    Then, after the machine has been idle for at least 15 minutes, generate a PDF from the signed-in
    frontend: the first PDF has to finish within the 120 s conversion timeout.
 7. **Add the dev frontend origin** to `CORS_ORIGINS` once Cloudflare Pages is up.
-8. **Set billing alerts** in the Fly dashboard (Billing → usage alert) and on Supabase, so a
-   scale-to-zero misconfiguration can't run up a bill silently.
+8. **Decide how to pay before the trial ends** and check the bill now and then; Fly has no billing
+   alerts (see *Trial and billing* below).
 
 Later, CD (#8) runs the migrations and `fly deploy --ha=false` on every push to `develop`; this page then
 only covers creating the app.
+
+## Trial and billing
+
+- **Trial.** A new Fly account gets a free trial without a card: "up to 2 hours of Machine runtime
+  or 7 days, whichever comes first" ([pricing](https://docs.fly.io/about/pricing)). After that you
+  must add a card or prepaid credits to keep using billable resources, otherwise the dev API stops
+  working. Add one of them before the trial ends. Check the date and the remaining trial in the
+  dashboard.
+- **Prepaid credits instead of a card.** Without a card you can add credits; usage is subtracted
+  from the balance each month ([billing](https://docs.fly.io/about/billing)). That is the closest
+  thing to a spending cap, because the most it can cost is what you paid in. Check in the
+  dashboard what happens when the balance runs out (Fly's docs don't say).
+- **No billing alerts, no spending cap.** Fly says so itself: "We don't support billing alerts
+  (yet), so budget accordingly" and "If you go over, we'll bill you"
+  ([cost management](https://docs.fly.io/about/cost-management)). So look at the *current month to
+  date bill* in the dashboard now and then (a recurring calendar reminder helps), and keep the
+  setup small: one machine (`fly deploy --ha=false`), `shared-cpu-1x` with 1 GB, scale to zero,
+  the free shared IPv4 (don't run `fly ips allocate-v4`). Estimate the worst case with
+  [fly.io/calculator](https://fly.io/calculator).
+- **Supabase** (free plan) can't bill you; it emails you when a quota is exceeded and restricts the
+  project after a grace period. Make sure the organization's billing email is one you read.
 
 ## When the app stops and starts
 
