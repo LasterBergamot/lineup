@@ -22,8 +22,8 @@ behind it and what is still to come. The step-by-step plan, with issue numbers, 
 Done: skeleton and tooling, the cold-start-aware data layer, the one-off lineup form that calls
 `POST /lineups`, sign-in with team onboarding and the Hungarian / English UI (#155; see
 [[Current State: Frontend]]); the real Google
-sign-in still waits for the console setup in [[Auth Setup]]. Next (`PLAN.md`): deployment to
-Cloudflare Pages (Phase 4), invitations (Phase 5), then roster, lineup creator with previews and
+sign-in still waits for the console setup in [[Auth Setup]]. The dev site is hosted on Cloudflare Pages (#175, see [[Pages Setup]]). Next (`PLAN.md`): automatic
+deploys from `develop` (#8), invitations (Phase 5), then roster, lineup creator with previews and
 saved lineups (Phase 6).
 
 ## OAuth / onboarding flow (built)
@@ -71,6 +71,6 @@ there:
 
 ## Still open
 
-- Exact Content-Security-Policy and security headers for Cloudflare Pages (#97).
+- The strict Content-Security-Policy for Cloudflare Pages (#97); the baseline headers are in `frontend/public/_headers` already.
 - Whether the production API gets a custom domain (and so a same-site frontend) or stays on the
   provider's hostname.

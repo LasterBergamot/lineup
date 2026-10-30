@@ -1,0 +1,9 @@
+# Cloudflare Pages response headers for every file of the static site (applies to assets only).
+# This is the baseline from #175; the strict Content-Security-Policy and the rest of the browser
+# privacy and security baseline are tracked in #97. Keep `src/security-headers.test.ts` in sync.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Content-Security-Policy: frame-ancestors 'none'

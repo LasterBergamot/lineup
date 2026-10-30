@@ -116,7 +116,7 @@ task up           # the API container the app talks to, on :8000
 task fe:dev       # Vite dev server on http://localhost:5173
 ```
 
-In dev the browser calls the same-origin `/api/...` and Vite proxies it to the container (`VITE_DEV_API_TARGET`, default `http://localhost:8000`), so no CORS setup is needed locally. Deployed builds set `VITE_API_URL` instead; copy `frontend/.env.example` to `frontend/.env` to change any of these (everything `VITE_*` ends up in the public bundle, so never put a secret there).
+In dev the browser calls the same-origin `/api/...` and Vite proxies it to the container (`VITE_DEV_API_TARGET`, default `http://localhost:8000`), so no CORS setup is needed locally. Deployed builds set `VITE_API_URL` instead (the dev site on Cloudflare Pages is set up as described in the [Pages Setup](https://github.com/LasterBergamot/lineup/wiki/Pages-Setup) wiki page; `frontend/public/_headers` holds its security headers); copy `frontend/.env.example` to `frontend/.env` to change any of these (everything `VITE_*` ends up in the public bundle, so never put a secret there).
 
 The API client in `frontend/src/api/` is **generated** from the backend's OpenAPI spec, so request and response types can't drift from the API. After changing a backend endpoint or schema run `task fe:api` and commit the result; `task fe:api:check` (run by CI) fails when it is stale. `task fe:check` runs everything the CI `Frontend` job does.
 
@@ -312,7 +312,7 @@ lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
-├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md)
+├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md)
 ├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                         # settings.json; skills/; rules/ (path-scoped, auto-loaded); context/ (read on demand); commands/
