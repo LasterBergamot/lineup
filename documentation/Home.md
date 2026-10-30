@@ -21,6 +21,8 @@ saved roster instead of a one-off request payload.
   testing, your first change, common gotchas
 - [[Auth Setup]] — how Google sign-in through Supabase works, the one-off dashboard setup, adding
   and removing testers, and what each `401`/`503` means
+- [[Fly Setup]] — how the API runs on Fly.io (scale to zero, EU region), creating the dev app,
+  secrets, deploying and troubleshooting
 - [[References]] — official docs and links for every library, tool, service, spec and regulation
   we use (the dependency tables are generated from the repo)
 

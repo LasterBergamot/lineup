@@ -65,6 +65,7 @@ Three things in this picture surprise newcomers:
 | **python-docx** | Reads and edits `.docx` files from Python | Fills the template | `lineup/document/document_manager.py` |
 | **LibreOffice (headless)** | An office suite run without a window | Converts DOCX to PDF with a layout that matches the original | `lineup/document/pdf_converter.py` |
 | **Docker + Compose** | Packages the app and LibreOffice (and the right fonts) into one image | Same PDF output on every machine | `backend/Dockerfile`, `compose.yml` |
+| **Fly.io** | Runs the Docker image as a small VM behind an HTTPS proxy and stops it when idle | The hosted dev API at near-zero cost (first request after idle is slow) | `backend/fly.toml`, [[Fly Setup]] |
 | **uv** | Fast Python package manager (`uv.lock` pins exact versions) | Reproducible installs | `backend/pyproject.toml` |
 | **React + TypeScript + Vite** | A UI library, typed JavaScript, and the dev server/bundler that serves and builds them | The web app, in `frontend/`, that works on phone and desktop | `frontend/src/` |
 | **Tailwind + shadcn-style components** | Utility CSS classes and a set of copy-in UI components, themed with the Polaris design tokens | Consistent look (square corners, teal/amber, light and dark) without hand-written CSS | `frontend/src/index.css`, `frontend/DESIGN.md` |

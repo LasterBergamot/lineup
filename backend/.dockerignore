@@ -19,3 +19,6 @@ __pycache__
 # Tests and markdown (the e2e suite runs from the host against the container)
 tests/
 *.md
+
+# Deployment config (read by flyctl from the host, not needed at runtime)
+fly.toml

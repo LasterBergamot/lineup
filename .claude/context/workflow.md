@@ -43,7 +43,7 @@ task docs:check   # fail if that block is stale (CI runs it)
 
 Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SUPABASE_URL`, `PDF_MAX_CONCURRENT`, `DOCS_ENABLED`, `MAX_BODY_BYTES`, `RATE_LIMIT_GENERATE_PER_USER`, `RATE_LIMIT_GENERATE_PER_IP`, `CLIENT_IP_HEADER`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; the frontend's public `VITE_*` settings, including `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, live in the separate `frontend/.env`, see `frontend/.env.example`) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
-`ENV=production` also makes startup fail closed (`validate_production_config()`: needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off, so health checks and scripts must use `GET /health`, not `/docs`. On Fly.io set `CLIENT_IP_HEADER=Fly-Client-IP` for the per-IP rate limit.
+`ENV=production` also makes startup fail closed (`validate_production_config()`: needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off, so health checks and scripts must use `GET /health`, not `/docs`. On Fly.io `CLIENT_IP_HEADER=Fly-Client-IP` is already set in `backend/fly.toml`; `DATABASE_URL`, `SUPABASE_URL` and `CORS_ORIGINS` are Fly secrets (`fly secrets set`), never in `fly.toml`. Setup and deploy steps: `documentation/Fly-Setup.md`.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
 

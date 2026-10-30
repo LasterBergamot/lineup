@@ -1,0 +1,141 @@
+# Fly Setup
+
+How the API runs on Fly.io and the one-off steps to create the dev app (`lineup-dev-lb`). The config
+is committed (`backend/fly.toml`); this page is the manual part that needs your Fly account. You
+need no prior Fly experience. Output formats change now and then, so follow the intent if a message
+differs.
+
+## What Fly does for us
+
+Fly runs our Docker image (`backend/Dockerfile`) as a small virtual machine and puts an HTTPS proxy
+in front of it. Three choices in `fly.toml` matter:
+
+- **Scale to zero.** `auto_stop_machines = "stop"` and `min_machines_running = 0` stop the machine
+  when nobody uses the API and start it on the next request. Idle costs close to nothing. The cost
+  is a cold start: the first request waits a few seconds while the machine boots (the frontend
+  shows a "server is starting up" banner, see *Current State: Frontend*).
+- **Region `ams` (Amsterdam).** The dev Supabase project is in AWS `eu-west-1` (Ireland) and Fly
+  has no Dublin region. Amsterdam is the closest EU region, and keeping both in the EU keeps
+  personal data in the EU (GDPR).
+- **1 GB of memory.** LibreOffice converts the `.docx` to PDF in a separate process that needs a
+  few hundred MB, so `PDF_MAX_CONCURRENT` is `1` on this machine.
+
+```mermaid
+flowchart LR
+    B[Browser] -->|HTTPS| P[Fly proxy]
+    P -->|"wakes the machine if stopped"| M["Machine (lineup image, port 8000)"]
+    M -->|"pooler, TLS"| S[(Supabase Postgres)]
+    M -.->|"public signing keys"| A[Supabase Auth JWKS]
+```
+
+## One-off setup
+
+Commands run from `backend/` (the Docker build context, like `task build`).
+
+1. **Install the CLI and sign in.** Install `flyctl` ([fly.io/docs/flyctl/install](https://fly.io/docs/flyctl/install/)),
+   then `fly auth signup` (or `fly auth login`). Fly asks for a card even for small usage.
+2. **Create the app without deploying.** The name and region are already in `fly.toml`:
+
+   ```
+   cd backend
+   fly apps create lineup-dev-lb
+   ```
+
+   App names are unique across **all** of Fly.io, not just your account, so a plain name like
+   `lineup-dev` is already taken by someone else. That is why the name ends in `-lb`: the
+   initials of the repo owner's GitHub handle (**L**aster**B**ergamot), added only to make the
+   name unique. It has no technical meaning (it is *not* "load balancer"). If `lineup-dev-lb` is
+   taken too, pick another and change `app` in `fly.toml` (and the URLs below).
+3. **Sign the DPA** (the GDPR data processing agreement). It is **not** on the public
+   [fly.io/legal](https://fly.io/legal) page. Per Fly's own
+   [security questionnaire](https://fly.io/legal/security-questionnaire/) it is available on every
+   plan, self-service, from the **Trust Center in the Fly dashboard** (Fly signs first; you sign
+   through Dropbox Sign; the signed copy stays downloadable there). Can't find it? Ask
+   compliance@fly.io. Fly acts as our processor for the app's data and is a sub-processor of the
+   clubs' data, so it goes in the GDPR pack (#94).
+4. **Set the secrets.** They are stored encrypted by Fly and never appear in git:
+
+   ```
+   fly secrets set --stage \
+     DATABASE_URL='postgresql+asyncpg://lineup_app.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?ssl=require' \
+     SUPABASE_URL='https://<project-ref>.supabase.co' \
+     CORS_ORIGINS='https://<your-pages-url>'
+   ```
+
+   - `DATABASE_URL` is the **transaction pooler** URL with the least-privilege `lineup_app` role,
+     the same value as in your local `backend/.env`. Never the migration role.
+   - `CORS_ORIGINS` is the frontend's address. Until the Cloudflare Pages site exists use
+     `http://localhost:5173` and update it later with `fly secrets set CORS_ORIGINS=…`.
+   - `--stage` only stores the values; the first deploy picks them up.
+   - Don't paste secrets into chat or issues. To read what is set (names only): `fly secrets list`.
+5. **Deploy.**
+
+   ```
+   fly deploy --ha=false
+   ```
+
+   `--ha=false` matters on the **first** deploy: by default Fly creates two machines "for high
+   availability", and we want exactly one. The API keeps its rate-limit counters in memory, so two
+   machines would count separately and let through twice the limit, and the second one only
+   doubles the cost. Later deploys update the machines that exist and don't add new ones. If you
+   forgot the flag, `fly scale count 1` removes the extra machine.
+
+   The first build takes a few minutes (LibreOffice). A failed health check keeps the previous
+   release running.
+6. **Check it.**
+
+   ```
+   curl https://lineup-dev-lb.fly.dev/health          # {"status":"ok"} (may take a few seconds after idle)
+   curl 'https://lineup-dev-lb.fly.dev/health?db=1'   # 200 when the database answers, 503 if not
+   ```
+
+   Then, after the machine has been idle for at least 15 minutes, generate a PDF from the signed-in
+   frontend: the first PDF has to finish within the 120 s conversion timeout.
+7. **Add the dev frontend origin** to `CORS_ORIGINS` once Cloudflare Pages is up.
+8. **Set billing alerts** in the Fly dashboard (Billing → usage alert) and on Supabase, so a
+   scale-to-zero misconfiguration can't run up a bill silently.
+
+Later, CD (#8) runs the migrations and `fly deploy --ha=false` on every push to `develop`; this page then
+only covers creating the app.
+
+## When the app stops and starts
+
+Nothing keeps the Fly machine alive, on purpose:
+
+- **Stops:** the Fly proxy stops the machine on its own after a few minutes without requests
+  (`auto_stop_machines = "stop"`). A stopped machine costs almost nothing (only its disk).
+- **Starts:** the next request to `https://lineup-dev-lb.fly.dev` starts it again
+  (`auto_start_machines = true`). The proxy holds that request while the machine boots, so it is
+  slow rather than failed: about 5 s for `/health` in a measured cold start (the first PDF is
+  slower because LibreOffice starts too). The frontend also asks `/health` as soon as the page
+  loads, which starts the machine while the user is still signing in.
+- **The health check doesn't count.** Fly's `/health` check only runs on a machine that is already
+  running; it neither wakes nor holds up a stopped one.
+- **Different from Supabase.** The Supabase free tier pauses a project after about a week without
+  *database activity* and does not wake on its own, which is why `keepalive.yml` pings it twice a
+  week. Fly has no such rule: a stopped machine stays available and just starts on demand, so it
+  needs no keep-alive. (If the keep-alive later calls `/health?db=1` on this app, it wakes the
+  machine twice a week for a few seconds, which is harmless.)
+
+## Everyday commands
+
+| Command | What it does |
+|---|---|
+| `fly status` | Machine state (`started` / `stopped`) |
+| `fly logs` | Live logs (never contain tokens or client IPs by design) |
+| `fly secrets list` / `fly secrets set K=V` | Names of the secrets / change one (redeploys) |
+| `fly machine list` | Machines and their regions |
+| `fly deploy --ha=false` | Build and release the image from `backend/`, with a single machine |
+| `fly releases` | History; the previous release stays active if a deploy fails its health check |
+
+## When something is wrong
+
+| Symptom | Likely cause |
+|---|---|
+| Deploy fails, machine exits at start | `ENV=production` makes startup fail closed: check that `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` and that `SUPABASE_URL` is set (`fly logs` shows the reason, never the URL) |
+| `503` on every data route | `SUPABASE_URL` missing or wrong |
+| `/health?db=1` is `503` | Wrong password or URL, or the Supabase project is paused (see *Current State: Backend*) |
+| Browser says CORS error | The frontend's origin is not in `CORS_ORIGINS` (exact match, no trailing slash) |
+| PDF requests answer `503` + `Retry-After` | Another conversion is running; one at a time on this machine |
+| `fly machine list` shows two machines | The first deploy ran without `--ha=false`. Run `fly scale count 1` |
+| Everyone shares one rate-limit bucket | `CLIENT_IP_HEADER` is missing from the environment |

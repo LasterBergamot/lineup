@@ -108,6 +108,12 @@ git-ignored.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
   `task build` + `task up`, not `task serve`.
+- **Hosting (dev):** `backend/fly.toml` describes the Fly.io app `lineup-dev-lb`: the same image,
+  region `ams` (EU, next to the Supabase project in `eu-west-1`), scale to zero, 1 GB of memory
+  for LibreOffice and a `GET /health` check. It holds no secrets: `DATABASE_URL`, `SUPABASE_URL`
+  and `CORS_ORIGINS` are set with `fly secrets set`. A test (`tests/test_fly_config.py`) fails on
+  a non-EU region or a secret-looking key. The one-off setup is in [[Fly Setup]]; automatic
+  deploys from `develop` (#8) are not built yet.
 
 ## Testing
 
