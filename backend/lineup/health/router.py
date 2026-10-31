@@ -45,7 +45,7 @@ async def health(
     if db:
         try:
             await session.execute(text("SELECT 1"))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - any database failure means "unavailable"
             logger.warning("Database health check failed: %s", type(exc).__name__)
             return JSONResponse(status_code=503, content={"status": "unavailable"})
     return HealthResponse(status="ok")

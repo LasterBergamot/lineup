@@ -8,10 +8,10 @@ and saved lineups move into a workspace team.
 
 import os
 import sqlite3
-from contextlib import closing
 import subprocess
 import sys
 import uuid
+from contextlib import closing
 
 import pytest
 

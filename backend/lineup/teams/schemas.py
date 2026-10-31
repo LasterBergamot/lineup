@@ -43,7 +43,7 @@ class TeamResponse(BaseModel):
     role: str
 
     @classmethod
-    def from_team(cls, team: Team, role: str) -> "TeamResponse":
+    def from_team(cls, team: Team, role: str) -> TeamResponse:
         """Build the response from an ORM team and the caller's role in it."""
         return cls(
             id=team.id,

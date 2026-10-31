@@ -83,6 +83,7 @@ def test_template_is_found_whatever_the_working_directory(tmp_path, monkeypatch)
 
 def test_creator_raises_on_missing_template(tmp_path, monkeypatch):
     from docx.opc.exceptions import PackageNotFoundError
+
     import lineup.water_polo.water_polo_lineup_creator as creator_module
 
     monkeypatch.setattr(creator_module, "FILE_NAME", str(tmp_path / "missing.docx"))
@@ -92,11 +93,14 @@ def test_creator_raises_on_missing_template(tmp_path, monkeypatch):
 
 def test_creator_init_raises_file_not_found():
     from unittest.mock import patch
+
     import lineup.water_polo.water_polo_lineup_creator as creator_module
 
-    with patch.object(creator_module, "DocumentManager", side_effect=FileNotFoundError):
-        with pytest.raises(FileNotFoundError):
-            WaterPoloLineupCreator()
+    with (
+        patch.object(creator_module, "DocumentManager", side_effect=FileNotFoundError),
+        pytest.raises(FileNotFoundError),
+    ):
+        WaterPoloLineupCreator()
 
 
 def test_create_document_saves_file(tmp_path, monkeypatch):
@@ -115,11 +119,13 @@ def test_create_document_bytes_raises_on_error():
 
     dto = _make_dto([_make_player(1)])
     creator = WaterPoloLineupCreator()
-    with patch.object(
-        creator.manager, "setup_style", side_effect=RuntimeError("forced")
+    with (
+        patch.object(
+            creator.manager, "setup_style", side_effect=RuntimeError("forced")
+        ),
+        pytest.raises(RuntimeError),
     ):
-        with pytest.raises(RuntimeError):
-            creator.create_document_bytes(dto)
+        creator.create_document_bytes(dto)
 
 
 def test_create_document_raises_on_error():
@@ -127,11 +133,13 @@ def test_create_document_raises_on_error():
 
     dto = _make_dto([_make_player(1)])
     creator = WaterPoloLineupCreator()
-    with patch.object(
-        creator.manager, "setup_style", side_effect=RuntimeError("forced")
+    with (
+        patch.object(
+            creator.manager, "setup_style", side_effect=RuntimeError("forced")
+        ),
+        pytest.raises(RuntimeError),
     ):
-        with pytest.raises(RuntimeError):
-            creator.create_document(dto)
+        creator.create_document(dto)
 
 
 def test_create_pdf_bytes_returns_pdf():

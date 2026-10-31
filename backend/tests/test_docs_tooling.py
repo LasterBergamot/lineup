@@ -218,6 +218,7 @@ def _run_check(repo: Path, labels: str = "") -> subprocess.CompletedProcess:
     env = {**os.environ, "PR_LABELS": labels}
     return subprocess.run(  # noqa: S603
         [str(SCRIPTS / "check_docs_touched.sh"), "base", "HEAD"],
+        check=False,
         cwd=repo,
         env=env,
         capture_output=True,

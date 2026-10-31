@@ -62,7 +62,7 @@ def migrated():
         await engine.dispose()
 
     asyncio.run(create_supabase_roles())
-    subprocess.run(  # noqa: S603
+    subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         check=True,
         env={**os.environ, "MIGRATE_DATABASE_URL": POSTGRES_URL},

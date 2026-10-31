@@ -1,8 +1,8 @@
 import copy
 import subprocess
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 
 from lineup.api.file_response import download_filename
 from lineup.document.pdf_converter import ConverterBusyError

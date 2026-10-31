@@ -513,7 +513,7 @@ def test_display_name_falls_back_to_name(key):
 
 
 def test_display_name_drops_control_characters_and_caps_the_length(key):
-    token = _name_token(key, full_name="  Al\u0000i\nce‮" + "x" * 300)
+    token = _name_token(key, full_name="  Al\u0000i\nce\u202e" + "x" * 300)
     name = tokens.display_name_from_token(token)
     assert name.startswith("Alice")
     assert "\u0000" not in name and "\n" not in name

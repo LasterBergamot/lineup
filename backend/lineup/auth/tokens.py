@@ -150,7 +150,7 @@ class JwksCache:
         try:
             document = await self._fetch(self.url)
             if not isinstance(document, dict):
-                raise ValueError("JWKS document is not an object")
+                raise ValueError("JWKS document is not an object")  # noqa: TRY004 - caught as ValueError just below
             key_set = PyJWKSet.from_dict(document)
         except (httpx.HTTPError, ValueError, jwt.PyJWTError) as exc:
             logger.error("Could not load the signing keys: %s", type(exc).__name__)

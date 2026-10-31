@@ -188,7 +188,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         asyncio.run(set_role_password(migrate_url, password))
         _write_atomically(args.env_file, new_env)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - CLI boundary: report any failure, exit 1
         # Deliberately not str(exc): it can contain the statement or connection details.
         reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
         print(f"Failed: {reason}", file=sys.stderr)

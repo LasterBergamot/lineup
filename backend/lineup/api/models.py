@@ -5,7 +5,7 @@ These are validated by Pydantic, so bad input becomes a 422 before any document 
 
 from __future__ import annotations
 
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -45,11 +45,11 @@ class LineupRequest(BaseModel):
     assistant_coach: OptionalCleanStr200 = None
     team_leader: OptionalCleanStr200 = None
     ball_thrower: OptionalCleanStr200 = None
-    players: List[PlayerRequest] = Field(..., min_length=1, max_length=15)
+    players: list[PlayerRequest] = Field(..., min_length=1, max_length=15)
 
     @field_validator("players")
     @classmethod
-    def cap_numbers_unique(cls, players: List[PlayerRequest]) -> List[PlayerRequest]:
+    def cap_numbers_unique(cls, players: list[PlayerRequest]) -> list[PlayerRequest]:
         """Reject two players sharing a cap number."""
         cap_numbers = [p.cap_number for p in players]
         if len(cap_numbers) != len(set(cap_numbers)):
@@ -58,7 +58,7 @@ class LineupRequest(BaseModel):
 
     @field_validator("players")
     @classmethod
-    def nssz_numbers_unique(cls, players: List[PlayerRequest]) -> List[PlayerRequest]:
+    def nssz_numbers_unique(cls, players: list[PlayerRequest]) -> list[PlayerRequest]:
         """Reject two players with the same NSSZ number (compared case-insensitively)."""
         nssz_numbers = [p.nssz_number.casefold() for p in players]
         if len(nssz_numbers) != len(set(nssz_numbers)):

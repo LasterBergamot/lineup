@@ -171,16 +171,20 @@ class TestProductionStartup:
         reload_with_env(ENV="production")
         monkeypatch.delenv("DATABASE_URL", raising=False)
         monkeypatch.delenv("SUPABASE_URL", raising=False)
-        with pytest.raises(ValueError, match="Refusing to start"):
-            with TestClient(app_module.app):
-                pass
+        with (
+            pytest.raises(ValueError, match="Refusing to start"),
+            TestClient(app_module.app),
+        ):
+            pass
 
     def test_refuses_a_database_url_without_tls(self, reload_with_env, monkeypatch):
         reload_with_env(ENV="production", SUPABASE_URL="https://abc.supabase.co")
         monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@h:6543/postgres")
-        with pytest.raises(ValueError, match="ssl=require"):
-            with TestClient(app_module.app):
-                pass
+        with (
+            pytest.raises(ValueError, match="ssl=require"),
+            TestClient(app_module.app),
+        ):
+            pass
 
     def test_starts_with_a_complete_production_config(
         self, reload_with_env, monkeypatch
