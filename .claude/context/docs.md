@@ -24,6 +24,8 @@ this file says which docs this repo has and the steps that are specific to it.
 | `Newcomer-Guide.md` | Junior-developer walkthrough: tools and why, glossary, one request through the layers, run/test, first change, gotchas |
 | `References.md` | Official docs for every library, tool, service, spec and regulation; the *Libraries, images and actions* block is generated |
 | `Auth-Setup.md`, `Fly-Setup.md`, `Pages-Setup.md` | Runbooks for sign-in, the API host and the web-app host |
+| `Privacy-and-Security.md` | GDPR source of truth: roles, the personal-data inventory (every model column), retention, sub-processors and regions, backups, open gaps. A new column, endpoint that stores people data, processor or browser-storage key needs a row here in the same PR |
+| `Privacy-Notice.md`, `Terms-and-Processor-Agreement.md`, `Compliance-Records.md`, `Breach-Runbook.md` | Built from the page above: HU + EN notices and the club Art. 14 template, ToS + Art. 28 agreement, Art. 30 records + LIA + DPIA screening, breach runbook. Change them in the same PR when a fact on `Privacy-and-Security.md` changes. `[…]` placeholders are the operator's to fill in |
 | `Current-State-Backend.md` | Backend architecture, API surface, data model as they exist today |
 | `Current-State-Frontend.md` | The frontend as it exists today |
 | `Current-State-Everything-Else.md` | Cross-cutting current state: container/deploy, dev workflow, conventions, CI |

@@ -104,6 +104,12 @@ Three things in this picture surprise newcomers:
 - **RLS** (row-level security): Postgres rules that decide which rows a database role may see.
 - **JWT**: a signed token proving who a user is. The frontend gets one from Supabase when the user signs in with Google and sends it as `Authorization: Bearer ...`; the API checks its signature (see [[Auth Setup]]).
 - **PKCE**: the OAuth variant the web app uses, where Google's redirect carries a one-time code instead of the tokens, so no token is ever in a URL.
+- **Controller / processor**: under GDPR the *controller* decides why personal data is used, the
+  *processor* handles it on the controller's behalf. Each club is the controller of its roster and we
+  are its processor; for user accounts we are the controller. Why that matters for what you build:
+  [[Privacy and Security]].
+- **Personal data**: anything that identifies a person. Players' names and NSSZ numbers are, some of
+  the players are children, and that is why we keep fields to a minimum (see the gotchas).
 - **Coverage**: the percentage of code lines the tests execute; this repo requires 100%.
 - **e2e test**: a test that drives the real running container instead of mocks.
 - **Dev / prod**: our only two environments. Long-lived branches: `develop` (dev) and `main` (prod).
@@ -250,6 +256,10 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 - **A browser on another origin is blocked unless you allow it.** `task fe:dev` avoids this by
   proxying `/api` to the API, but a deployed frontend or a dev server pointed straight at `:8000`
   (`VITE_API_URL`) is a different origin, so set `CORS_ORIGINS` in `backend/.env`. With it unset the API sends no CORS headers (curl and the docs page still work).
+- **Personal data is kept to a minimum on purpose.** Players are a name, an NSSZ number and a cap
+  number; some are children. Don't add a date of birth, photo, contact detail or health field, don't
+  log names or invite codes, and don't store generated files. Anything that stores or sends people's
+  data somewhere new needs a row in the inventory on [[Privacy and Security]].
 - **Text fields use the shared types in `lineup/common/types.py`** (trimmed, length-capped, no control
   characters). Use them for any new text field, or a stray tab/NUL can produce a 500 when the document is
   generated.
@@ -277,6 +287,9 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 - [[Current State: Everything Else]] for CI, containers and conventions.
 - [[Roadmap: Everything Else]], `PLAN.md` and the GitHub issues/board for what's coming.
 - [[References]] for the official documentation of every tool above.
+- [[Privacy and Security]] before you add a field, a log line, a stored file or a third-party service:
+  it lists every piece of personal data we hold and why. Add a column to the model and you add a row
+  to that page in the same PR.
 - `CLAUDE.md` if you work with Claude Code. It is a short router, on purpose: an assistant that
   loads every convention for every task wastes its context window and follows the rules less well.
   So the conventions are split by area into `.claude/rules/*.md`, which Claude Code loads by

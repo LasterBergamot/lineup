@@ -21,6 +21,7 @@ Water polo lineup document generator. Takes match details and player info, fills
 | Dockerfile, fonts, Compose | `.claude/rules/container.md` |
 | Frontend | `.claude/rules/frontend.md` (loads for `frontend/**`) |
 | Writing docs or wiki pages | `.claude/rules/documentation.md` (loads for `documentation/**`, `README.md`) |
+| Adding a field, a log line, a stored file, a browser-storage key or a third-party service (personal data) | `documentation/Privacy-and-Security.md` (the data inventory; update it in the same PR) |
 | Setting up a dev machine | `documentation/Setup.md` (the `setup-project` skill follows it) |
 | Tasks, environment variables, branches, merge rules | `.claude/context/workflow.md` |
 | Opening a PR, Dependabot alerts and PRs | `.claude/context/pr-checklist.md` |
