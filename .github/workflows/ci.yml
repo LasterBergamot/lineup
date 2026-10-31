@@ -151,6 +151,51 @@ jobs:
         working-directory: frontend
         continue-on-error: true
 
+  frontend-e2e:
+    name: Frontend browser tests (report only)
+    runs-on: ubuntu-latest
+    # Report only at first (#159): it must not block a PR until it has proven stable. It is a
+    # separate job so a flaky browser never hides the result of the required `Frontend` job.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install Task
+        uses: arduino/setup-task@v3
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install frontend dependencies (frozen lockfile)
+        run: task fe:install
+
+      - name: Install Chromium for Playwright
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: Browser tests at phone and desktop size
+        run: task fe:e2e
+
+      - name: Keep the traces of failed tests
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: frontend/test-results
+          retention-days: 7
+
   e2e:
     name: E2E (real PDF conversion)
     runs-on: ubuntu-latest
