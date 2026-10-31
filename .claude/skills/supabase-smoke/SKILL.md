@@ -8,6 +8,9 @@ model: haiku
 broke on Supabase: aware datetimes rejected by asyncpg, and `DuplicatePreparedStatementError`
 behind the pooler. This runs the real path end to end.
 
+CI runs the same script after every successful dev deploy (job `smoke` in `deploy-dev.yml`), so a
+manual run is mainly for checking a change *before* it is merged.
+
 **It writes to the shared dev database.** Rows are created and then deleted. Tell the user
 before you start and get a go-ahead. Never run this against a prod project.
 
@@ -39,7 +42,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8000/health   # is som
 
 Every data route needs a signed-in user, and this test only wants the *database* path, so it
 does not sign in with Google. `scripts/smoke_auth.py` is a throw-away stand-in: it serves its
-own public key set on localhost and writes a token for a random user to a file. Nothing touches
+own public key set on localhost and writes a token for a fixed smoke user to a file. Nothing touches
 the real Supabase Auth.
 
 ```bash
@@ -47,7 +50,7 @@ uv run --project backend python scripts/smoke_auth.py --port 54399 \
   --token-file /tmp/smoke.jwt --second-token-file /tmp/smoke2.jwt &
 ```
 
-The second token belongs to a different random user. The invitation step needs it, because the
+The second token belongs to a different (fixed) user. The invitation step needs it, because the
 team's creator is already a member and accepting your own link proves nothing.
 
 Then start the API **in the background** with `SUPABASE_URL` pointing at it. This sources
@@ -60,74 +63,52 @@ cd backend && set -a && . ./.env && set +a && SUPABASE_URL=http://127.0.0.1:5439
 
 Wait until `/health` answers 200 (`/docs` is off under `ENV=production`, which the Supabase `.env` sets; startup also fails closed unless `DATABASE_URL` has `ssl=` and `SUPABASE_URL` is set). The local server has no LibreOffice, so it renders DOCX only.
 
-## 3. Exercise the API
+## 3. Run the smoke script
 
-Use a unique marker so the rows are easy to find and clean up. This needs `jq`.
-
-```bash
-M="smoke-$(date +%s)"; B=http://127.0.0.1:8000; A="authorization: Bearer $(cat /tmp/smoke.jwt)"
-TEAM=$(curl -sf -X POST $B/teams -H "$A" -H 'content-type: application/json' -d "{\"name\":\"$M team\"}" | jq -r .id)
-PLAYER=$(curl -sf -X POST $B/players -H "$A" -H 'content-type: application/json' \
-  -d "{\"name\":\"$M player\",\"nssz_number\":\"SMOKE1\",\"team_id\":\"$TEAM\"}" | jq -r .id)
-LINEUP=$(curl -sf -X POST $B/lineups/saved -H "$A" -H 'content-type: application/json' -d "{
-  \"team_id\":\"$TEAM\",\"source_team_id\":\"$TEAM\",\"opponent_name\":\"$M opponent\",\"division\":\"OB II.\",
-  \"cap\":\"Fehér\",\"date\":\"2026. 01. 01.\",\"coach\":\"Smoke Coach\",
-  \"players\":[{\"source_player_id\":\"$PLAYER\",\"cap_number\":1}]}" | jq -r .id)
-curl -sf -H "$A" "$B/lineups/saved/$LINEUP" | jq '{team_name, players: [.players[].name]}'
-curl -sf -H "$A" -o /tmp/$M.docx -w 'generate: %{http_code} %{content_type}\n' -X POST "$B/lineups/saved/$LINEUP/generate?format=docx"
-curl -sf -H "$A" "$B/teams/pool?search=$M" | jq length
-```
-
-Then the invitation path (migration `b7d2e9a41c53` added `invited_by_name`, and this is what
-proves it works on Postgres). Both tokens carry the name `Smoke Owner`:
+The steps live in one committed script, `scripts/smoke_live.py`, which CI also runs after every
+dev deploy (`.github/workflows/deploy-dev.yml`, job `smoke`, #190). Do not re-type them as curl
+commands here: change the script and its test (`backend/tests/test_smoke_live.py`) instead.
 
 ```bash
-A2="authorization: Bearer $(cat /tmp/smoke2.jwt)"
-INV=$(curl -sf -X POST $B/teams/$TEAM/invitations -H "$A" -H 'content-type: application/json' -d '{"expires_in_hours":2}')
-CODE=$(echo "$INV" | jq -r .code); INV_ID=$(echo "$INV" | jq -r .id)
-curl -sf $B/invitations/$CODE | jq '{team_name, invited_by_name}'                    # no token: public preview
-curl -s -H "$A2" -o /dev/null -w 'non-owner create %{http_code}\n' -X POST $B/teams/$TEAM/invitations   # 404 (not a member yet)
-curl -sf -H "$A2" -X POST $B/invitations/$CODE/accept | jq '{name, role}'            # role member
-curl -sf -H "$A2" -X POST $B/invitations/$CODE/accept | jq -r .role                  # repeat: still member
-curl -sf -H "$A" $B/teams/$TEAM/members | jq 'map({role, is_you})'                   # owner + member
-curl -s -H "$A2" -o /dev/null -w 'member create %{http_code}\n' -X POST $B/teams/$TEAM/invitations    # 403
-curl -sf -H "$A" $B/teams/$TEAM/invitations | jq length                              # 1, and no "code" field
-curl -s -H "$A" -o /dev/null -w 'revoke %{http_code}\n' -X DELETE $B/teams/$TEAM/invitations/$INV_ID   # 204
-curl -s -o /dev/null -w 'preview revoked %{http_code}\n' $B/invitations/$CODE      # 410
-MEMBER=$(curl -sf -H "$A" $B/teams/$TEAM/members | jq -r '.[] | select(.is_you|not) | .user_id')
+python3 scripts/smoke_live.py --base-url http://127.0.0.1:8000 \
+  --token-file /tmp/smoke.jwt --second-token-file /tmp/smoke2.jwt
 ```
 
-Check: each create returns an id (a `null` means it failed, so read the uvicorn output),
-the GET shows the frozen names, and generate returns 200 with a wordprocessingml type. For the
-invitation block: the preview shows the team name and `Smoke Owner`, the second user joins as
-`member` (twice, idempotent), the member list has two rows, the member's own invite attempt is
-403, the list never exposes a code, and a revoked link answers 410. An invite step failing with
+It needs no `jq`. It marks every row `smoke-<unix time>`, and it:
+
+- checks that an anonymous request gets 401;
+- creates a team, a player and a saved lineup, reads the lineup back (frozen names), generates a DOCX
+  (200, a wordprocessingml type, `Cache-Control: no-store`) and searches the opponent pool;
+- runs the invitation path (migration `b7d2e9a41c53` added `invited_by_name`, and this proves it works
+  on Postgres): create a link, preview it without a token (team name and inviter `Smoke Owner`), a
+  non-member cannot create one (404), the second user joins as `member` (twice, idempotent), the
+  member list has two rows, the member's own attempt is 403, the list never exposes a code, revoking
+  returns 204 and a revoked link answers 410;
+- **always cleans up**, even after a failed step: removes the joined member, then the lineup, the
+  player and the team (a team with a lineup or player in it answers 409), and finally sweeps teams
+  marked `smoke-<time>` that are more than an hour old (left by a crashed run; this works because
+  `smoke_auth.py` signs the same two users every time).
+
+Each step prints `ok` or `FAIL` with the status code; the exit code is 0 only if everything passed.
+Neither the tokens nor the invite code are printed. An invite step failing with
 `column ... invited_by_name does not exist` means the migration is not on dev.
 
-## 4. Clean up (always, even if step 3 failed)
+## 4. Clean up the files
 
-Remove the joined member (its `DELETE /teams/{id}/members/{user_id}` is owner-only), then delete
-the lineup, then the player, then the team, because the team delete returns
-409 while a saved lineup or a player is still in it:
+The script deletes its database rows itself. Remove the token files:
 
 ```bash
-curl -s -H "$A" -o /dev/null -w 'del member %{http_code}\n' -X DELETE "$B/teams/$TEAM/members/$MEMBER"   # 204
-curl -s -H "$A" -o /dev/null -w 'del lineup %{http_code}\n' -X DELETE "$B/lineups/saved/$LINEUP"   # 204
-curl -s -H "$A" -o /dev/null -w 'del player %{http_code}\n' -X DELETE "$B/players/$PLAYER"          # 204
-curl -s -H "$A" -o /dev/null -w 'del team %{http_code}\n'   -X DELETE "$B/teams/$TEAM"              # 200
-curl -sf -H "$A" "$B/teams/pool?search=$M" | jq length                                        # 0
-rm -f /tmp/$M.docx /tmp/smoke.jwt /tmp/smoke2.jwt
+rm -f /tmp/smoke.jwt /tmp/smoke2.jwt
 ```
 
-If an id is missing because a create failed partway, list and delete by the marker
-instead: `GET /teams?limit=200` and `GET /players?limit=200` (add `-H "$A"`), filtered on `$M` with `jq` (`limit` is capped at 200, so page with `&offset=` if there are more).
+If the script itself could not run (for example the API never started), nothing was written.
 
 ## 5. Restore and report
 
 - Stop the background API and the `smoke_auth.py` process.
 - Run `task db:sqlite` if you switched in step 1, and `task up` if you stopped the
   container.
-- Report each step's status code. On any 500, include the relevant uvicorn traceback lines
+- Report the script's output (each step's status code). On any 500, include the relevant uvicorn traceback lines
   (no URLs or secrets). Typical causes:
   - `DuplicatePreparedStatementError`: the pooler connect args in `backend/lineup/db/engine.py`
   - "can't subtract offset-naive and offset-aware datetimes" / `DataError` on timestamps:
