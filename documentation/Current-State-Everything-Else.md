@@ -118,9 +118,11 @@ git-ignored.
   and `CORS_ORIGINS` are set with `fly secrets set`. A test (`tests/test_fly_config.py`) fails on
   a non-EU region or a secret-looking key. The one-off setup is in [[Fly Setup]]. A push to
   `develop` that changes `backend/` deploys automatically (`.github/workflows/deploy-dev.yml`, #8):
-  Alembic `upgrade head`, `flyctl deploy --ha=false`, then a retrying `/health?db=1` check. It needs
-  the `FLY_API_TOKEN` and `MIGRATE_DATABASE_URL` Actions secrets (see *Continuous deployment* in
-  [[Fly Setup]]) and is guarded by `tests/test_deploy_workflow.py`.
+  Alembic `upgrade head`, `flyctl deploy --ha=false`, then a retrying `/health?db=1` check, then a
+  second job that runs the live smoke test (`scripts/smoke_live.py`, #190) against the dev database
+  as `lineup_app`. It needs the `FLY_API_TOKEN`, `MIGRATE_DATABASE_URL` and `SMOKE_DATABASE_URL`
+  Actions secrets (see *Continuous deployment* in [[Fly Setup]]) and is guarded by
+  `tests/test_deploy_workflow.py`.
 - **Hosting (dev frontend):** Cloudflare Pages serves `frontend/` (build `pnpm build`, output
   `dist`, production branch `develop`) and builds a static preview per PR. Only public `VITE_*`
   values are set there; the baseline security headers live in `frontend/public/_headers`. Its

@@ -2,8 +2,10 @@ name: Deploy dev
 
 # Continuous deployment of the dev API (#8): on every push to `develop` that touches the backend,
 # apply the Alembic migrations, release the image to Fly.io, then wait until the app answers
-# `/health?db=1`. The frontend is not deployed here: Cloudflare Pages builds `develop` itself
+# `/health?db=1`, and finally run the live smoke test (#190) against the dev database. The frontend is not deployed here: Cloudflare Pages builds `develop` itself
 # through its Git integration (documentation/Pages-Setup.md).
+#
+# A failed smoke test fails the run: the deploy is already live, so the red run is the signal.
 #
 # The push only happens after a merged PR, and branch protection already required the CI checks
 # on that PR. Setup of the two secrets below: documentation/Fly-Setup.md, "Continuous deployment".
@@ -34,10 +36,10 @@ jobs:
       # Must match `app` in backend/fly.toml (tests/test_deploy_workflow.py checks it).
       FLY_APP: lineup-dev-lb
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
 
@@ -99,3 +101,76 @@ jobs:
           done
           echo "::error::$url never became healthy. Fly keeps serving the previous release only if the new one failed its own check: look at 'fly status' and 'fly logs'."
           exit 1
+
+  # The live smoke test (#190): the same steps as the `supabase-smoke` skill, from the checked-out
+  # code, through the Supabase transaction pooler as the least-privilege `lineup_app` role, so a
+  # missing grant, an RLS policy or a pooler bug that SQLite cannot show fails here and not in front
+  # of a user. It does not roll anything back: the first version only reports.
+  #
+  # This job holds the only secret that can write app data. It is read through `env:` of one step
+  # (so it is masked), the fake sign-in below listens on localhost and its key never leaves the
+  # runner, and the test writes only `smoke-<time>` rows that it deletes again.
+  smoke:
+    name: Smoke test (live database)
+    needs: deploy
+    # Only pushes to develop write to the shared database, never a pull request build. A manual
+    # run from another branch skips this job rather than testing unmerged code against dev.
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+        working-directory: backend
+
+      - name: Run scripts/smoke_live.py
+        env:
+          # The `lineup_app` transaction-pooler URL (port 6543, `ssl=require`), the same value as
+          # the Fly secret DATABASE_URL. Not the owner URL used for migrations.
+          DATABASE_URL: ${{ secrets.SMOKE_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::The SMOKE_DATABASE_URL Actions secret is not set (documentation/Fly-Setup.md)."
+            exit 1
+          fi
+          work="$RUNNER_TEMP/smoke"
+          mkdir -m 700 "$work"
+          trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
+
+          # A stand-in for Supabase Auth: it serves its own throw-away public key on localhost and
+          # writes two tokens (fixed smoke users) to files only this job can read.
+          (cd backend && uv run python ../scripts/smoke_auth.py --port 54399 \
+            --token-file "$work/owner.jwt" --second-token-file "$work/member.jwt") &
+
+          # The API from this checkout, trusting that stand-in. ENV=production is what a real
+          # Postgres needs (the schema is Alembic-managed); the server has no LibreOffice, so it
+          # renders DOCX only. --no-access-log: an invite code is a URL path segment.
+          (cd backend && ENV=production SUPABASE_URL=http://127.0.0.1:54399 \
+            uv run uvicorn app:app --host 127.0.0.1 --port 8000 --no-access-log \
+            >"$work/api.log" 2>&1) &
+
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail --max-time 5 "http://127.0.0.1:8000/health?db=1" >/dev/null \
+              && [ -s "$work/owner.jwt" ] && [ -s "$work/member.jwt" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          status=0
+          python3 scripts/smoke_live.py --base-url http://127.0.0.1:8000 \
+            --token-file "$work/owner.jwt" --second-token-file "$work/member.jwt" || status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::group::API log (last 40 lines)"
+            tail -n 40 "$work/api.log"
+            echo "::endgroup::"
+          fi
+          rm -f "$work/owner.jwt" "$work/member.jwt"
+          exit "$status"
