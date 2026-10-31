@@ -20,6 +20,7 @@ import {
   type SavedLineup,
 } from "@/features/saved/api";
 import type { Team } from "@/features/teams/api";
+import { cn } from "@/lib/utils";
 import { useAfterDelay } from "@/lib/use-after-delay";
 
 /** How long the pointer must rest on a row before its preview loads (hover intent, desktop). */
@@ -121,7 +122,10 @@ export function SavedLineups({ team }: { team: Team }) {
             {rows.map((lineup) => (
               <li
                 key={lineup.id}
-                className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between"
+                className={cn(
+                  "flex flex-col gap-3 border-l-4 border-l-transparent p-4 md:flex-row md:items-center md:justify-between",
+                  selected?.id === lineup.id && "border-l-primary bg-accent",
+                )}
                 aria-current={selected?.id === lineup.id ? "true" : undefined}
                 onMouseEnter={() => hoverStart(lineup)}
                 onMouseLeave={() => clearTimeout(hoverTimer.current)}

@@ -226,14 +226,14 @@ Returns the lineup file with a `Content-Disposition: attachment` header containi
 ```
 # PDF (default)
 Content-Type: application/pdf
-Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..pdf"; filename*=UTF-8''rajtlista_SZVTK_2024.%2012.%2021..pdf
+Content-Disposition: attachment; filename="rajtlista_SZVTK_2024-12-21.pdf"; filename*=UTF-8''rajtlista_SZVTK_2024-12-21.pdf
 
 # DOCX
 Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
-Content-Disposition: attachment; filename="rajtlista_SZVTK_2024. 12. 21..docx"; filename*=UTF-8''rajtlista_SZVTK_2024.%2012.%2021..docx
+Content-Disposition: attachment; filename="rajtlista_SZVTK_2024-12-21.docx"; filename*=UTF-8''rajtlista_SZVTK_2024-12-21.docx
 ```
 
-The header carries the name twice. HTTP headers are latin-1, so a team name with `ő`/`ű` can't go into plain `filename="..."`. The real UTF-8 name goes in `filename*` (RFC 6266), which browsers prefer; `filename` is an accent-stripped ASCII fallback (`Szőreg` → `Szoreg`).
+The header carries the name twice. HTTP headers are latin-1, so a team name with `ő`/`ű` can't go into plain `filename="..."`. The real UTF-8 name goes in `filename*` (RFC 6266), which browsers prefer; `filename` is an accent-stripped ASCII fallback (`Szőreg` → `Szoreg`). Spaces in the team name become `_` and the date's dots and spaces become `-` (`2024. 12. 21.` → `2024-12-21`), so the name never has spaces or a `..`; the document itself prints the date as typed.
 
 **Auth and limits:** `POST /lineups` needs a signed-in user like every data route (`401` otherwise). Both generate endpoints are rate limited per user and per IP (`429` with `Retry-After`), and request bodies over 256 KiB get `413`. Every response carries the security headers (HSTS, `nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` / CSP `frame-ancestors 'none'`) and `Cache-Control: no-store`, because all payloads are personal data or generated documents.
 

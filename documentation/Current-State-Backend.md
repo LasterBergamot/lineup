@@ -90,7 +90,7 @@ so rendering, headers and error handling live in one place:
 - **Rendering runs in the threadpool** (`run_in_threadpool`). PDF conversion is a blocking
   LibreOffice subprocess that can take seconds; running it on the event loop would freeze
   every other request, including all the DB endpoints.
-- **Filename header**: `rajtlista_<team>_<date>.<ext>`. HTTP header values are latin-1, so a
+- **Filename header**: `rajtlista_<team>_<date>.<ext>` from `download_filename()`: whitespace in the team becomes `_`, the date's dots and spaces become `-` (`2024. 12. 21.` → `2024-12-21`, never a `..`); the printed sheet keeps the date as typed. HTTP header values are latin-1, so a
   team name with Hungarian `ő`/`ű` (or a `"`/`;`) can't go into a plain `filename="..."`. The
   header carries the real name in the RFC 6266 `filename*=UTF-8''...` form plus an
   accent-stripped ASCII `filename="..."` fallback for older clients.
