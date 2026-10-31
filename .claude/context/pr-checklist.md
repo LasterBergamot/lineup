@@ -26,7 +26,8 @@ the procedure; this file holds the project's rules and values.
   `(cd backend && uv sync)`, `task lint`, `task test`.
 - **Known recurring cases:**
   - A ruff bump that adds new rule violations is blocking until a dedicated issue fixes them
-    (#62; the open bump is PR #149).
+    (#62 did this for 0.17). A new minor version can widen ruff's default rule set, so
+    `uv run ruff check . --statistics` shows what the bump would add.
   - The `setup-task` API rate limit was an environmental CI failure, fixed on `develop` by
     passing `repo-token` to `arduino/setup-task`: propose `@dependabot rebase`.
   - `wiki-sync.yml` only runs on pushes to `develop`, so a PR's CI never exercises it: an

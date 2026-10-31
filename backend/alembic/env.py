@@ -8,11 +8,11 @@ import asyncio
 import os
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from lineup.db.base import Base
 import lineup.db.models  # noqa: F401 — registers all ORM models with Base.metadata
+from alembic import context
+from lineup.db.base import Base
 from lineup.db.urls import to_asyncpg_url
 
 config = context.config

@@ -9,6 +9,7 @@ import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from fastapi import Depends, HTTPException
@@ -211,7 +212,7 @@ def test_marker_age():
 class Stub(BaseHTTPRequestHandler):
     """Records what it received; answers 200 JSON on /ok, 404 JSON elsewhere."""
 
-    seen: list[tuple[str, str, str | None, bytes]] = []
+    seen: ClassVar[list[tuple[str, str, str | None, bytes]]] = []
 
     def _answer(self):
         length = int(self.headers.get("content-length") or 0)
@@ -233,7 +234,7 @@ class Stub(BaseHTTPRequestHandler):
 
     do_GET = do_POST = _answer
 
-    def log_message(self, format, *args):  # noqa: A002
+    def log_message(self, format, *args):
         pass
 
 

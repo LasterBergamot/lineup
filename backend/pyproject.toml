@@ -18,7 +18,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.15",
+    "ruff>=0.17.2",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
     "pdfplumber>=0.11.0",
@@ -30,6 +30,11 @@ dev = [
 # public module, class, function and method must explain itself. The style rules (D2xx/D4xx)
 # are deliberately not enabled; what matters is content, not formatting.
 extend-select = ["S", "D1"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's `param: T = Depends(...)` is the framework's injection syntax, and python-docx's
+# `Pt(...)` is a plain value object; neither is the shared-mutable-default trap B008 targets.
+extend-immutable-calls = ["fastapi.Depends", "docx.shared.Pt"]
 
 [tool.ruff.lint.per-file-ignores]
 # assert is the standard pytest idiom, not a production risk; S310's "unexpected scheme"

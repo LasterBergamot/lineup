@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -18,9 +18,9 @@ from lineup.db.models import (
 
 
 def test_utcnow_is_naive_utc():
-    before = datetime.now(timezone.utc).replace(tzinfo=None)
+    before = datetime.now(UTC).replace(tzinfo=None)
     value = _utcnow()
-    after = datetime.now(timezone.utc).replace(tzinfo=None)
+    after = datetime.now(UTC).replace(tzinfo=None)
 
     assert value.tzinfo is None
     assert before <= value <= after

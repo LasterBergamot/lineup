@@ -64,31 +64,39 @@ def test_convert_success():
 
 def test_convert_raises_on_libreoffice_failure_and_truncates_stderr():
     factory = _fake_popen(returncode=1, stderr=b"boom " * 1000, write_pdf=False)
-    with patch("subprocess.Popen", side_effect=factory):
-        with pytest.raises(RuntimeError, match="LibreOffice conversion failed") as exc:
-            PdfConverter().convert(b"x")
+    with (
+        patch("subprocess.Popen", side_effect=factory),
+        pytest.raises(RuntimeError, match="LibreOffice conversion failed") as exc,
+    ):
+        PdfConverter().convert(b"x")
     assert "exit 1" in str(exc.value)
     assert len(str(exc.value)) < 700
 
 
 def test_convert_tolerates_undecodable_stderr():
     factory = _fake_popen(returncode=1, stderr=b"\xff\xfe bad", write_pdf=False)
-    with patch("subprocess.Popen", side_effect=factory):
-        with pytest.raises(RuntimeError, match="conversion failed"):
-            PdfConverter().convert(b"x")
+    with (
+        patch("subprocess.Popen", side_effect=factory),
+        pytest.raises(RuntimeError, match="conversion failed"),
+    ):
+        PdfConverter().convert(b"x")
 
 
 def test_convert_raises_a_distinct_error_when_no_pdf_was_written():
     factory = _fake_popen(returncode=0, write_pdf=False)
-    with patch("subprocess.Popen", side_effect=factory):
-        with pytest.raises(RuntimeError, match="wrote no PDF"):
-            PdfConverter().convert(b"x")
+    with (
+        patch("subprocess.Popen", side_effect=factory),
+        pytest.raises(RuntimeError, match="wrote no PDF"),
+    ):
+        PdfConverter().convert(b"x")
 
 
 def test_convert_raises_a_distinct_error_when_libreoffice_is_missing():
-    with patch("shutil.which", return_value=None):
-        with pytest.raises(RuntimeError, match="not installed"):
-            PdfConverter().convert(b"x")
+    with (
+        patch("shutil.which", return_value=None),
+        pytest.raises(RuntimeError, match="not installed"),
+    ):
+        PdfConverter().convert(b"x")
 
 
 class TestTimeout:
@@ -102,10 +110,12 @@ class TestTimeout:
             return b"", b""
 
         factory = _fake_popen(communicate=communicate)
-        with patch("subprocess.Popen", side_effect=factory):
-            with patch("os.killpg") as killpg:
-                with pytest.raises(subprocess.TimeoutExpired):
-                    PdfConverter().convert(b"x")
+        with (
+            patch("subprocess.Popen", side_effect=factory),
+            patch("os.killpg") as killpg,
+            pytest.raises(subprocess.TimeoutExpired),
+        ):
+            PdfConverter().convert(b"x")
 
         killpg.assert_called_once_with(4242, converter_module.signal.SIGKILL)
         assert len(calls) == 2, "the killed process must be reaped"
@@ -119,12 +129,12 @@ class TestTimeout:
                 raise subprocess.TimeoutExpired("libreoffice", timeout)
             return b"", b""
 
-        with patch(
-            "subprocess.Popen", side_effect=_fake_popen(communicate=communicate)
+        with (
+            patch("subprocess.Popen", side_effect=_fake_popen(communicate=communicate)),
+            patch("os.killpg", side_effect=ProcessLookupError),
+            pytest.raises(subprocess.TimeoutExpired),
         ):
-            with patch("os.killpg", side_effect=ProcessLookupError):
-                with pytest.raises(subprocess.TimeoutExpired):
-                    PdfConverter().convert(b"x")
+            PdfConverter().convert(b"x")
 
     @pytest.mark.skipif(sys.platform != "linux", reason="reads /proc")
     def test_children_of_libreoffice_do_not_survive_a_timeout(
@@ -138,9 +148,11 @@ class TestTimeout:
         monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
         monkeypatch.setattr(converter_module, "CONVERSION_TIMEOUT_SECONDS", 1)
 
-        with patch("shutil.which", return_value=str(script)):
-            with pytest.raises(subprocess.TimeoutExpired):
-                PdfConverter().convert(b"x")
+        with (
+            patch("shutil.which", return_value=str(script)),
+            pytest.raises(subprocess.TimeoutExpired),
+        ):
+            PdfConverter().convert(b"x")
 
         child_pid = int(child_pid_file.read_text())
         deadline = time.monotonic() + 5
@@ -200,9 +212,11 @@ class TestConcurrencyLimit:
         monkeypatch.setattr(converter_module, "_slots", slots)
         monkeypatch.setattr(converter_module, "QUEUE_TIMEOUT_SECONDS", 0.01)
 
-        with patch("subprocess.Popen") as popen:
-            with pytest.raises(ConverterBusyError):
-                PdfConverter().convert(b"x")
+        with (
+            patch("subprocess.Popen") as popen,
+            pytest.raises(ConverterBusyError),
+        ):
+            PdfConverter().convert(b"x")
         popen.assert_not_called()
 
     def test_busy_error_is_a_runtime_error_so_old_handlers_still_catch_it(self):
@@ -223,9 +237,12 @@ class TestConcurrencyLimit:
             write_pdf=outcome == "success",
             communicate=None if outcome != "timeout" else communicate,
         )
-        with patch("subprocess.Popen", side_effect=factory), patch("os.killpg"):
-            with contextlib.suppress(Exception):  # only the slot accounting matters
-                PdfConverter().convert(b"x")
+        with (
+            patch("subprocess.Popen", side_effect=factory),
+            patch("os.killpg"),
+            contextlib.suppress(Exception),
+        ):
+            PdfConverter().convert(b"x")
 
         assert slots.acquire(blocking=False), "the slot leaked"
 

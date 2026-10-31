@@ -69,7 +69,7 @@ enable_sqlite_foreign_keys(engine)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     """FastAPI dependency: one `AsyncSession` per request, closed when the request ends.
 
     Nothing is committed automatically; the repositories commit their own writes.

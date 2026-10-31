@@ -9,12 +9,14 @@ from pathlib import Path
 
 from lineup.document.document_manager import (
     DocumentManager,
-    update_cell_text,
-    align_cell_vertically,
     align_cell_horizontally,
+    align_cell_vertically,
+    update_cell_text,
 )
 from lineup.document.pdf_converter import PdfConverter
 from lineup.water_polo.water_polo_lineup_dto import WaterPoloLineupDTO
+
+logger = logging.getLogger(__name__)
 
 # Anchored to this file, not the working directory, so the template is found wherever the
 # process is started from (uvicorn in the container, pytest, the CLI).
@@ -52,7 +54,7 @@ class WaterPoloLineupCreator:
         try:
             self.manager = DocumentManager(FILE_NAME)
         except FileNotFoundError:
-            logging.error(f"File not found: {FILE_NAME}")
+            logger.error(f"File not found: {FILE_NAME}")
             raise
 
     def create_document(self, dto: WaterPoloLineupDTO):
@@ -63,9 +65,9 @@ class WaterPoloLineupCreator:
             self.__update_paragraphs(dto)
             self.__update_player_table(dto)
             self.manager.save(RESULT_FILE_NAME)
-            logging.info(f"Document saved as {RESULT_FILE_NAME}")
+            logger.info(f"Document saved as {RESULT_FILE_NAME}")
         except Exception as e:
-            logging.error(f"Error creating document: {e}")
+            logger.error(f"Error creating document: {e}")
             raise
 
     def create_document_bytes(self, dto: WaterPoloLineupDTO) -> bytes:
@@ -77,7 +79,7 @@ class WaterPoloLineupCreator:
             self.__update_player_table(dto)
             return self.manager.to_bytes()
         except Exception as e:
-            logging.error(f"Error creating document bytes: {e}")
+            logger.error(f"Error creating document bytes: {e}")
             raise
 
     def create_pdf_bytes(self, dto: WaterPoloLineupDTO) -> bytes:

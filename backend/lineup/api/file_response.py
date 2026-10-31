@@ -93,7 +93,7 @@ async def build_file_response(
     except subprocess.TimeoutExpired:
         logger.error("PDF conversion timed out")
         raise HTTPException(status_code=504, detail="PDF conversion timed out")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - last resort: any failure becomes a clean 500
         logger.error("Document generation failed: %s", e)
         raise HTTPException(status_code=500, detail="Document generation failed")
 

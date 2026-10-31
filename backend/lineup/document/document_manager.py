@@ -6,7 +6,7 @@ from docx import Document
 from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT
 
 # source: https://python-docx.readthedocs.io/en/latest/dev/analysis/features/text/tab-stops.html
-from docx.enum.text import WD_TAB_LEADER, WD_PARAGRAPH_ALIGNMENT
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_TAB_LEADER
 from docx.shared import Pt
 from docx.table import _Cell
 

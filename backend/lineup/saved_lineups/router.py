@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lineup.api.file_response import FileFormat, build_file_response
 from lineup.auth.dependencies import get_current_user_id
 from lineup.db.engine import get_session
 from lineup.saved_lineups import service
@@ -17,7 +18,6 @@ from lineup.saved_lineups.schemas import (
     SavedLineupCreate,
     SavedLineupResponse,
 )
-from lineup.api.file_response import FileFormat, build_file_response
 from lineup.security.rate_limit import (
     RATE_LIMIT_RESPONSES,
     generate_ip_limit,

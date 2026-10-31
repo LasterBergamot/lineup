@@ -30,7 +30,7 @@ class SavedLineupPlayerCreate(BaseModel):
     cap_number: int = Field(..., ge=1, le=15)
 
     @model_validator(mode="after")
-    def require_identity(self) -> "SavedLineupPlayerCreate":
+    def require_identity(self) -> SavedLineupPlayerCreate:
         """Enforce "exactly one of `source_player_id` or (`name` and `nssz_number`)"."""
         free_text = self.name is not None or self.nssz_number is not None
         if self.source_player_id is not None and free_text:
@@ -95,7 +95,7 @@ class SavedLineupCreate(BaseModel):
         return players
 
     @model_validator(mode="after")
-    def require_team_identity(self) -> "SavedLineupCreate":
+    def require_team_identity(self) -> SavedLineupCreate:
         """Enforce "exactly one of source id or name" for both the team and the opponent."""
         for source_id, name, label in (
             (self.source_team_id, self.team_name, "team"),

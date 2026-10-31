@@ -20,16 +20,15 @@ Create Date: 2026-10-05 12:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = "8b1f3c2d9a47"
-down_revision: Union[str, Sequence[str], None] = "35ce55ceabf4"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "35ce55ceabf4"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 APP_ROLE = "lineup_app"
 # Tables the API reads and writes. alembic_version is deliberately not listed: the app must

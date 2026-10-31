@@ -11,8 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lineup.db.models import TeamMember
-from lineup.teams.schemas import TeamPoolItem
 from lineup.teams import repository as team_repo
+from lineup.teams.schemas import TeamPoolItem
 from tests.conftest import CurrentUser
 from tests.helpers import create_player
 

@@ -122,9 +122,11 @@ class TestSetRolePassword:
 
     async def test_missing_role_points_at_the_migration(self):
         engine = _FakeEngine(_FakeConn(role_exists=False))
-        with patch.object(app_role, "create_async_engine", return_value=engine):
-            with pytest.raises(ValueError, match="task migrate:supabase"):
-                await app_role.set_role_password("postgresql+asyncpg://x", "pw")
+        with (
+            patch.object(app_role, "create_async_engine", return_value=engine),
+            pytest.raises(ValueError, match="task migrate:supabase"),
+        ):
+            await app_role.set_role_password("postgresql+asyncpg://x", "pw")
         assert engine.disposed
 
 

@@ -9,7 +9,7 @@ access (it raises `MissingGreenlet`).
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from sqlalchemy import (
@@ -30,7 +30,7 @@ from lineup.db.base import Base
 def _utcnow() -> datetime:
     # Columns are TIMESTAMP WITHOUT TIME ZONE, so store naive UTC. SQLite silently drops
     # tzinfo, but asyncpg rejects an aware datetime for such a column.
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Team(Base):

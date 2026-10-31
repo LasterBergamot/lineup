@@ -1,7 +1,6 @@
 """Data objects and builders for a water polo lineup sheet."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 
 @dataclass
@@ -22,24 +21,24 @@ class WaterPoloLineupDTO:
     assistant_coach: str
     team_leader: str
     ball_thrower: str
-    players: List["WaterPoloLineupDTO.Player"] = field(default_factory=list)
+    players: list["WaterPoloLineupDTO.Player"] = field(default_factory=list)
 
     class WaterPoloLineupDTOBuilder:
         """Step-by-step construction of a `WaterPoloLineupDTO`; `build()` validates it."""
 
         def __init__(self):
             """Start with every field unset and no players."""
-            self.match: Optional[str] = None
-            self.division: Optional[str] = None
-            self.team_name: Optional[str] = None
-            self.cap: Optional[str] = None
-            self.date: Optional[str] = None
-            self.coach: Optional[str] = None
-            self.doctor: Optional[str] = None
-            self.assistant_coach: Optional[str] = None
-            self.team_leader: Optional[str] = None
-            self.ball_thrower: Optional[str] = None
-            self.players: List["WaterPoloLineupDTO.Player"] = []
+            self.match: str | None = None
+            self.division: str | None = None
+            self.team_name: str | None = None
+            self.cap: str | None = None
+            self.date: str | None = None
+            self.coach: str | None = None
+            self.doctor: str | None = None
+            self.assistant_coach: str | None = None
+            self.team_leader: str | None = None
+            self.ball_thrower: str | None = None
+            self.players: list[WaterPoloLineupDTO.Player] = []
 
         def set_match(
             self, match: str
@@ -80,35 +79,35 @@ class WaterPoloLineupDTO:
             return self
 
         def set_doctor(
-            self, doctor: Optional[str]
+            self, doctor: str | None
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             """Set the official doctor (Hivatalos orvos); optional, printed blank when unset."""
             self.doctor = doctor
             return self
 
         def set_assistant_coach(
-            self, assistant_coach: Optional[str]
+            self, assistant_coach: str | None
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             """Set the assistant coach (Segédedző); optional."""
             self.assistant_coach = assistant_coach
             return self
 
         def set_team_leader(
-            self, team_leader: Optional[str]
+            self, team_leader: str | None
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             """Set the team leader (Csapatvezető); optional."""
             self.team_leader = team_leader
             return self
 
         def set_ball_thrower(
-            self, ball_thrower: Optional[str]
+            self, ball_thrower: str | None
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             """Set the ball thrower (Labdabedobó); optional."""
             self.ball_thrower = ball_thrower
             return self
 
         def set_players(
-            self, players: List["WaterPoloLineupDTO.Player"]
+            self, players: list["WaterPoloLineupDTO.Player"]
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             """Replace the whole player list."""
             self.players = players
@@ -119,7 +118,7 @@ class WaterPoloLineupDTO:
         ) -> "WaterPoloLineupDTO.WaterPoloLineupDTOBuilder":
             """Append one `Player`; raises `ValueError` for anything else."""
             if not isinstance(player, WaterPoloLineupDTO.Player):
-                raise ValueError("player must be an instance of Player")
+                raise ValueError("player must be an instance of Player")  # noqa: TRY004 - documented API: ValueError
             self.players.append(player)
             return self
 
@@ -162,9 +161,9 @@ class WaterPoloLineupDTO:
     class Player:
         """One row of the player table: cap number, name and NSSZ (federation registration) number."""
 
-        cap_number: Optional[int] = None
-        name: Optional[str] = None
-        nssz_number: Optional[str] = None
+        cap_number: int | None = None
+        name: str | None = None
+        nssz_number: str | None = None
 
         class PlayerBuilder:
             """Step-by-step construction of a `Player`; `build()` requires all three fields."""

@@ -55,11 +55,11 @@ def test_the_server_serves_the_key_set_only_on_the_jwks_path():
     thread.start()
     try:
         base = f"http://127.0.0.1:{server.server_port}"
-        with urlopen(base + smoke_auth.JWKS_PATH) as response:  # noqa: S310
+        with urlopen(base + smoke_auth.JWKS_PATH) as response:
             assert response.status == 200
             assert b'"keys"' in response.read()
         with pytest.raises(OSError):
-            urlopen(base + "/other")  # noqa: S310
+            urlopen(base + "/other")
     finally:
         server.shutdown()
         server.server_close()
