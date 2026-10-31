@@ -2,7 +2,7 @@
 # image; the Dependabot docker ecosystem (.github/dependabot.yml) bumps tag and digest together.
 
 # --- builder: resolve and install the Python dependencies -------------------------------
-FROM python:3.13-slim@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f AS builder
+FROM python:3.14-slim@sha256:cd89c30eda26ee911a4611b18680086e0ea42e6f5f8cbe653d07fa7958c9cec8 AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /usr/local/bin/uv
 
@@ -21,7 +21,7 @@ RUN uv sync --frozen --no-dev
 COPY . .
 
 # --- runtime: LibreOffice + the app, running as an unprivileged user --------------------
-FROM python:3.13-slim@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f AS runtime
+FROM python:3.14-slim@sha256:cd89c30eda26ee911a4611b18680086e0ea42e6f5f8cbe653d07fa7958c9cec8 AS runtime
 
 # LibreOffice converts the .docx to PDF. The template is authored in Calibri / Calibri Light
 # (proprietary, absent here), so we also install the libre metric-compatible substitutes:
@@ -38,6 +38,11 @@ RUN apt-get update \
         fonts-crosextra-caladea \
         fonts-liberation2 \
     && rm -rf /var/lib/apt/lists/*
+
+# pip is only needed to build things, and the venv is already built. Its vendored copies of
+# urllib3, certifi, msgpack and setuptools (pkg_resources) are what Trivy flags in the base
+# image, and they never get a fix until the base image ships a new pip, so remove it.
+RUN python -m pip uninstall -y pip
 
 # Force Calibri / Calibri Light -> Carlito so the docx renders with Calibri's metrics.
 COPY docker/fontconfig/99-calibri-carlito.conf /etc/fonts/conf.d/99-calibri-carlito.conf
