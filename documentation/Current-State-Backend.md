@@ -110,8 +110,9 @@ so rendering, headers and error handling live in one place:
   template is found whether the process starts in `backend/`, in the container or under pytest.
 - **Staff fields are optional at the document level**: only match, division, team name, cap,
   date and coach are required by `WaterPoloLineupDTOBuilder.build()`; a missing doctor /
-  assistant coach / team leader / ball thrower renders as an empty line. `LineupRequest` still
-  requires them for the one-off endpoint, but saved lineups may omit them.
+  assistant coach / team leader / ball thrower renders as an empty line. `LineupRequest`
+  (the one-off endpoint) takes the same optional staff as saved lineups: omitted or blank is fine
+  (#203), so the lineup creator can preview a lineup that has no doctor or assistants.
 
 ### Health
 
