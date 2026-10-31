@@ -27,6 +27,12 @@ saved roster instead of a one-off request payload.
   secrets, deploying and troubleshooting
 - [[Pages Setup]] — how the web app is hosted on Cloudflare Pages, creating the dev site, build
   variables, the allow-lists to update, and why PR previews cannot sign in
+- [[Privacy and Security]] — who is controller and processor, the personal-data inventory (field →
+  table → purpose → basis → retention), sub-processors and regions, backups, what is not built yet
+  and the checklist before inviting anyone. The next four pages are built from it:
+  [[Privacy Notice]] (Hungarian + English, with the Art. 14 template for clubs),
+  [[Terms and Processor Agreement]], [[Compliance Records]] (Art. 30, legitimate-interest
+  assessment, DPIA screening) and [[Breach Runbook]]
 - [[References]] — official docs and links for every library, tool, service, spec and regulation
   we use (the dependency tables are generated from the repo)
 

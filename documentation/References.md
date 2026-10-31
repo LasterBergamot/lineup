@@ -107,6 +107,9 @@ in `.claude/skills/compliance-audit/requirements.md`, tracked by epic #92.
 | EDPB guidelines | Legitimate interest, DPIA, ePrivacy storage access | [edpb.europa.eu](https://www.edpb.europa.eu/our-work-tools/our-documents/guidelines/guidelines-22023-technical-scope-art-53-eprivacy-directive_en) |
 | NAIH (Hungarian data-protection authority) | Supervisory authority, breach reporting, recommendations | [naih.hu](https://naih.hu/) · [breach reporting](https://naih.hu/adatvedelmi-incidensbejelento-rendszer) |
 | Infotv. (Act CXII of 2011) | Hungarian data-protection act | [naih.hu](https://naih.hu/) |
+| EU–US Data Privacy Framework | Basis for transfers to certified US providers (Fly.io, Cloudflare, Sentry, Google); standard contractual clauses are the fallback | [dataprivacyframework.gov](https://www.dataprivacyframework.gov/) |
+| Provider DPAs | Processor agreements we rely on | [Supabase](https://supabase.com/legal/dpa) · [Cloudflare](https://www.cloudflare.com/cloudflare-customer-dpa/) · [Fly.io](https://fly.io/legal) · [Sentry](https://sentry.io/legal/dpa/) |
+| Our own privacy documents | Data inventory, notices, terms and processor agreement, Art. 30 records, LIA, DPIA screening, breach runbook | [[Privacy and Security]] |
 | OWASP Top 10 | Baseline list of web application risks | [owasp.org/Top10](https://owasp.org/Top10/) |
 | OWASP ASVS | Verification standard the security requirements map to | [owasp.org/ASVS](https://owasp.org/www-project-application-security-verification-standard/) |
 | OWASP API Security Top 10 | API-specific risks (object-level authorization, resource limits) | [owasp.org/API-Security](https://owasp.org/API-Security/) |
