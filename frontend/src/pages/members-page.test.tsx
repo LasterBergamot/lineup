@@ -1,6 +1,11 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ApiError } from "@/api/errors";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { render } from "@testing-library/react";
+import type { Team } from "@/features/teams/api";
+import { TeamsContext } from "@/features/teams/context";
+import { MembersPage } from "@/pages/members-page";
 import { fakeSession, membersList, renderApp, teamsPage } from "@/test/auth";
 
 const mocks = vi.hoisted(() => ({
@@ -159,5 +164,17 @@ describe("leaving", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Leave team" }));
     await userEvent.click(screen.getByRole("button", { name: "Yes, leave" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("only owner");
+  });
+});
+
+describe("members page without a current team", () => {
+  it("renders nothing (the team gate normally keeps this from happening)", () => {
+    const query = { data: [] } as unknown as UseQueryResult<Team[]>;
+    const { container } = render(
+      <TeamsContext.Provider value={{ query, current: undefined }}>
+        <MembersPage />
+      </TeamsContext.Provider>,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

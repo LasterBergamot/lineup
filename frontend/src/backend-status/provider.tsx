@@ -26,10 +26,9 @@ export function BackendStatusProvider({
     const controller = new AbortController();
     const { signal } = controller;
     const startedAt = Date.now();
-    const wakingTimer = setTimeout(
-      () => setStatus((current) => (current === "unknown" ? "waking" : current)),
-      WAKING_AFTER_MS,
-    );
+    // Only still pending while no answer has arrived (the answer and the cleanup both clear it),
+    // and every run starts from "unknown", so there is nothing to guard against here.
+    const wakingTimer = setTimeout(() => setStatus("waking"), WAKING_AFTER_MS);
     const ticker = setInterval(
       () => setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000)),
       1000,

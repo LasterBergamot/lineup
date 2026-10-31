@@ -82,8 +82,10 @@ export function LineupForm() {
     handleSubmit((values) => generate.mutate({ values, format }));
 
   function addPlayer() {
-    const next = nextFreeCapNumber(getValues("players").map((p) => p.cap_number));
-    if (next !== undefined) append({ cap_number: next, name: "", nssz_number: "" });
+    // Taking all 15 cap numbers needs 15 rows, and the button is disabled at 15, so there is
+    // always a free number here; the helper's `undefined` only exists for its own contract.
+    const next = nextFreeCapNumber(getValues("players").map((p) => p.cap_number))!;
+    append({ cap_number: next, name: "", nssz_number: "" });
   }
 
   const playersError = errors.players?.root?.message ?? errors.players?.message;

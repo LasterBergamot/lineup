@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ApiError } from "@/api/errors";
 import { AuthProvider } from "@/auth/provider";
@@ -116,6 +116,20 @@ describe("team settings card", () => {
     expect(await screen.findByText("Name is taken")).toBeInTheDocument();
     expect(nameInput()).toHaveAttribute("aria-invalid", "true");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("ignores a 422 for a field the form does not have", async () => {
+    mocks.updateTeam.mockRejectedValue(
+      new ApiError(422, { detail: [{ loc: ["body", "is_public"], msg: "Value error, odd" }] }),
+    );
+    renderCard();
+    await userEvent.type(nameInput(), " II");
+    await userEvent.click(saveButton());
+    await waitFor(() => expect(mocks.updateTeam).toHaveBeenCalledOnce());
+    await waitFor(() => expect(saveButton()).toBeEnabled());
+    expect(nameInput()).not.toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText("odd")).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 

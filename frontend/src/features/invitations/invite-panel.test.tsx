@@ -134,6 +134,15 @@ describe("copying and sharing", () => {
     expect(await screen.findByText(/Couldn't copy/)).toBeInTheDocument();
   });
 
+  it("selects the whole link when the field gets focus, so it can be copied by hand", async () => {
+    await open();
+    await userEvent.click(screen.getByRole("button", { name: "Create invite link" }));
+    const field = (await screen.findByLabelText("Your invite link")) as HTMLInputElement;
+    await userEvent.click(field);
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(URL_.length);
+  });
+
   it("has no Share button where the browser cannot share", async () => {
     await created();
     expect(screen.queryByRole("button", { name: "Share" })).not.toBeInTheDocument();

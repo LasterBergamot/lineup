@@ -31,6 +31,32 @@ describe("safeReturnPath", () => {
   });
 });
 
+describe("safeReturnPath defences against the URL parser", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("falls back to the home page if the parsed URL turns out to be on another origin", () => {
+    vi.stubGlobal(
+      "URL",
+      class {
+        origin = "https://evil.example";
+      },
+    );
+    expect(safeReturnPath("/roster")).toBe("/");
+  });
+
+  it("falls back to the home page if the URL parser rejects the path", () => {
+    vi.stubGlobal(
+      "URL",
+      class {
+        constructor() {
+          throw new TypeError("Invalid URL");
+        }
+      },
+    );
+    expect(safeReturnPath("/roster")).toBe("/");
+  });
+});
+
 describe("remembered return path", () => {
   it("round-trips a safe path and forgets it on request", () => {
     expect(readReturnPath()).toBe("/");

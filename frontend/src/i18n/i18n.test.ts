@@ -90,6 +90,27 @@ describe("language selection", () => {
     expect(fresh.i18n.resolvedLanguage).toBe("hu");
   });
 
+  it("keeps <html lang> on Hungarian when i18next reports no resolved language", async () => {
+    vi.doMock("i18next", () => ({
+      default: {
+        use() {
+          return this;
+        },
+        init: vi.fn(async () => undefined),
+        on: vi.fn(),
+        resolvedLanguage: undefined,
+      },
+    }));
+    try {
+      document.documentElement.lang = "en";
+      await reload();
+      expect(document.documentElement.lang).toBe("hu");
+    } finally {
+      vi.doUnmock("i18next");
+      vi.resetModules();
+    }
+  });
+
   it("writes only the lineup-lang key", async () => {
     await setLanguage("hu");
     expect(Object.keys(localStorage)).toEqual([LANGUAGE_STORAGE_KEY]);

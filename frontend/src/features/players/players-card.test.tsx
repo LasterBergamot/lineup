@@ -268,6 +268,17 @@ describe("deleting", () => {
     await waitFor(() => expect(mocks.listPlayers).toHaveBeenCalledTimes(2));
   });
 
+  it("shows only the row being deleted as busy while its request runs", async () => {
+    mocks.deletePlayer.mockReturnValue(new Promise(() => {}));
+    renderCard();
+    await userEvent.click(await screen.findByRole("button", { name: "Delete Nagy Bence" }));
+    await userEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+    await waitFor(() => expect(mocks.deletePlayer).toHaveBeenCalledWith("p-ben"));
+    const other = screen.getByRole("button", { name: "Delete Kovács Anna" });
+    expect(other).not.toHaveAttribute("aria-busy", "true");
+    expect(other).toBeEnabled();
+  });
+
   it("can be called off", async () => {
     renderCard();
     await userEvent.click(await screen.findByRole("button", { name: "Delete Nagy Bence" }));
