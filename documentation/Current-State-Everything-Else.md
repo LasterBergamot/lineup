@@ -256,9 +256,26 @@ load every session, so a test requires every rule to be path-scoped and every gl
 and Plan subagents load neither `CLAUDE.md` nor the rules, so a prompt to them names the rule file to read. Editing any of
 these files counts as a docs change for CI's docs gate. The file tree lives only in `README.md`.
 
-The repo ships project skills in `.claude/skills/` for the workflows that repeat. Each one is a
+The repo ships skills in `.claude/skills/` for the workflows that repeat. Each one is a
 Markdown playbook Claude follows when a request matches its description. They exist so these
-procedures run the same way every time instead of being reconstructed from memory:
+procedures run the same way every time instead of being reconstructed from memory.
+
+**Where they come from.** `compliance-audit` and `supabase-smoke` are lineup-only. The other six
+skills and the read-only `convention-reviewer` agent (`.claude/agents/`) are generic: they live in
+the owner's private `ai-common` repo and are installed with [APM](https://github.com/microsoft/apm)
+(Agent Package Manager). `apm.yml` pins the `ai-common` tag and `apm.lock.yaml` records the
+commit and a hash of every installed file. A generic skill holds only the procedure; it reads
+lineup's values from `.claude/context/` (`issues.md`, `pr-checklist.md`, `docs.md`, `audit.md`),
+so the same skill can serve other projects. The installed copies are committed, which keeps the
+public repo usable without access to `ai-common`. Changing one means changing it in `ai-common`,
+tagging a release and re-running `apm install` here (`.claude/context/claude-code.md`):
+
+| Skill | Source |
+|---|---|
+| `compliance-audit`, `supabase-smoke` | lineup |
+| `new-issue`, `create-pr`, `triage-dependabot`, `update-documentation`, `repo-audit`, `setup-project`; agent `convention-reviewer` | `ai-common` (APM) |
+
+What each one does:
 
 | Skill | Model | Use it to |
 |---|---|---|
@@ -282,12 +299,12 @@ Supabase asks before each state-changing command. The shared `.claude/settings.j
 `task lint`/`task test` run without prompting and denies reading `.env*` (at the root and in `backend/`), so credentials
 never enter the conversation.
 
-**Issue conventions** (encoded in `new-issue`):
+**Issue conventions** (the values `new-issue` reads from `.claude/context/issues.md`):
 - Bodies follow Problem / Evidence / Proposal / Acceptance.
-- Labels: one `type:*`, one or more `area:*`, one `priority:*`.
-- Milestones: M1 Hardening, M2 Prod, M3 Dev preview.
-- Work is grouped under epics #40–#46 (and the frontend epic #20) as GitHub sub-issues, with blocked-by links for
-  ordering.
+- Labels: one `type:*`, one or more `area:*`, one `priority:*`, and one `plan:*` (keep, keep-cheap, defer, drop).
+- Milestones: M1 Hardening, M3 Dev preview, Mx Parked (deliberately not now; M2 Prod is closed).
+- Work is grouped under epics (#41–#46, the frontend epic #20, the compliance epic #92) as GitHub sub-issues, with
+  blocked-by links for ordering.
 - The single "Lineup" project board carries Status/Area/Priority/Size, and its Auto-add
   workflow puts new issues on it.
 

@@ -1,0 +1,17 @@
+name: lineup
+# Not a published package: this manifest only pins lineup's AI tooling (APM, see
+# .claude/context/claude-code.md). The app's own version lives in backend/pyproject.toml.
+version: 0.0.0
+description: AI tooling for lineup (skills and agents from ai-common)
+author: András Török
+# Which agent platforms to deploy to.
+# Resolution order: --target flag > this field > auto-detect from filesystem.
+# Accepted values: agent-skills, antigravity, claude, codex, copilot, cursor, gemini, grok-bot, grok-build, hermes, kiro, opencode, vscode, windsurf
+targets:
+  - claude
+dependencies:
+  apm:
+    - LasterBergamot/ai-common/packages/workflow#v0.1.0
+  mcp: []
+includes: auto
+scripts: {}
