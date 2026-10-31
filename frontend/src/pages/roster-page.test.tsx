@@ -1,5 +1,10 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { render } from "@testing-library/react";
+import type { Team } from "@/features/teams/api";
+import { TeamsContext } from "@/features/teams/context";
+import { RosterPage } from "@/pages/roster-page";
 import { fakeSession, renderApp, teamsPage } from "@/test/auth";
 
 const mocks = vi.hoisted(() => ({
@@ -69,5 +74,17 @@ describe("roster page", () => {
       }),
     );
     expect(await screen.findByRole("heading", { name: "Roster" })).toBeInTheDocument();
+  });
+});
+
+describe("roster page without a current team", () => {
+  it("renders nothing (the team gate normally keeps this from happening)", () => {
+    const query = { data: [] } as unknown as UseQueryResult<Team[]>;
+    const { container } = render(
+      <TeamsContext.Provider value={{ query, current: undefined }}>
+        <RosterPage />
+      </TeamsContext.Provider>,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

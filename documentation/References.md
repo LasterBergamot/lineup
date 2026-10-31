@@ -46,7 +46,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | Fontsource (Google Sans Flex) | The Polaris font, served from our own origin (no Google Fonts request) | [fontsource.org](https://fontsource.org/) |
 | Lucide | Icons | [lucide.dev](https://lucide.dev/) |
 | pdf.js | In-page PDF previews (planned) | [mozilla.github.io/pdf.js](https://mozilla.github.io/pdf.js/) |
-| Vitest, Testing Library | Unit and component tests | [vitest.dev](https://vitest.dev/) · [testing-library.com](https://testing-library.com/docs/react-testing-library/intro/) |
+| Vitest, Testing Library | Unit and component tests (`@vitest/coverage-v8` adds the coverage report and the 100 % gate) | [vitest.dev](https://vitest.dev/) · [testing-library.com](https://testing-library.com/docs/react-testing-library/intro/) |
 | Playwright | Browser tests (planned) | [playwright.dev](https://playwright.dev/) |
 
 ## Developer tooling
@@ -160,6 +160,7 @@ Direct dependencies from `frontend/package.json`.
 | `@types/react` | dev | [npm](https://www.npmjs.com/package/@types/react) |
 | `@types/react-dom` | dev | [npm](https://www.npmjs.com/package/@types/react-dom) |
 | `@vitejs/plugin-react` | dev | [npm](https://www.npmjs.com/package/@vitejs/plugin-react) |
+| `@vitest/coverage-v8` | dev | [npm](https://www.npmjs.com/package/@vitest/coverage-v8) |
 | `class-variance-authority` | runtime | [npm](https://www.npmjs.com/package/class-variance-authority) |
 | `clsx` | runtime | [npm](https://www.npmjs.com/package/clsx) |
 | `eslint` | dev | [npm](https://www.npmjs.com/package/eslint) |

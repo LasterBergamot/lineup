@@ -1,8 +1,13 @@
-import { screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useNavigationType } from "react-router";
+import { MemoryRouter, Route, Routes, useNavigationType } from "react-router";
 import { ApiError } from "@/api/errors";
-import { fakeSession, renderApp, teamsPage } from "@/test/auth";
+import { AuthContext, type AuthStatus } from "@/auth/context";
+import { BackendStatusProvider } from "@/backend-status/provider";
+import { invitationPreviewKey } from "@/features/invitations/api";
+import { JoinPage } from "@/pages/join-page";
+import { fakeSession, renderApp, teamsPage, testQueryClient } from "@/test/auth";
 
 const { listTeams, previewInvitation, acceptInvitation } = vi.hoisted(() => ({
   listTeams: vi.fn(),
@@ -162,6 +167,51 @@ describe("a link that does not work", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("busy or starting up");
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByRole("heading", { name: "Join Ferencváros?" })).toBeInTheDocument();
+  });
+});
+
+describe("with an auth state the fake client cannot reach", () => {
+  /** Renders the join page under a hand-made auth value, with the preview already cached. */
+  function renderJoinPage(status: AuthStatus, configError: string | null) {
+    const queryClient = testQueryClient();
+    queryClient.setQueryData(invitationPreviewKey(CODE), PREVIEW);
+    return render(
+      <BackendStatusProvider probe={async () => "ok"}>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider
+            value={{
+              status,
+              session: null,
+              userId: null,
+              configError,
+              notice: null,
+              signInWithGoogle: async () => null,
+              signOut: async () => {},
+            }}
+          >
+            <MemoryRouter initialEntries={[`/join/${CODE}`]}>
+              <Routes>
+                <Route path="/join/:code" element={<JoinPage />} />
+              </Routes>
+            </MemoryRouter>
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </BackendStatusProvider>,
+    );
+  }
+
+  it("says why signing in is impossible when this build has no sign-in settings", async () => {
+    renderJoinPage("unconfigured", "Sign-in is not configured: VITE_SUPABASE_URL is missing");
+    expect(await screen.findByRole("heading", { name: "Join Ferencváros?" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("VITE_SUPABASE_URL is missing");
+    expect(screen.getByRole("button", { name: "Sign in with Google to join" })).toBeDisabled();
+  });
+
+  it("shows a placeholder instead of a button while the stored session is being read", async () => {
+    renderJoinPage("loading", null);
+    expect(await screen.findByRole("heading", { name: "Join Ferencváros?" })).toBeInTheDocument();
+    expect(screen.getAllByRole("status", { name: "Loading" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /join|sign in/i })).not.toBeInTheDocument();
   });
 });
 

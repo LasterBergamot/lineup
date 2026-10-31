@@ -31,11 +31,12 @@ task fe:dev       # Vite dev server on :5173, proxies /api to the container from
 task fe:lint      # ESLint + Prettier check
 task fe:format    # Prettier write
 task fe:typecheck # tsc --noEmit
-task fe:test      # Vitest
+task fe:test      # Vitest (fast loop)
+task fe:coverage  # Vitest + coverage report; fails below 100 % (CI runs this one)
 task fe:build     # tsc + vite build into frontend/dist
 task fe:api       # regenerate frontend/src/api (openapi.json + schema.d.ts) from the backend's OpenAPI spec
 task fe:api:check # fail if that generated client is stale (CI runs it)
-task fe:check     # lint + test + build + api:check, i.e. the CI Frontend job
+task fe:check     # lint + coverage + build + api:check, i.e. the CI Frontend job
 task docs:references  # regenerate the dependency block in documentation/References.md
 task docs:check   # fail if that block is stale (CI runs it)
 ```

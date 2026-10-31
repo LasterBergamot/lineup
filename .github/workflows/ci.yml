@@ -137,8 +137,8 @@ jobs:
       - name: Type check
         run: task fe:typecheck
 
-      - name: Unit tests
-        run: task fe:test
+      - name: Unit tests with coverage
+        run: task fe:coverage
 
       - name: Build
         run: task fe:build

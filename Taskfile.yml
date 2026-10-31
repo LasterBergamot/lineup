@@ -176,16 +176,21 @@ tasks:
     desc: Run the frontend unit tests (Vitest)
     cmd: pnpm test
 
+  fe:coverage:
+    dir: frontend
+    desc: Run the frontend unit tests with a coverage report; fails below 100 %
+    cmd: pnpm test:coverage
+
   fe:build:
     dir: frontend
     desc: Type-check and build the production bundle into frontend/dist
     cmd: pnpm build
 
   fe:check:
-    desc: Everything the frontend CI job runs (lint, typecheck, test, build, API client freshness)
+    desc: Everything the frontend CI job runs (lint, tests with coverage, build with type check, API client freshness)
     cmds:
       - task: fe:lint
-      - task: fe:test
+      - task: fe:coverage
       - task: fe:build
       - task: fe:api:check
 

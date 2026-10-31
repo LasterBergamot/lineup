@@ -216,7 +216,9 @@ copy `backend/.env.example` to `backend/.env`, fill it in and use `task db:postg
   only the e2e suite (`task test-e2e`) runs the real thing.
 - Coverage is enforced at 100%. If `task test` fails on coverage, you added a branch without a test.
 - Frontend tests (`task fe:test`) are Vitest files next to the code (`*.test.ts(x)`); they render
-  components with Testing Library and mock `fetch`, so they need no running API.
+  components with Testing Library and mock `fetch`, so they need no running API. `task fe:coverage`
+  runs them with a coverage report and, like the backend, fails if coverage is below 100 %
+  (`frontend/vite.config.ts`): a new branch without a test is rejected.
 
 ## 9. Make your first change
 
