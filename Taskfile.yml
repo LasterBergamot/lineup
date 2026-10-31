@@ -11,6 +11,10 @@ tasks:
     desc: Install dependencies
     cmd: uv sync
 
+  doctor:
+    desc: Check the required tools and their versions (see documentation/Setup.md)
+    cmd: bash scripts/doctor.sh
+
   lint:
     dir: backend
     desc: Lint the codebase

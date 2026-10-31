@@ -19,6 +19,8 @@ saved roster instead of a one-off request payload.
 
 - [[Newcomer Guide]] — the junior-developer walkthrough: stack, glossary, request flow, running,
   testing, your first change, common gotchas
+- [[Setup]] — from a fresh clone to a working dev environment, step by step, with the expected
+  result of each step (for people and AI agents alike); starts with `task doctor`
 - [[Auth Setup]] — how Google sign-in through Supabase works, the one-off dashboard setup, adding
   and removing testers, and what each `401`/`503` means
 - [[Fly Setup]] — how the API runs on Fly.io (scale to zero, EU region), creating the dev app,

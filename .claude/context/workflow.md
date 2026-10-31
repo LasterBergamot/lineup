@@ -6,6 +6,7 @@ Run the tasks from anywhere in the repo (`Taskfile.yml` sets the working directo
 
 ```
 task install    # uv sync — install dependencies
+task doctor     # check required tools + minimum versions (scripts/doctor.sh; the setup runbook is documentation/Setup.md)
 task test       # pytest with coverage (must pass at 100%; e2e tests excluded)
 task test-e2e   # build image, make a throw-away JWT key, start container (+ compose.e2e.yml JWKS sidecar), run real-conversion fidelity tests, tear down
 task lint       # ruff check

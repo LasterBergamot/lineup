@@ -23,6 +23,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | Task | Purpose |
 |---|---|
 | `task install` | `uv sync` — install dependencies |
+| `task doctor` | check the required tools and their minimum versions (`scripts/doctor.sh`); the first step of [[Setup]] |
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
@@ -268,7 +269,7 @@ procedures run the same way every time instead of being reconstructed from memor
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
 | `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
 | `update-documentation` | sonnet | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
-| `setup-project` | haiku (high effort) | set up a fresh clone: explicit steps, each with an expected result |
+| `setup-project` | haiku (high effort) | set up a fresh clone by following `documentation/Setup.md` |
 
 `model:` in a skill's frontmatter pins the model only while that skill runs: opus for the
 cross-cutting analysis, sonnet for the multi-step git/docs work, haiku for templated steps.
