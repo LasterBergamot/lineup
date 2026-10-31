@@ -241,5 +241,9 @@
     "preview": "Előnézet",
     "saved": "Elmentve. Most le is töltheti.",
     "seeSaved": "Mentett rajtlisták megnyitása"
+  },
+  "opponent": {
+    "directory": "Listázott csapat",
+    "recent": "Korábbi ellenfél"
   }
 }

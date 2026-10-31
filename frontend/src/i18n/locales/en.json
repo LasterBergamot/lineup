@@ -241,5 +241,9 @@
     "preview": "Preview",
     "saved": "Saved. You can download it now.",
     "seeSaved": "See saved lineups"
+  },
+  "opponent": {
+    "directory": "Listed team",
+    "recent": "Recent opponent"
   }
 }
