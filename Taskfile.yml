@@ -130,9 +130,9 @@ tasks:
 
   db:create-app-role:
     dir: backend
-    desc: Give the lineup_app role a generated password and point backend/.env DATABASE_URL at it (password never printed)
+    desc: "Rotate the lineup_app password (asks first; --yes skips) and point backend/.env DATABASE_URL at it (never printed)"
     silent: true
-    cmd: uv run python -m lineup.db.app_role
+    cmd: uv run python -m lineup.db.app_role {{.CLI_ARGS}}
 
   migrate-new:
     dir: backend

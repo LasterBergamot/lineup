@@ -13,6 +13,11 @@ Reads:
   backend/.env          DATABASE_URL, the pooler URL (port 6543) whose user and password
                         get replaced
 
+Every run generates a NEW password and invalidates the old one, which locks out whatever still
+holds it (the Fly `DATABASE_URL` secret, the `KEEPALIVE_DATABASE_URL` Actions secret). That
+cannot be undone, so the script asks for a typed `yes` first; `--yes` skips the question for
+scripts.
+
 The password is never printed. On any failure only the exception class is shown, because
 SQLAlchemy/asyncpg messages can quote the statement.
 """
@@ -130,15 +135,47 @@ def _write_atomically(path: Path, content: str) -> None:
     os.replace(tmp.name, path)
 
 
+ROTATION_WARNING = """\
+This sets a NEW password for the database role {role} and overwrites the one in
+{env_file}. The old password stops working immediately and cannot be recovered, so
+everything that still uses it loses access until you update it:
+  - the Fly secret DATABASE_URL (the deployed API)
+  - the KEEPALIVE_DATABASE_URL GitHub Actions secret
+  - any other copy of the {role} URL
+Continue only to set it for the first time or to rotate it on purpose."""
+
+
+def confirm_rotation(env_file: Path) -> bool:
+    """Show what a rotation breaks and return True only if the user types `yes`.
+
+    End of input (no terminal, e.g. in a script or CI) counts as "no": the caller must pass
+    `--yes` to rotate unattended, so a password is never changed by accident.
+    """
+    print(ROTATION_WARNING.format(role=APP_ROLE, env_file=env_file), file=sys.stderr)
+    try:
+        answer = input("Type 'yes' to rotate the password: ")
+    except EOFError:
+        print("No terminal to ask on; pass --yes to rotate anyway.", file=sys.stderr)
+        return False
+    return answer.strip().lower() == "yes"
+
+
 def main(argv: list[str] | None = None) -> int:
     """Command-line entry point (`task db:create-app-role`); returns the process exit code.
 
     Computes the new `.env` first, then changes the role, then writes the file, so a failure
-    never leaves the file pointing at a password the database does not have.
+    never leaves the file pointing at a password the database does not have. The files are
+    validated first, then the user is asked to confirm (unless `--yes`), and only then does
+    anything change: declining prints "Aborted" and returns 1 without touching the database.
     """
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--migrate-file", type=Path, default=Path(".env.migrate"))
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="rotate without asking (for scripts); the old password stops working",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -146,6 +183,9 @@ def main(argv: list[str] | None = None) -> int:
         migrate_url = to_asyncpg_url(find_migrate_url(args.migrate_file.read_text()))
         password = secrets.token_hex(24)
         new_env = rewrite_env(env_text, password)
+        if not (args.yes or confirm_rotation(args.env_file)):
+            print("Aborted: nothing was changed.", file=sys.stderr)
+            return 1
         asyncio.run(set_role_password(migrate_url, password))
         _write_atomically(args.env_file, new_env)
     except Exception as exc:

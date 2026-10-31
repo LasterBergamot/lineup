@@ -425,7 +425,9 @@ the API must never hold the owner's password. `alembic/env.py` prefers `MIGRATE_
 2. `task db:create-app-role` gives `lineup_app` a generated password and rewrites the pooler
    `DATABASE_URL` in `backend/.env` to `lineup_app.<project-ref>` (user and password only; nothing is
    printed, and on any failure only the exception class is shown because driver messages can quote the
-   statement).
+   statement). It generates a **new** password on every run, so it asks for a typed `yes` first (`--yes` skips the
+   question for scripts) and should run once per project: a second run invalidates the old one, and anything that still holds it (the Fly secret `DATABASE_URL`, the
+   `KEEPALIVE_DATABASE_URL` Actions secret) stops connecting until you update it.
 3. Restart the app and run the `supabase-smoke` skill: create and delete a team, player and saved
    lineup as `lineup_app`.
 

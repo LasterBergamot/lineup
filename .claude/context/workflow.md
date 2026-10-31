@@ -14,7 +14,7 @@ task format     # ruff format
 task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup unless ENV=production)
 task db:status  # show whether backend/.env selects SQLite or the Supabase pooler
 task db:postgres  # switch backend/.env to the Supabase pooler (DATABASE_URL + ENV=production)
-task db:sqlite  # switch backend/.env back to local SQLite
+task db:sqlite  # switch backend/.env back to local SQLite (comments the pooler URL out, keeps it)
 task run        # run main.py (CLI demo, writes resources/modified_rajtlista.docx)
 task build      # build container image (lineup)
 task rebuild    # force fresh build with --no-cache
@@ -25,7 +25,7 @@ task migrate-new -- -m "description"  # autogenerate a new migration
 task migrate-down  # rollback one migration step
 task migrate-check  # throwaway SQLite: upgrade head + `alembic check` (CI runs it)
 task migrate:supabase  # upgrade head using MIGRATE_DATABASE_URL from backend/.env.migrate (owner creds)
-task db:create-app-role  # generate lineup_app's password, rewrite backend/.env's pooler URL (never printed)
+task db:create-app-role  # generate lineup_app's password, rewrite backend/.env's pooler URL (never printed); asks for a typed `yes` first (`-- --yes` skips it) because a re-run rotates the password: update the Fly DATABASE_URL and KEEPALIVE_DATABASE_URL secrets afterwards
 task fe:install   # pnpm install --frozen-lockfile in frontend/
 task fe:dev       # Vite dev server on :5173, proxies /api to the container from task up
 task fe:lint      # ESLint + Prettier check

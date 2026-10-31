@@ -142,6 +142,7 @@ def _files(tmp_path):
             str(env_file),
             "--migrate-file",
             str(migrate_file),
+            "--yes",
         ],
     )
 
@@ -202,6 +203,65 @@ class TestMain:
         err = capsys.readouterr().err
         assert "ConnectionError" in err
         assert "ownerpw" not in err and "could not connect" not in err
+
+    def test_without_yes_it_asks_and_a_typed_yes_rotates(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        env_file, _, args = _files(tmp_path)
+        args.remove("--yes")
+        monkeypatch.setattr("builtins.input", lambda prompt="": " Yes ")
+        called = []
+
+        async def fake_set(url, password):
+            called.append(password)
+
+        with patch.object(app_role, "set_role_password", fake_set):
+            assert app_role.main(args) == 0
+        assert len(called) == 1
+        assert f"lineup_app.abcdefgh:{called[0]}@" in env_file.read_text()
+        warning = capsys.readouterr().err
+        assert "KEEPALIVE_DATABASE_URL" in warning and "cannot be recovered" in warning
+
+    @pytest.mark.parametrize("answer", ["", "y", "no", "yes please"])
+    def test_anything_but_yes_aborts_without_touching_anything(
+        self, tmp_path, capsys, monkeypatch, answer
+    ):
+        env_file, _, args = _files(tmp_path)
+        args.remove("--yes")
+        monkeypatch.setattr("builtins.input", lambda prompt="": answer)
+
+        async def never(url, password):
+            raise AssertionError("the database must not be touched")
+
+        with patch.object(app_role, "set_role_password", never):
+            assert app_role.main(args) == 1
+        assert env_file.read_text() == ENV
+        assert "Aborted" in capsys.readouterr().err
+
+    def test_no_terminal_means_no_unless_yes_is_given(
+        self, tmp_path, capsys, monkeypatch
+    ):
+        env_file, _, args = _files(tmp_path)
+        args.remove("--yes")
+
+        def no_input(prompt=""):
+            raise EOFError
+
+        monkeypatch.setattr("builtins.input", no_input)
+        assert app_role.main(args) == 1
+        assert env_file.read_text() == ENV
+        assert "--yes" in capsys.readouterr().err
+
+    def test_invalid_files_fail_before_any_question(self, tmp_path, monkeypatch):
+        _, migrate_file, args = _files(tmp_path)
+        args.remove("--yes")
+        migrate_file.write_text("# nothing here\n")
+
+        def fail(prompt=""):
+            raise AssertionError("must not ask about a rotation that cannot happen")
+
+        monkeypatch.setattr("builtins.input", fail)
+        assert app_role.main(args) == 1
 
     def test_missing_migrate_url_is_reported_in_words(self, tmp_path, capsys):
         _, migrate_file, args = _files(tmp_path)
