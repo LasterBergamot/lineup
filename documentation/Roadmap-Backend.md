@@ -41,7 +41,7 @@ Done in #96 (see *Hardening for public exposure* in [[Current State: Backend]]):
      required user id (see [[Current State: Backend]]).
    - *Still manual (one-off, per project):* create the Google OAuth client and enable the Google
      provider in the Supabase dashboard — step by step in [[Auth Setup]].
-2. **Production database cutover** *(remaining piece — the dev half is done)*
+2. **Production database cutover** *(parked: no prod environment is planned, #39/#100; the dev half is done)*
    - Done for dev: `asyncpg` is a dependency, the engine is dialect-aware, and the app runs
      against the `lineup-dev` Supabase project via `DATABASE_URL` (see
      [[Current State: Backend]]).
