@@ -119,6 +119,10 @@ exercised:
    is `sb-` plus the first part of the Supabase host, here `sb-127-auth-token`), then reload:
    `localStorage.setItem("sb-127-auth-token", JSON.stringify({access_token: "<token>", refresh_token: "x", token_type: "bearer", expires_in: 3000, expires_at: Math.floor(Date.now()/1000)+3000, user: {id: "<the token's sub>", aud: "authenticated"}}))`
 
+Add `--second-token-file /tmp/dev2.jwt` to get a token for a second random user (used by the
+`supabase-smoke` skill to accept an invitation as a non-member, and handy for trying the members
+page). Both tokens carry the name `Smoke Owner`.
+
 You then land in onboarding (no team yet), can create a team and see the shell. Delete the token
 file afterwards; it is a valid credential for that throw-away key set only.
 

@@ -8,9 +8,16 @@ from http.server import HTTPServer
 from pathlib import Path
 from urllib.request import urlopen
 
+import jwt
 import pytest
 
-from lineup.auth.tokens import AuthConfig, JwksCache, TokenError, verify_token
+from lineup.auth.tokens import (
+    AuthConfig,
+    JwksCache,
+    TokenError,
+    display_name_from_token,
+    verify_token,
+)
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "smoke_auth.py"
 spec = importlib.util.spec_from_file_location("smoke_auth", SCRIPT)
@@ -70,3 +77,30 @@ def test_main_writes_a_private_token_file_and_serves(tmp_path, monkeypatch):
     assert token_file.read_text().count(".") == 2
     assert token_file.stat().st_mode & 0o777 == 0o600
     assert served
+
+
+async def test_make_tokens_gives_each_user_a_verifiable_token_with_a_name():
+    users = [uuid.uuid4(), uuid.uuid4()]
+    jwks, tokens = smoke_auth.make_tokens(BASE, users)
+
+    async def fetch(url):
+        return jwks
+
+    cache = JwksCache(CONFIG.jwks_url, fetch)
+    assert [await verify_token(t, CONFIG, cache) for t in tokens] == users
+    assert {display_name_from_token(t) for t in tokens} == {smoke_auth.FULL_NAME}
+
+
+def test_main_writes_a_second_token_for_another_user(tmp_path, monkeypatch):
+    monkeypatch.setattr(smoke_auth.HTTPServer, "serve_forever", lambda self: None)
+    first, second = tmp_path / "a.jwt", tmp_path / "b.jwt"
+    smoke_auth.main(
+        ["--port", "0", "--token-file", str(first), "--second-token-file", str(second)]
+    )
+    assert second.stat().st_mode & 0o777 == 0o600
+
+    def subject(path):
+        claims = jwt.decode(path.read_text(), options={"verify_signature": False})
+        return claims["sub"]
+
+    assert subject(first) != subject(second)
