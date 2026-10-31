@@ -1,6 +1,6 @@
 ---
 name: supabase-smoke
-description: Run the live smoke test against the dev Supabase project — start the API on the transaction pooler, create a team, player and saved lineup, generate a DOCX from it, then delete everything it created. Use after touching backend/lineup/db/models.py, backend/lineup/db/engine.py, Alembic migrations or Postgres connection settings, since SQLite-only tests can't catch Postgres/pooler bugs.
+description: Run the live smoke test against the dev Supabase project — start the API on the transaction pooler, create a team, player and saved lineup, generate a DOCX from it, create/preview/accept/revoke an invite link as a second user, then delete everything it created. Use after touching backend/lineup/db/models.py, backend/lineup/db/engine.py, Alembic migrations or Postgres connection settings, since SQLite-only tests can't catch Postgres/pooler bugs.
 model: haiku
 ---
 
@@ -43,8 +43,12 @@ own public key set on localhost and writes a token for a random user to a file. 
 the real Supabase Auth.
 
 ```bash
-uv run --project backend python scripts/smoke_auth.py --port 54399 --token-file /tmp/smoke.jwt &
+uv run --project backend python scripts/smoke_auth.py --port 54399 \
+  --token-file /tmp/smoke.jwt --second-token-file /tmp/smoke2.jwt &
 ```
+
+The second token belongs to a different random user. The invitation step needs it, because the
+team's creator is already a member and accepting your own link proves nothing.
 
 Then start the API **in the background** with `SUPABASE_URL` pointing at it. This sources
 `backend/.env` (DB settings) first and overrides only `SUPABASE_URL` for this one process, so
@@ -74,20 +78,45 @@ curl -sf -H "$A" -o /tmp/$M.docx -w 'generate: %{http_code} %{content_type}\n' -
 curl -sf -H "$A" "$B/teams/pool?search=$M" | jq length
 ```
 
+Then the invitation path (migration `b7d2e9a41c53` added `invited_by_name`, and this is what
+proves it works on Postgres). Both tokens carry the name `Smoke Owner`:
+
+```bash
+A2="authorization: Bearer $(cat /tmp/smoke2.jwt)"
+INV=$(curl -sf -X POST $B/teams/$TEAM/invitations -H "$A" -H 'content-type: application/json' -d '{"expires_in_hours":2}')
+CODE=$(echo "$INV" | jq -r .code); INV_ID=$(echo "$INV" | jq -r .id)
+curl -sf $B/invitations/$CODE | jq '{team_name, invited_by_name}'                    # no token: public preview
+curl -s -H "$A2" -o /dev/null -w 'non-owner create %{http_code}\n' -X POST $B/teams/$TEAM/invitations   # 404 (not a member yet)
+curl -sf -H "$A2" -X POST $B/invitations/$CODE/accept | jq '{name, role}'            # role member
+curl -sf -H "$A2" -X POST $B/invitations/$CODE/accept | jq -r .role                  # repeat: still member
+curl -sf -H "$A" $B/teams/$TEAM/members | jq 'map({role, is_you})'                   # owner + member
+curl -s -H "$A2" -o /dev/null -w 'member create %{http_code}\n' -X POST $B/teams/$TEAM/invitations    # 403
+curl -sf -H "$A" $B/teams/$TEAM/invitations | jq length                              # 1, and no "code" field
+curl -s -H "$A" -o /dev/null -w 'revoke %{http_code}\n' -X DELETE $B/teams/$TEAM/invitations/$INV_ID   # 204
+curl -s -o /dev/null -w 'preview revoked %{http_code}\n' $B/invitations/$CODE      # 410
+MEMBER=$(curl -sf -H "$A" $B/teams/$TEAM/members | jq -r '.[] | select(.is_you|not) | .user_id')
+```
+
 Check: each create returns an id (a `null` means it failed, so read the uvicorn output),
-the GET shows the frozen names, and generate returns 200 with a wordprocessingml type.
+the GET shows the frozen names, and generate returns 200 with a wordprocessingml type. For the
+invitation block: the preview shows the team name and `Smoke Owner`, the second user joins as
+`member` (twice, idempotent), the member list has two rows, the member's own invite attempt is
+403, the list never exposes a code, and a revoked link answers 410. An invite step failing with
+`column ... invited_by_name does not exist` means the migration is not on dev.
 
 ## 4. Clean up (always, even if step 3 failed)
 
-Delete the lineup first, then the player, then the team, because the team delete returns
+Remove the joined member (its `DELETE /teams/{id}/members/{user_id}` is owner-only), then delete
+the lineup, then the player, then the team, because the team delete returns
 409 while a saved lineup or a player is still in it:
 
 ```bash
+curl -s -H "$A" -o /dev/null -w 'del member %{http_code}\n' -X DELETE "$B/teams/$TEAM/members/$MEMBER"   # 204
 curl -s -H "$A" -o /dev/null -w 'del lineup %{http_code}\n' -X DELETE "$B/lineups/saved/$LINEUP"   # 204
 curl -s -H "$A" -o /dev/null -w 'del player %{http_code}\n' -X DELETE "$B/players/$PLAYER"          # 204
 curl -s -H "$A" -o /dev/null -w 'del team %{http_code}\n'   -X DELETE "$B/teams/$TEAM"              # 200
 curl -sf -H "$A" "$B/teams/pool?search=$M" | jq length                                        # 0
-rm -f /tmp/$M.docx /tmp/smoke.jwt
+rm -f /tmp/$M.docx /tmp/smoke.jwt /tmp/smoke2.jwt
 ```
 
 If an id is missing because a create failed partway, list and delete by the marker

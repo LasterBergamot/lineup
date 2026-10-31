@@ -26,30 +26,44 @@ from jwt.algorithms import ECAlgorithm
 
 KID = "smoke-key"
 JWKS_PATH = "/auth/v1/.well-known/jwks.json"
+FULL_NAME = "Smoke Owner"
 
 
-def make_material(base_url: str, user_id: uuid.UUID, ttl_seconds: int = 3600):
-    """Return `(jwks_document, token)`: a public key set and a token it verifies.
+def make_tokens(base_url: str, user_ids: list[uuid.UUID], ttl_seconds: int = 3600):
+    """Return `(jwks_document, tokens)`: a public key set and one token per user, all signed by
+    the same throw-away key.
 
-    The token names `base_url + /auth/v1` as issuer and `authenticated` as audience, exactly
-    what `lineup.auth.tokens` expects from a Supabase project at `base_url`.
+    The tokens name `base_url + /auth/v1` as issuer and `authenticated` as audience, exactly
+    what `lineup.auth.tokens` expects from a Supabase project at `base_url`. Each carries a
+    `user_metadata.full_name` like Supabase's Google sign-in does, so the invitation smoke test
+    can check the inviter's name is stored and shown.
     """
     private_key = ec.generate_private_key(ec.SECP256R1())
     jwk = json.loads(ECAlgorithm.to_jwk(private_key.public_key()))
     jwks = {"keys": [{**jwk, "kid": KID, "alg": "ES256", "use": "sig"}]}
     now = int(time.time())
-    token = jwt.encode(
-        {
-            "sub": str(user_id),
-            "aud": "authenticated",
-            "iss": f"{base_url}/auth/v1",
-            "iat": now,
-            "exp": now + ttl_seconds,
-        },
-        private_key,
-        algorithm="ES256",
-        headers={"kid": KID},
-    )
+    tokens = [
+        jwt.encode(
+            {
+                "sub": str(user_id),
+                "aud": "authenticated",
+                "iss": f"{base_url}/auth/v1",
+                "iat": now,
+                "exp": now + ttl_seconds,
+                "user_metadata": {"full_name": FULL_NAME},
+            },
+            private_key,
+            algorithm="ES256",
+            headers={"kid": KID},
+        )
+        for user_id in user_ids
+    ]
+    return jwks, tokens
+
+
+def make_material(base_url: str, user_id: uuid.UUID, ttl_seconds: int = 3600):
+    """Return `(jwks_document, token)` for a single user: `make_tokens` with one id."""
+    jwks, (token,) = make_tokens(base_url, [user_id], ttl_seconds)
     return jwks, token
 
 
@@ -75,18 +89,25 @@ def make_handler(jwks: dict):
 
 
 def main(argv: list[str] | None = None) -> None:
-    """Write the token file (mode 600), then serve the key set until interrupted."""
+    """Write the token file(s) (mode 600), then serve the key set until interrupted.
+
+    `--second-token-file` adds a token for a different random user, so a test can accept an
+    invitation as someone who is not yet a member of the team.
+    """
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--port", type=int, default=54399)
     parser.add_argument("--token-file", required=True)
+    parser.add_argument("--second-token-file")
     args = parser.parse_args(argv)
 
     base_url = f"http://127.0.0.1:{args.port}"
-    jwks, token = make_material(base_url, uuid.uuid4())
-    fd = os.open(args.token_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as handle:
-        handle.write(token)
-    print(f"Fake Supabase Auth on {base_url}; token in {args.token_file}", flush=True)
+    files = [args.token_file] + ([args.second_token_file] if args.second_token_file else [])
+    jwks, tokens = make_tokens(base_url, [uuid.uuid4() for _ in files])
+    for path, token in zip(files, tokens):
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as handle:
+            handle.write(token)
+    print(f"Fake Supabase Auth on {base_url}; token(s) in {', '.join(files)}", flush=True)
     HTTPServer(("127.0.0.1", args.port), make_handler(jwks)).serve_forever()
 
 

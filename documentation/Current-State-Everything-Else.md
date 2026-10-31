@@ -290,7 +290,7 @@ What each one does:
 | `new-issue` | haiku | file or restructure an issue the project's way: Problem/Evidence/Proposal/Acceptance body, `type:`/`area:`/`priority:` labels, milestone, board fields, parent epic, blocked-by links |
 | `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `.claude/context/pr-checklist.md`) |
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
-| `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
+| `supabase-smoke` | haiku | run the live create/generate/invite/delete smoke test against the dev Supabase project after model or engine changes |
 | `update-documentation` | sonnet | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
 | `setup-project` | haiku (high effort) | set up a fresh clone by following `documentation/Setup.md` |
 
