@@ -62,8 +62,10 @@ strict Content-Security-Policy stays possible) and remembered in localStorage.
   Supabase host inside the browser (a session is placed in localStorage), so the tests need no
   backend, database or Google account and use made-up data only. They check, per screen and in
   the light and dark theme, that the page does not scroll sideways and has no serious or critical
-  axe violation (including WCAG 2.5.3 label-in-name), in English and Hungarian, plus the sign-in page, onboarding, the creator's preview and the Saved page's
-  highlighted row. A test fails when the app calls an API route the fixture does not know.
+  axe violation (including WCAG 2.5.3 label-in-name), in English and Hungarian, plus the sign-in page, onboarding, the creator's preview, the Saved page's
+  highlighted row, the invite page `/join/:code` (public preview, a second explicit click to join,
+  expired and unknown links) and the 404 page. The last two run in English and the light theme only
+  (the join page once more in Hungarian); the four main screens cover both languages and themes. A test fails when the app calls an API route the fixture does not know.
   Locally, `LINEUP_CHROMIUM=/usr/bin/chromium task fe:e2e`; CI installs Playwright's Chromium.
 
 ### Language (Hungarian / English)
