@@ -16,3 +16,14 @@ export async function createSavedLineup(
 ): Promise<SavedLineup> {
   return request(client.POST("/lineups/saved", { body }));
 }
+
+/**
+ * One saved lineup by id (`GET /lineups/saved/{id}`), used to start "Clone to new match" from just
+ * the id. Throws `ApiError`: 404 for a lineup that is gone or belongs to a team the caller is not in.
+ */
+export async function getSavedLineup(
+  id: string,
+  client: Pick<typeof api, "GET"> = api,
+): Promise<SavedLineup> {
+  return request(client.GET("/lineups/saved/{lineup_id}", { params: { path: { lineup_id: id } } }));
+}

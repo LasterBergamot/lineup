@@ -116,12 +116,6 @@ export function valuesFromSaved(saved: SavedLineup, roster: readonly Player[]): 
   };
 }
 
-/** Narrows router state to a saved lineup the Saved page handed over (anything else is ignored). */
-export function isSavedLineup(value: unknown): value is SavedLineup {
-  const candidate = value as Partial<SavedLineup> | null | undefined;
-  return typeof candidate?.id === "string" && Array.isArray(candidate.players);
-}
-
 /**
  * Maps a field path from a server 422 onto the creator's form fields: the API calls the opponent
  * `opponent_name` / `source_opponent_id`, the preview endpoint calls the match `match`, and a bad

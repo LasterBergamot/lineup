@@ -2,7 +2,6 @@ import type { components } from "@/api/schema";
 import {
   emptyValues,
   formPath,
-  isSavedLineup,
   toLineupRequest,
   toSavedLineupRequest,
   valuesFromSaved,
@@ -134,16 +133,6 @@ describe("valuesFromSaved", () => {
 
   it("falls back to white caps for a colour it does not know", () => {
     expect(valuesFromSaved(saved({ cap: "?" }), roster).cap).toBe("Fehér");
-  });
-});
-
-describe("isSavedLineup", () => {
-  it("accepts a saved lineup and ignores anything else", () => {
-    expect(isSavedLineup(saved())).toBe(true);
-    expect(isSavedLineup(null)).toBe(false);
-    expect(isSavedLineup(undefined)).toBe(false);
-    expect(isSavedLineup({ id: 1, players: [] })).toBe(false);
-    expect(isSavedLineup({ id: "a" })).toBe(false);
   });
 });
 

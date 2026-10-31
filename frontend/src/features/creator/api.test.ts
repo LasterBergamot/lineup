@@ -1,5 +1,5 @@
 import { createApi } from "@/api/client";
-import { createSavedLineup } from "@/features/creator/api";
+import { createSavedLineup, getSavedLineup } from "@/features/creator/api";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -32,5 +32,21 @@ describe("createSavedLineup", () => {
       Response.json({ detail: "Team not found" }, { status: 404 }),
     );
     await expect(createSavedLineup(body, client)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe("getSavedLineup", () => {
+  it("reads one saved lineup by id", async () => {
+    const fetchMock = vi.fn(async () => Response.json({ id: "s-1" }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await getSavedLineup("s-1", client)).toMatchObject({ id: "s-1" });
+    const sent = (fetchMock.mock.calls[0] as unknown as [Request])[0];
+    expect(sent.method).toBe("GET");
+    expect(sent.url).toBe("http://localhost/api/lineups/saved/s-1");
+  });
+
+  it("throws an ApiError for a lineup that is gone", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ detail: "nope" }, { status: 404 }));
+    await expect(getSavedLineup("x", client)).rejects.toMatchObject({ status: 404 });
   });
 });

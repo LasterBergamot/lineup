@@ -11,7 +11,8 @@ import { TeamsContext } from "@/features/teams/context";
 import { LineupPage } from "@/pages/lineup-page";
 import { fakeAuthClient, fakeSession, teamsPage, testQueryClient } from "@/test/auth";
 
-const mocks = vi.hoisted(() => ({ listPlayers: vi.fn() }));
+const mocks = vi.hoisted(() => ({ listPlayers: vi.fn(), getSavedLineup: vi.fn() }));
+vi.mock("@/features/creator/api", () => ({ getSavedLineup: mocks.getSavedLineup }));
 vi.mock("@/features/players/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/players/api")>()),
   listPlayers: mocks.listPlayers,
@@ -79,7 +80,9 @@ function renderPage(state?: unknown, current: Team | null = team) {
 
 beforeEach(() => {
   mocks.listPlayers.mockReset();
+  mocks.getSavedLineup.mockReset();
   mocks.listPlayers.mockResolvedValue([ANN]);
+  mocks.getSavedLineup.mockResolvedValue(SAVED);
 });
 
 describe("LineupPage", () => {
@@ -108,14 +111,24 @@ describe("LineupPage", () => {
     expect(await screen.findByText(/creator:/)).toBeInTheDocument();
   });
 
-  it("starts the creator from a lineup sent by the Saved page", async () => {
-    renderPage({ cloneFrom: SAVED });
+  it("fetches the lineup to clone by its id and starts the creator from it", async () => {
+    renderPage({ cloneFromId: "s-1" });
     expect(await screen.findByText(/division OB I\., Kovács Anna/)).toBeInTheDocument();
+    expect(mocks.getSavedLineup).toHaveBeenCalledWith("s-1");
   });
 
-  it("ignores navigation state that is not a saved lineup", async () => {
-    renderPage({ cloneFrom: { id: 7 } });
+  it("shows a retry when the lineup to clone cannot be loaded", async () => {
+    mocks.getSavedLineup.mockRejectedValueOnce(new ApiError(404));
+    renderPage({ cloneFromId: "s-1" });
+    expect(await screen.findByText(/no longer exists/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(/division OB I\./)).toBeInTheDocument();
+  });
+
+  it("ignores navigation state that is not a lineup id", async () => {
+    renderPage({ cloneFromId: 7 });
     expect(await screen.findByText(/division none/)).toBeInTheDocument();
+    expect(mocks.getSavedLineup).not.toHaveBeenCalled();
   });
 
   it("offers a retry when the roster cannot be loaded", async () => {
