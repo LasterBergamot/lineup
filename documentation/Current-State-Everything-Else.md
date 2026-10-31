@@ -269,7 +269,10 @@ matching file (for example `backend-db.md` for `backend/lineup/db/**`). `.claude
 Dependabot checklist, the skills description) is read on demand by the router and the skills. A rule without `paths:` would
 load every session, so a test requires every rule to be path-scoped and every glob to match a file. The built-in Explore
 and Plan subagents load neither `CLAUDE.md` nor the rules, so a prompt to them names the rule file to read. Editing any of
-these files counts as a docs change for CI's docs gate. The file tree lives only in `README.md`.
+these files counts as a docs change for CI's docs gate. Two working agreements live in `.claude/context/workflow.md` ("Who may commit, push, open and merge"): work based on
+a pre-agreed issue may be committed, pushed, PR'd and merged (green checks, merge commit) without asking each time,
+because the agreed ticket is the approval, while anything without one still needs confirmation; and subagents are
+used for a task where that is possible and reasonable. The file tree lives only in `README.md`.
 
 The repo ships skills in `.claude/skills/` for the workflows that repeat. Each one is a
 Markdown playbook Claude follows when a request matches its description. They exist so these
