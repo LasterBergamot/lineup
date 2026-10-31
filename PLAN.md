@@ -21,8 +21,9 @@ no UI, no hosting and no real users. The goal of this plan is a **dev preview**:
 - the API on Fly.io and the UI on Cloudflare Pages, deployed automatically from `develop`,
 - one acquaintance invited and actually using it.
 
-Production (prod Supabase project, prod CD from `main`, releases, RLS, observability) comes
-**after** the dev preview, as milestone M2.
+There is **no production environment planned** (amended 2026-10-31): the app runs as one hosted
+dev/test deployment for a small group of known users. Prod items and other later work sit in
+milestone **"Mx – Parked"** (for example #39, #45, #74); they stay open and can be picked up later.
 
 **Ordering constraint:** a public URL must not exist before real auth. Today
 `get_current_user_id()` returns `None`, so everyone sees and edits everything. Auth comes
@@ -34,15 +35,15 @@ before the public deploy, and the public deploy comes before inviting anyone.
 
 | # | Decision | Status |
 |---|---|---|
-| D1 | **Two environments only: dev + prod.** No separate test environment. | Decided |
-| D2 | **Branches: `develop` → dev, `main` → prod.** Feature branches PR into `develop` (the default branch). A release is a `develop` → `main` PR, which later tags a version (#17). Hotfixes branch off `main` and are merged back into `develop`. | Decided |
+| D1 | **One hosted environment: dev/test.** The app runs as a single deployment for a small group of known users. No prod environment is planned, and no separate staging. *(Amended 2026-10-31; was "dev + prod".)* | Decided |
+| D2 | **Branches: `develop` → dev, `main` → releases.** Feature branches PR into `develop` (the default branch). A release is a `develop` → `main` PR, which later tags a version (#17). Hotfixes branch off `main` and are merged back into `develop`. | Decided |
 | D3 | **Monorepo with `backend/` and `frontend/` at the root** (see §4). | Decided |
 | D4 | **FE stack:** React + TypeScript + Vite, Tailwind, shadcn/ui, TanStack Query, React Router, React Hook Form + Zod, react-i18next (D12), client generated from `/openapi.json` (openapi-typescript + openapi-fetch), pdf.js for previews, Vitest + Playwright. | Decided |
 | D5 | **Hosting:** API on Fly.io (scale to zero), FE on Cloudflare Pages. | Decided |
 | D6 | **Auth:** Google OAuth through Supabase Auth. The FE uses `@supabase/supabase-js` for sign-in only; all data goes through FastAPI. The API validates the JWT against the project's JWKS. | Decided |
 | D7 | **Dev behaves like prod** (same sign-in and invite flow). Access to dev is limited by keeping the Google OAuth consent screen in **Testing** mode, with a list of test users (see §6.4). | Decided |
 | D8 | **Supabase free-tier pause:** a GitHub Actions cron runs **twice a week** (Mon + Thu, so one failed run is not enough to let it pause). It starts as `SELECT 1` through the pooler (#156), independent of Fly, and gains `/health?db=1` once the API is deployed. The FE detects a paused DB and says so (see §5.3). | Decided |
-| D9 | **Milestones:** **"M3 – Dev preview"** holds the dev-preview work (auth, teams and invitations, UI, dev deployment); **"M2 – Prod"** is the prod milestone. Phase 1 issues stay in M1, since Phase 1 is a subset of it. | Decided |
+| D9 | **Milestones:** **"M3 – Dev preview"** holds the dev-preview work (auth, teams and invitations, UI, dev deployment); **"Mx – Parked"** holds what is deliberately not planned now, prod items included; "M2 – Prod" is closed (D1, amended 2026-10-31). Phase 1 issues stay in M1, since Phase 1 is a subset of it. | Decided |
 | D10 | **Team/ownership model:** teams as workspaces, owner + member roles, multi-use invite links, name-only public opponent directory, invite links that expire after 24 h by default (see §6). | Decided |
 | D11 | **UI theme: Polaris** (tweakcn, shadcn tokens). Its spec lives in `frontend/DESIGN.md`. AstroVista was dropped. | Decided |
 | D12 | **UI language: Hungarian by default, English selectable** (react-i18next, #155). Done first in Phase 6 so every new screen uses `t()` from the start; the choice is kept in localStorage under `lineup-lang` (disclose in #94). The `.docx` template and the API are unchanged. Server 422 sentences from the API stay English until the backend returns error codes. | Decided |
@@ -130,7 +131,8 @@ A subset of M1. The rest of M1 follows at its own pace.
 
 ### Phase 4 — Dev deployment + CD
 **Compliance gate (#92):** before anyone outside the team gets access to dev, the following
-must be done:
+must be done. The users are not from one household, so the household exemption does not cover
+them: GDPR applies even at this size.
 - #94 GDPR documentation pack (its data inventory and notice must list the browser storage from #155 and the
   rate-limit counters from #96: see the 2026-10-28 comment on #94)
 - #93 Sentry PII scrubbing (required before any `SENTRY_DSN` is set)
@@ -160,7 +162,7 @@ must be done:
 - [x] #156 Keep-alive cron, twice a week (D8, §5.3). It can land before Fly: `SELECT 1` through the pooler
       with a `KEEPALIVE_DATABASE_URL` Actions secret that the owner sets. (Workflow in PR #168; the owner set the secret and
       verified a manual run on 2026-10-28. Glance at the first scheduled Monday/Thursday runs.)
-- [ ] #17 Tags and releases (D13): the `release` workflow, a test that the two version files match,
+- [ ] #17 (deferred, no prod) Tags and releases (D13): the `release` workflow, a test that the two version files match,
       a baseline `v0.1.0` on `develop` once the first dev deploy works, `lineup:<version>` image tags.
 - [ ] Billing (#13): Fly has **no billing alerts or spending cap** (its docs say so), and the free trial (no card, up to 2 h of
       machine runtime or 7 days) ends soon after the first deploy. Before it ends add prepaid credits (the closest thing to a
@@ -450,3 +452,4 @@ Endpoints (amends #51):
 | 2026-10-30 | Correction to #13: Fly has no billing alerts or spending limit (its docs say so), and a new account runs on a no-card trial of up to 2 h of machine runtime or 7 days. Runbook gets a *Trial and billing* section; the PLAN item is reworded to "add credits or a card before the trial ends, check the bill". | #13 |
 | 2026-10-30 | Phase 4, #175 (repo part): compliance quick-check (G9, G10, G14, S5, S6, S7, S10, S11, S13), baseline security headers in `frontend/public/_headers` with a guard test, no `404.html` so Pages keeps SPA mode, the `Pages Setup` wiki page (project settings, build variables, allow-lists, Web Analytics off, why PR previews cannot sign in) and the docs that point to it. The Cloudflare account, DPA, project, secrets and the cold-start test are manual steps for the owner. | #175, PR #177 |
 | 2026-10-30 | Phase 4, #175 done: the owner created the Pages project (production branch `develop`, root `frontend`, React (Vite) preset with the `pnpm` build command; the dashboard first offered the Workers flow, the Pages one is behind a link on the Create page), set the five public build variables, `CORS_ORIGINS` on Fly and the Supabase Site URL/redirects for `https://lineup-kfi.pages.dev`. Verified: the `_headers` set is served, `/some/deep/link` returns the app, the CORS preflight echoes the origin, Google sign-in works and the cold-start PDF test (after 15 min idle) passed and was fast. | #175, #13, PR #178 |
+| 2026-10-31 | Scope triage for a small, known-user project: every open issue labelled `plan:keep`, `plan:keep-cheap`, `plan:defer` or `plan:drop`. Closed as completed: #21 (RLS shipped in #68), #40 (team-scoped access shipped). Closed as not planned: #100, #18, #161, #163 (no prod environment; no mutation testing; no dev container). Status comments added where work is partly done (#38, #62, #64, #73, #76, #77, #78, #79, #158). Decision D1 and the branching docs amended: one dev/test environment, no prod. The users are not from one household, so GDPR still applies. Deferred issues and the remaining prod issues moved to the new milestone "Mx – Parked", and "M2 – Prod" was closed; #92 moved to M3. New sibling of #18: #179 (Supabase web client as a dev admin tool, a step-by-step guide in `documentation/`). The AI setup work (#157) moves to the private `ai-common` repo (first scaffold: hooks from `dev-config`, templates, the `new-issue` skill, a draft `convention-reviewer` agent and docs). | #21, #40, #100, #18, #161, #163, #157, #179, PR #180 |

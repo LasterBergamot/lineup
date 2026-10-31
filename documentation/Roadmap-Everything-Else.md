@@ -23,8 +23,9 @@ SQLite and Supabase, recover lost credentials, and migrate to a different stack 
 
 ## Branching model and environments
 
-The project is small (a handful of users), so it runs exactly **two environments — dev and
-prod** — and one long-lived branch for each:
+The project is small (a handful of known users, not one household), so it runs **one hosted
+environment, dev/test**, on the `develop` branch. `main` is the release line. A prod environment
+is not planned; the prod items are parked in the "Mx – Parked" milestone.
 
 ```mermaid
 flowchart LR
@@ -33,13 +34,13 @@ flowchart LR
     H[hotfix branch] -->|PR| M
     M -->|merge back| D
     D -.->|"CD (planned, #8; app config done, #13)"| DEV[dev: Fly.io + Cloudflare Pages + dev Supabase]
-    M -.->|"CD + version tag (planned, #17)"| PROD[prod]
+    M -.->|"version tag (deferred, #17)"| REL[vX.Y.Z tag]
 ```
 
 - `develop` is the default branch: every PR targets it, Dependabot targets it, and the wiki is
   published from it. Once CD exists, each merge deploys to dev.
 - `main` only moves on a release (a `develop` → `main` PR) or a hotfix. Releases will later
-  create the `vX.Y.Z` tag and deploy to prod.
+  create the `vX.Y.Z` tag; there is no prod deploy.
 - **Versions (planned, #17):** one repo-wide SemVer tag `vX.Y.Z` covers backend and frontend, because the
   frontend's API client is generated from the backend's spec and the two move together. A manually triggered
   `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub
@@ -54,8 +55,8 @@ flowchart LR
   the pooler; once the API is deployed it should also call `/health?db=1`. GitHub
   disables scheduled workflows after 60 days without repo activity, so after a long break check the Actions tab
   (details in `PLAN.md` §5.3).
-- A separate test/staging environment was considered and dropped: with a handful of users,
-  dev already is the place to try things before prod.
+- Dev is also the test environment. A separate staging environment was dropped, and no prod
+  environment is planned.
 
 The work to get the dev environment running end-to-end (frontend, auth, invitations, CD) is
 planned in `PLAN.md` at the repo root.
