@@ -35,7 +35,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task migrate` / `task migrate-new -- -m "..."` / `task migrate-down` | Alembic upgrade / autogenerate / rollback one step |
 | `task migrate-check` | Apply all migrations to a throwaway SQLite file, then `alembic check` (fails on model/migration drift). CI runs it |
 | `task migrate:supabase` | Apply migrations to Supabase using `MIGRATE_DATABASE_URL` from `backend/.env.migrate` (owner credentials, kept out of `.env`) |
-| `task db:create-app-role` | Give the `lineup_app` role a generated password and point `backend/.env`'s pooler URL at it (password never printed) |
+| `task db:create-app-role` | Give the `lineup_app` role a generated password (asks for a typed `yes` first, since a re-run rotates it) and point `backend/.env`'s pooler URL at it (password never printed) |
 | `task docs:references` / `task docs:check` | regenerate / verify the dependency block in `documentation/References.md` (`scripts/docs_references.py`) |
 
 ## Configuration (environment variables)

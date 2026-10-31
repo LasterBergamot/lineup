@@ -206,7 +206,7 @@ Nothing keeps the Fly machine alive, on purpose:
 |---|---|
 | Deploy fails, machine exits at start | `ENV=production` makes startup fail closed: check that `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` and that `SUPABASE_URL` is set (`fly logs` shows the reason, never the URL) |
 | `503` on every data route | `SUPABASE_URL` missing or wrong |
-| `/health?db=1` is `503` | Wrong password or URL, or the Supabase project is paused (see *Current State: Backend*) |
+| `/health?db=1` is `503` | Wrong password or URL, or the Supabase project is paused (see *Current State: Backend*). If `task db:create-app-role` was run again, it set a new `lineup_app` password: update the Fly secret `DATABASE_URL` (and the `KEEPALIVE_DATABASE_URL` Actions secret) from `backend/.env` |
 | Browser says CORS error | The frontend's origin is not in `CORS_ORIGINS` (exact match, no trailing slash) |
 | PDF requests answer `503` + `Retry-After` | Another conversion is running; one at a time on this machine |
 | `fly machine list` shows two machines | The first deploy ran without `--ha=false`. Run `fly scale count 1` |

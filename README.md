@@ -161,10 +161,10 @@ The dev environment can run against a hosted Postgres on [Supabase](https://supa
 
 1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `backend/.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `backend/.env.example`. `ENV=production` is the right value for the dev database too: it means "Alembic owns the schema", not "this is the prod deployment". The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 backend/.env` keeps other users on your machine from reading it.
 2. Put the **owner's direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead) in a separate git-ignored file, `backend/.env.migrate`, as `MIGRATE_DATABASE_URL` (`chmod 600`). It is kept out of `.env` on purpose: Compose and `task serve` load `.env` into the API's environment, and the API must never hold the owner's password. Then run `task migrate:supabase`. This creates the tables **and** switches on Row Level Security with a least-privilege `lineup_app` role (see *Current State: Backend* on the wiki).
-3. Run `task db:create-app-role`: it gives `lineup_app` a generated password and rewrites the pooler `DATABASE_URL` in `backend/.env` to that role (nothing is printed). The API then connects as `lineup_app`, not as the table-owning `postgres` role.
+3. Run `task db:create-app-role`: it gives `lineup_app` a generated password and rewrites the pooler `DATABASE_URL` in `backend/.env` to that role (nothing is printed). The API then connects as `lineup_app`, not as the table-owning `postgres` role. It generates a **new** password on every run, so it asks you to type `yes` first (`task db:create-app-role -- --yes` skips the question for scripts); a second run invalidates the old password, and the deployed API's Fly secret `DATABASE_URL` and the `KEEPALIVE_DATABASE_URL` Actions secret then have to be updated (`documentation/Fly-Setup.md`).
 4. Start the app (`task up` or `task serve`; both read `backend/.env`).
 
-**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes; `task db:postgres` switches forward again.
+**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes: the task only comments the pooler URL out, it never deletes it, and `task db:postgres` uncomments it again.
 
 **If the credentials are lost:** the database password can be reset at any time in the Supabase dashboard (Project Settings → Database → *Reset database password*) without losing data; update your `backend/.env`. API keys and the JWT secret are always viewable and rotatable in Project Settings. The only unrecoverable situation is losing access to the Supabase account itself, so keep the account recovery e-mail and 2FA backup codes safe and consider adding a second owner to the organization.
 
@@ -304,7 +304,7 @@ POST /lineups/saved
 | `task migrate-down` | Roll back one migration step                                 |
 | `task migrate-check` | Apply all migrations to a throwaway SQLite file and fail on model/migration drift |
 | `task migrate:supabase` | Apply migrations to Supabase using `MIGRATE_DATABASE_URL` from `backend/.env.migrate` |
-| `task db:create-app-role` | Create the `lineup_app` login (generated password, written to `backend/.env`, never printed) |
+| `task db:create-app-role` | Set or rotate the `lineup_app` login (asks for a typed `yes` first; generated password, written to `backend/.env`, never printed) |
 | `task fe:install` | Install the frontend dependencies with pnpm (frozen lockfile)   |
 | `task fe:dev`   | Start the Vite dev server on :5173 (proxies `/api` to the container) |
 | `task fe:lint`  | ESLint and Prettier check for the frontend                      |
