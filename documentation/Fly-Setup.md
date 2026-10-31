@@ -109,13 +109,15 @@ workflow). In order, it:
 2. runs `flyctl deploy --ha=false` from `backend/`; if the new machine never passes Fly's `/health`
    check, Fly keeps the previous release and the job fails,
 3. polls `GET /health?db=1` for up to three minutes (18 tries, 10 s apart), because the first answer
-   after a deploy can be slow, and fails the job if the app never reports a working database.
+   after a deploy can be slow, and fails the job if the app never reports a working database,
+4. in a second job, `smoke`, runs the live smoke test (#190, see below).
 
 ```mermaid
 flowchart LR
     M[Merge into develop] --> A[Alembic upgrade head]
     A --> D["flyctl deploy --ha=false"]
     D --> H["Poll /health?db=1"]
+    H --> S["Smoke test (live database)"]
     M -.->|"own Git integration"| P[Cloudflare Pages build]
 ```
 
@@ -131,19 +133,48 @@ in one deploy and drop the old ones in a later one.
 Pushes that only change docs or the frontend do not trigger it, and runs never overlap or get
 cancelled (`concurrency`): a second push waits for the first to finish.
 
+### The smoke test after a deploy
+
+The health check only proves the app can run `SELECT 1`. A migration or grant mistake that breaks a
+real route (a missing `GRANT`, an RLS policy, a pooler quirk that SQLite cannot show) would pass it
+and be found later by a user. So once the deploy is green, the `smoke` job (`needs: deploy`) runs
+`scripts/smoke_live.py`, the same script as the `supabase-smoke` skill, against the dev database:
+
+- It starts the API **from the checked-out code** on the runner, connected to the dev database through
+  the Supabase transaction pooler as the least-privilege `lineup_app` role, so RLS and the grants are
+  really exercised. It does not call the Fly app.
+- Sign-in is a stand-in: `scripts/smoke_auth.py` serves a throw-away public key on `127.0.0.1` and
+  writes two tokens (fixed smoke users, so the cleanup can find their rows). The key never leaves
+  the runner and the real Supabase Auth is not involved.
+- The script creates a team, a player and a saved lineup, reads them back, generates a DOCX and runs
+  the invitation flow (create, preview, accept as a second user, revoke), then deletes everything. It
+  names every row `smoke-<unix time> …` and, as a last step, deletes teams carrying that marker that
+  are more than an hour old, so a crashed run does not leave data behind. Only synthetic data is
+  written.
+- A failed step fails the run (and the API log tail is printed). The deploy is already live by then;
+  the red run is the signal and nothing is rolled back (the first version only reports).
+- It runs only for pushes to `develop` (and a manual run on `develop`), never for pull requests.
+
+To run it by hand, start the two helpers as `.claude/skills/supabase-smoke/SKILL.md` describes and
+run `python3 scripts/smoke_live.py --token-file … --second-token-file …`. In CI, start it from the
+Actions tab: *Deploy dev* → Run workflow on `develop` (that deploys first, then smoke-tests).
+
 ### One-off setup for CD
 
-Two GitHub Actions secrets (repository → Settings → Secrets and variables → Actions → *New
+Three GitHub Actions secrets (repository → Settings → Secrets and variables → Actions → *New
 repository secret*). Never paste their values into chat or issues.
 
 | Secret | Value |
 |---|---|
 | `FLY_API_TOKEN` | An app-scoped deploy token. Create it with `fly tokens create deploy -a lineup-dev-lb` and paste the whole output (starting `FlyV1`). It can deploy this one app and nothing else. |
 | `MIGRATE_DATABASE_URL` | The table-owner URL through the Supabase **session pooler** (port 5432), the same value as in your local `backend/.env.migrate`: `postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?ssl=require`. The direct host is IPv6-only and GitHub's runners are IPv4, so use the pooler. Not the app's `lineup_app` URL, which cannot change the schema. |
+| `SMOKE_DATABASE_URL` | The app's `lineup_app` URL through the Supabase **transaction pooler** (port 6543): `postgresql+asyncpg://lineup_app.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?ssl=require`, the same value as the Fly secret `DATABASE_URL`. It is the only secret the `smoke` job gets, so the job cannot change the schema. |
 
 To rotate one: create a new token or password, update the secret, then revoke the old one
 (`fly tokens list`, `fly tokens revoke <id>`; for the database, change the `postgres` password in
-the Supabase dashboard and update `backend/.env.migrate` and the secret together). The run fails
+the Supabase dashboard and update `backend/.env.migrate` and the secret together; when
+`task db:create-app-role` rotates the `lineup_app` password, update the Fly secret `DATABASE_URL`,
+`KEEPALIVE_DATABASE_URL` and `SMOKE_DATABASE_URL` together). The run fails
 with an error message that names the secret if one of them is missing.
 
 After setting the secrets, run *Deploy dev* by hand once and read the log. GitHub masks the token

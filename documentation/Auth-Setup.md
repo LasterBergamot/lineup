@@ -108,7 +108,7 @@ Supabase has no e-mail allowlist for OAuth; the Google list is the gate while th
 ## Trying the frontend without Google (local only)
 
 `scripts/smoke_auth.py` is a stand-in for Supabase Auth: it serves a throw-away public key set and
-writes a token for a random user to a file. It does **not** implement the Google redirect, so the
+writes a token for a fixed smoke user to a file. It does **not** implement the Google redirect, so the
 *Continue with Google* button cannot finish against it, but everything after sign-in can be
 exercised:
 
@@ -119,8 +119,8 @@ exercised:
    is `sb-` plus the first part of the Supabase host, here `sb-127-auth-token`), then reload:
    `localStorage.setItem("sb-127-auth-token", JSON.stringify({access_token: "<token>", refresh_token: "x", token_type: "bearer", expires_in: 3000, expires_at: Math.floor(Date.now()/1000)+3000, user: {id: "<the token's sub>", aud: "authenticated"}}))`
 
-Add `--second-token-file /tmp/dev2.jwt` to get a token for a second random user (used by the
-`supabase-smoke` skill to accept an invitation as a non-member, and handy for trying the members
+Add `--second-token-file /tmp/dev2.jwt` to get a token for a second fixed smoke user (used by the
+`supabase-smoke` skill and the post-deploy smoke job to accept an invitation as a non-member, and handy for trying the members
 page). Both tokens carry the name `Smoke Owner`.
 
 You then land in onboarding (no team yet), can create a team and see the shell. Delete the token

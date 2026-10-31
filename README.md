@@ -326,7 +326,7 @@ lineup/
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md)
-├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
+├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
@@ -432,6 +432,7 @@ lineup/
     │   ├── test_postgres_migrations.py  # RLS / roles / grants on a real Postgres (skipped without POSTGRES_TEST_URL)
     │   ├── test_migrations.py           # Data migrations on a throw-away SQLite file
     │   ├── test_smoke_auth.py           # scripts/smoke_auth.py tokens are accepted by the real verifier
+    │   ├── test_smoke_live.py           # scripts/smoke_live.py run against the real app: steps, failure, cleanup, sweep
     │   ├── test_input_hardening.py      # Control chars/blanks, unknown team_id, source-or-text, duplicate NSSZ, ordering
     │   ├── test_docs_tooling.py         # scripts/ (References generator, docs gate), wiki PAGE_MAP, Claude context guards
     │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate, Postgres pool settings)

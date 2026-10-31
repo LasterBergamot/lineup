@@ -4,7 +4,7 @@
 Every data route now needs a signed-in user. The smoke test (`.claude/skills/supabase-smoke`)
 only wants to prove the *database* path works on Supabase, so instead of signing in with Google
 it starts this script: it makes a throw-away ES256 key, serves the matching public key set at
-`<url>/auth/v1/.well-known/jwks.json`, writes a token for a random user to a file, and keeps
+`<url>/auth/v1/.well-known/jwks.json`, writes a token for a fixed smoke user to a file, and keeps
 serving until it is killed. Point the API at it with `SUPABASE_URL=http://127.0.0.1:<port>`.
 
 Nothing here touches the real Supabase project or a real account, and the key never leaves this
@@ -27,6 +27,11 @@ from jwt.algorithms import ECAlgorithm
 KID = "smoke-key"
 JWKS_PATH = "/auth/v1/.well-known/jwks.json"
 FULL_NAME = "Smoke Owner"
+# Fixed ids for the two users `main` signs tokens for. Stable on purpose: `scripts/smoke_live.py`
+# sweeps what a crashed run left behind, and it can only see teams its own user belongs to.
+# Harmless: the real API trusts only the real Supabase key set, so these ids are not accounts.
+OWNER_ID = uuid.UUID("5a0c0001-0000-4000-8000-000000000001")
+MEMBER_ID = uuid.UUID("5a0c0002-0000-4000-8000-000000000002")
 
 
 def make_tokens(base_url: str, user_ids: list[uuid.UUID], ttl_seconds: int = 3600):
@@ -91,8 +96,8 @@ def make_handler(jwks: dict):
 def main(argv: list[str] | None = None) -> None:
     """Write the token file(s) (mode 600), then serve the key set until interrupted.
 
-    `--second-token-file` adds a token for a different random user, so a test can accept an
-    invitation as someone who is not yet a member of the team.
+    The first file holds a token for `OWNER_ID`. `--second-token-file` adds one for `MEMBER_ID`,
+    so a test can accept an invitation as someone who is not yet a member of the team.
     """
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--port", type=int, default=54399)
@@ -101,13 +106,17 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     base_url = f"http://127.0.0.1:{args.port}"
-    files = [args.token_file] + ([args.second_token_file] if args.second_token_file else [])
-    jwks, tokens = make_tokens(base_url, [uuid.uuid4() for _ in files])
+    files = [args.token_file] + (
+        [args.second_token_file] if args.second_token_file else []
+    )
+    jwks, tokens = make_tokens(base_url, [OWNER_ID, MEMBER_ID][: len(files)])
     for path, token in zip(files, tokens):
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as handle:
             handle.write(token)
-    print(f"Fake Supabase Auth on {base_url}; token(s) in {', '.join(files)}", flush=True)
+    print(
+        f"Fake Supabase Auth on {base_url}; token(s) in {', '.join(files)}", flush=True
+    )
     HTTPServer(("127.0.0.1", args.port), make_handler(jwks)).serve_forever()
 
 

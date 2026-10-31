@@ -104,3 +104,26 @@ def test_main_writes_a_second_token_for_another_user(tmp_path, monkeypatch):
         return claims["sub"]
 
     assert subject(first) != subject(second)
+
+
+def test_main_signs_the_two_stable_smoke_users(tmp_path, monkeypatch):
+    """The sweep in scripts/smoke_live.py only sees teams of the same user, so the ids must not
+    change from run to run."""
+    monkeypatch.setattr(smoke_auth.HTTPServer, "serve_forever", lambda self: None)
+    first, second = tmp_path / "one.jwt", tmp_path / "two.jwt"
+    for _ in range(2):
+        smoke_auth.main(
+            [
+                "--port",
+                "0",
+                "--token-file",
+                str(first),
+                "--second-token-file",
+                str(second),
+            ]
+        )
+        subjects = [
+            jwt.decode(path.read_text(), options={"verify_signature": False})["sub"]
+            for path in (first, second)
+        ]
+        assert subjects == [str(smoke_auth.OWNER_ID), str(smoke_auth.MEMBER_ID)]
