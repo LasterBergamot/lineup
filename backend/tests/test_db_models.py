@@ -112,6 +112,7 @@ class TestTeamInvitation:
         assert invitation.role == "member"
         assert invitation.revoked_at is None
         assert invitation.email is None
+        assert invitation.invited_by_name is None
 
     async def test_code_hashes_are_unique(self, db_session: AsyncSession):
         team = await _team(db_session)

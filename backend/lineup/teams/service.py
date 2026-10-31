@@ -14,10 +14,10 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lineup.db.models import Team, TeamRole
+from lineup.db.models import Team, TeamMember, TeamRole
 from lineup.teams import repository
 from lineup.teams.repository import TeamWithRole
-from lineup.teams.schemas import TeamDeleteResponse
+from lineup.teams.schemas import MemberResponse, TeamDeleteResponse
 
 
 async def create_team(
@@ -139,3 +139,75 @@ async def delete_team(
         )
     await repository.delete_team(session, team=team)
     return TeamDeleteResponse(id=team.id, name=team.name, deleted=True)
+
+
+async def list_members(
+    session: AsyncSession,
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> list[MemberResponse]:
+    """The team's members, oldest first, for any member of the team (404 for everyone else)."""
+    await get_team_or_404(session, team_id=team_id, user_id=user_id)
+    members = await repository.list_members(session, team_id=team_id)
+    return [
+        MemberResponse(
+            user_id=m.user_id,
+            role=m.role,
+            joined_at=m.joined_at,
+            is_you=m.user_id == user_id,
+        )
+        for m in members
+    ]
+
+
+async def _get_member_or_404(
+    session: AsyncSession, team_id: uuid.UUID, member_id: uuid.UUID
+) -> TeamMember:
+    member = await repository.get_membership(
+        session, team_id=team_id, user_id=member_id
+    )
+    if member is None:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return member
+
+
+async def remove_member(
+    session: AsyncSession,
+    team_id: uuid.UUID,
+    member_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
+    """Remove `member_id` from the team: an owner may remove anyone, any member may remove
+    themselves (leave). 404 for non-members of the team and for an unknown member, 403 when a
+    non-owner tries to remove somebody else, 409 when it would leave the team without an owner.
+    """
+    _team, role = await get_team_or_404(session, team_id=team_id, user_id=user_id)
+    if member_id != user_id and role != TeamRole.OWNER.value:
+        raise HTTPException(status_code=403, detail="Only a team owner can do this")
+    member = await _get_member_or_404(session, team_id=team_id, member_id=member_id)
+    if (
+        member.role == TeamRole.OWNER.value
+        and await repository.count_owners(session, team_id=team_id) <= 1
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="A team needs an owner: transfer ownership to another member first",
+        )
+    await repository.remove_member(session, member=member)
+
+
+async def transfer_ownership(
+    session: AsyncSession,
+    team_id: uuid.UUID,
+    new_owner_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> TeamWithRole:
+    """Hand the team over to another member; the caller (an owner, else 403/404) becomes a plain
+    member. 422 if the target is the caller, 404 if the target is not a member."""
+    team = await get_owned_team_or_404(session, team_id=team_id, user_id=user_id)
+    if new_owner_id == user_id:
+        raise HTTPException(status_code=422, detail="Choose another member")
+    target = await _get_member_or_404(session, team_id=team_id, member_id=new_owner_id)
+    current = await _get_member_or_404(session, team_id=team_id, member_id=user_id)
+    await repository.swap_owner(session, current_owner=current, new_owner=target)
+    return team, TeamRole.MEMBER.value

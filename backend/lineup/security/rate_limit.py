@@ -207,3 +207,11 @@ GENERATE_PER_USER = read_rate_limit(
 # limiters, because they cost the same LibreOffice time: switching endpoints is no way around them.
 generate_ip_limit = ip_rate_limit("generate:ip", GENERATE_PER_IP)
 generate_user_limit = user_rate_limit("generate:user", GENERATE_PER_USER)
+
+# Invitation links (#51): preview, accept and create. Codes are 256-bit random, so these limits
+# are not what keeps them safe; they stop a client from hammering the unauthenticated preview
+# and from spamming link creation. The join page makes one preview and one accept call per visit.
+INVITE_PER_IP = 30
+INVITE_PER_USER = 10
+invite_ip_limit = ip_rate_limit("invite:ip", INVITE_PER_IP)
+invite_user_limit = user_rate_limit("invite:user", INVITE_PER_USER)

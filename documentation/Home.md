@@ -41,8 +41,8 @@ saved roster instead of a one-off request payload.
 
 ## Roadmap
 
-- [[Roadmap: Backend]] — production Supabase project, auth, RLS, team collaboration &
-  invitations (the dev-database cutover is already done)
+- [[Roadmap: Backend]] — production Supabase project, team-scoped RLS (auth, team collaboration and
+  invitations are done; so is the dev-database cutover)
 - [[Roadmap: Frontend]] — planned OAuth flow, onboarding, team management UI
 - [[Roadmap: Everything Else]] — branching model and environments (dev/test), cross-cutting
   rollout concerns not specific to one side

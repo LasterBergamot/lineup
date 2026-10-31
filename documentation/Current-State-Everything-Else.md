@@ -49,6 +49,7 @@ external services.
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
 | `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod). It also makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
+| `APP_BASE_URL` | `http://localhost:5173` | The web app's origin; team invite links are `<APP_BASE_URL>/join/<code>`. Set in `fly.toml` to the Pages URL |
 | `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc`, `/openapi.json`; always off when `ENV=production` |
 | `MAX_BODY_BYTES` | `262144` | Request body cap in bytes; bigger bodies get `413` |
 | `RATE_LIMIT_GENERATE_PER_USER` / `RATE_LIMIT_GENERATE_PER_IP` | `10` / `30` | Document generations per minute per signed-in user / per client IP (`429` + `Retry-After`). In-memory, per process |
@@ -99,7 +100,9 @@ git-ignored.
   secret or local-state file appears in `backend/`. The image ships without tests, which is why the
   e2e suite runs from the host against the running container rather than inside the image.
 - The container starts `uvicorn` straight from the virtualenv's `bin` directory (which is on `PATH`):
-  the dependencies were installed at build time, so nothing is resolved or synced at start.
+  the dependencies were installed at build time, so nothing is resolved or synced at start. It runs with
+  `--no-access-log`, because invite codes are URL path segments and uvicorn's access log would print
+  them (with the client IP) into the platform logs.
 - `compose.yml` (repo root) uses `image: lineup` (not `build:`), so `task build`/`task rebuild` is
   always required before `task up`. It takes its settings from `env_file: backend/.env`
   (`required: false`, Compose >= 2.24) — Compose's own `.env` lookup only checks next to

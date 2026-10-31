@@ -4,7 +4,12 @@ Players and saved lineups must live in a team the caller belongs to, so most tes
 first. `ensure_team` gives them one without each test repeating the setup.
 """
 
+import uuid
+
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from lineup.db.models import TeamMember
 
 DEFAULT_TEAM = "SZVTK"
 
@@ -36,3 +41,11 @@ async def create_player(
     )
     assert response.status_code == 201
     return response.json()
+
+
+async def join_team(
+    db_session: AsyncSession, team_id: str, user_id: uuid.UUID, role: str = "member"
+) -> None:
+    """Make `user_id` a member of the team directly in the database (no invitation involved)."""
+    db_session.add(TeamMember(team_id=uuid.UUID(team_id), user_id=user_id, role=role))
+    await db_session.commit()

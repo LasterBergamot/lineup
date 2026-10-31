@@ -6,6 +6,7 @@ function, and `httpx` is given a mock transport for the one test of the real fet
 
 import json
 import logging
+import re
 import time
 import uuid
 
@@ -20,7 +21,7 @@ from jwt.algorithms import ECAlgorithm, RSAAlgorithm
 
 from app import app
 from lineup.auth import tokens
-from lineup.auth.dependencies import get_current_user_id
+from lineup.auth.dependencies import get_current_display_name, get_current_user_id
 from lineup.auth.tokens import (
     AuthConfigError,
     AuthUnavailableError,
@@ -460,28 +461,32 @@ async def test_dependency_fails_closed_when_the_keys_are_unreachable(monkeypatch
 
 # ── every protected route really is protected ───────────────────────────────
 
+# The docs routes (/docs, /redoc, /openapi.json) are not in the OpenAPI document, so they are not
+# listed here. The invite preview is public on purpose: the join page shows "Join <team>?" before
+# the visitor has signed in (the code in the path is the credential, and it is rate limited).
 PUBLIC_ROUTES = {
     ("GET", "/health"),
-    ("GET", "/openapi.json"),
-    ("GET", "/docs"),
-    ("GET", "/docs/oauth2-redirect"),
-    ("GET", "/redoc"),
+    ("GET", "/invitations/{code}"),
 }
 
 
 def _protected_routes():
-    for route in app.routes:
-        for method in getattr(route, "methods", None) or ():
-            if method in {"HEAD", "OPTIONS"} or (method, route.path) in PUBLIC_ROUTES:
-                continue
-            yield method, route.path
+    # Read the routes from the OpenAPI document: `app.routes` holds opaque `_IncludedRouter`
+    # wrappers in recent FastAPI versions, which made an earlier route walk collect nothing.
+    for path, operations in app.openapi()["paths"].items():
+        for method in operations:
+            if (method.upper(), path) not in PUBLIC_ROUTES:
+                yield method.upper(), path
+
+
+def test_the_route_walk_sees_the_api():
+    """Guards the guard below: it must not pass because it found no routes."""
+    assert len(list(_protected_routes())) > 20
 
 
 @pytest.mark.parametrize(("method", "path"), sorted(_protected_routes()))
 def test_every_non_public_route_rejects_requests_without_a_token(method, path):
-    concrete = path.replace("{team_id}", str(uuid.uuid4()))
-    for name in ("player_id", "lineup_id"):
-        concrete = concrete.replace("{" + name + "}", str(uuid.uuid4()))
+    concrete = re.sub(r"\{[^}]+\}", lambda _: str(uuid.uuid4()), path)
     response = TestClient(app).request(method, concrete)
     assert response.status_code == 401
     assert response.json() == {"detail": "Not authenticated"}
@@ -489,3 +494,55 @@ def test_every_non_public_route_rejects_requests_without_a_token(method, path):
 
 def test_public_routes_stay_reachable_without_a_token():
     assert TestClient(app).get("/health").status_code == 200
+
+
+# ── display name (for "who invited you") ────────────────────────────────────
+
+
+def _name_token(key, **metadata) -> str:
+    return key.token(user_metadata=metadata)
+
+
+def test_display_name_prefers_full_name(key):
+    token = _name_token(key, full_name="Török András", name="Andris")
+    assert tokens.display_name_from_token(token) == "Török András"
+
+
+def test_display_name_falls_back_to_name(key):
+    assert tokens.display_name_from_token(_name_token(key, name="Andris")) == "Andris"
+
+
+def test_display_name_drops_control_characters_and_caps_the_length(key):
+    token = _name_token(key, full_name="  Al\u0000i\nce‮" + "x" * 300)
+    name = tokens.display_name_from_token(token)
+    assert name.startswith("Alice")
+    assert "\u0000" not in name and "\n" not in name
+    assert len(name) <= tokens.MAX_DISPLAY_NAME_LENGTH
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [{}, {"full_name": ""}, {"full_name": "  \n "}, {"full_name": 42}, {"name": None}],
+)
+def test_display_name_is_none_when_missing_or_unusable(key, metadata):
+    assert tokens.display_name_from_token(_name_token(key, **metadata)) is None
+
+
+def test_display_name_is_none_without_metadata_or_with_a_bad_shape(key):
+    assert tokens.display_name_from_token(key.token()) is None
+    assert tokens.display_name_from_token(key.token(user_metadata="Alice")) is None
+
+
+def test_display_name_is_none_for_a_garbage_token():
+    assert tokens.display_name_from_token("not.a.jwt") is None
+
+
+async def test_current_display_name_reads_the_verified_token(key):
+    name = await get_current_display_name(
+        bearer(_name_token(key, full_name="Alice")), USER_ID
+    )
+    assert name == "Alice"
+
+
+async def test_current_display_name_is_none_without_credentials():
+    assert await get_current_display_name(None, USER_ID) is None

@@ -64,8 +64,7 @@ planned in `PLAN.md` at the repo root.
 ## Multi-tenancy rollout
 
 Every repository filters on the teams the signed-in user belongs to (`get_current_user_id()` verifies a
-Supabase JWT and never yields `None`; a team is a workspace shared by its members). What is still missing
-is a way to add members: the invitation endpoints. The remaining rollout risk is
+Supabase JWT and never yields `None`; a team is a workspace shared by its members). Members are added through invite links (the invitation endpoints are done, #51). The remaining rollout risk is
 almost entirely on the auth/Supabase side (see [[Roadmap: Backend]]) and the onboarding UI
 (see [[Roadmap: Frontend]]), not on the persistence layer itself.
 
@@ -79,6 +78,6 @@ platform's built-in tooling.
 
 ## Team collaboration
 
-Sits at the intersection of backend (`team_members`/`team_invitations` endpoints; the schema is done)
-and frontend (accept/generate-invite UI) — tracked in detail on both of those pages. No
+Sits at the intersection of backend (`team_members`/`team_invitations` endpoints; schema and endpoints are done)
+and frontend (members page and accept/generate-invite UI, still to build) — tracked in detail on both of those pages. No
 independent cross-cutting work identified beyond what's already listed there.

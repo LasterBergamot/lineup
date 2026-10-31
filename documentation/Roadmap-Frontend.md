@@ -65,7 +65,9 @@ there:
   matches each player's `source_player_id` against the current roster: still-present
   players get pre-selected, deleted ones fall back to the frozen snapshot name/NSSZ as free
   text with a "no longer on roster" hint.
-- **Team invitations** — accept/generate invite links (Phase 5, #51). The onboarding screen
+- **Team invitations** — accept/generate invite links (Phase 5). The API is done (#51: create, list,
+  revoke, preview, accept, members, leave, hand over); still to build: the members page with a
+  copy/share "Invite" button and the `/join/:code` page. The onboarding screen
   already shows the "join with an invite link" field, disabled, and the `/join/:code` page has to
   survive the Google sign-in round trip (the sign-in page already forwards to a remembered path).
 

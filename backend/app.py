@@ -17,6 +17,8 @@ from lineup.common.errors import handle_integrity_error
 from lineup.db.base import Base
 from lineup.db.engine import engine
 from lineup.health.router import router as health_router
+from lineup.invitations.router import router as invitations_router
+from lineup.invitations.router import team_router as team_invitations_router
 from lineup.players.router import router as players_router
 from lineup.saved_lineups.router import router as saved_lineups_router
 from lineup.security.body_limit import BodySizeLimitMiddleware
@@ -101,5 +103,7 @@ app.add_exception_handler(IntegrityError, handle_integrity_error)
 app.include_router(health_router)
 app.include_router(lineup_router)
 app.include_router(teams_router)
+app.include_router(team_invitations_router)
+app.include_router(invitations_router)
 app.include_router(players_router)
 app.include_router(saved_lineups_router)

@@ -80,3 +80,19 @@ class PaginatedTeams(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class MemberResponse(BaseModel):
+    """One member of a team. Only ids and roles: the API stores no names or e-mail addresses for
+    members. `is_you` marks the caller's own row so a client can show "(you)" and a Leave button."""
+
+    user_id: uuid.UUID
+    role: str
+    joined_at: datetime
+    is_you: bool
+
+
+class OwnershipTransfer(BaseModel):
+    """Body for handing a team over: the member who becomes its owner."""
+
+    user_id: uuid.UUID

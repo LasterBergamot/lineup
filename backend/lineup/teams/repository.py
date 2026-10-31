@@ -12,6 +12,7 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lineup.db.models import Player, SavedLineup, Team, TeamMember, TeamRole
@@ -63,6 +64,66 @@ async def get_team(
     )
     row = result.one_or_none()
     return None if row is None else (row[0], row[1])
+
+
+async def get_membership(
+    session: AsyncSession,
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> TeamMember | None:
+    """The membership row of `user_id` in `team_id`, or `None` if they are not a member."""
+    return await session.get(TeamMember, (team_id, user_id))
+
+
+async def list_members(session: AsyncSession, team_id: uuid.UUID) -> list[TeamMember]:
+    """Every member of the team, in the order they joined (ties broken by user id)."""
+    query = (
+        select(TeamMember)
+        .where(TeamMember.team_id == team_id)
+        .order_by(TeamMember.joined_at, TeamMember.user_id)
+    )
+    return list((await session.execute(query)).scalars().all())
+
+
+async def count_owners(session: AsyncSession, team_id: uuid.UUID) -> int:
+    """How many members of the team have the `owner` role."""
+    result = await session.scalar(
+        select(func.count()).where(
+            TeamMember.team_id == team_id, TeamMember.role == TeamRole.OWNER.value
+        )
+    )
+    return result or 0
+
+
+async def add_member(
+    session: AsyncSession,
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+) -> None:
+    """Insert a membership and commit. Swallows the duplicate-key error of a double click (two
+    accepts racing past the "not a member yet" check): the user is a member either way, so the
+    caller re-reads the row instead of trusting this call."""
+    session.add(TeamMember(team_id=team_id, user_id=user_id, role=role))
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+
+
+async def remove_member(session: AsyncSession, member: TeamMember) -> None:
+    """Delete a membership and commit. The user's rows (players, lineups) stay with the team."""
+    await session.delete(member)
+    await session.commit()
+
+
+async def swap_owner(
+    session: AsyncSession, current_owner: TeamMember, new_owner: TeamMember
+) -> None:
+    """Make `new_owner` the owner and demote `current_owner` to member, in one commit."""
+    new_owner.role = TeamRole.OWNER.value
+    current_owner.role = TeamRole.MEMBER.value
+    await session.commit()
 
 
 async def get_team_visible(
