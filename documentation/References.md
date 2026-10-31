@@ -174,6 +174,7 @@ Direct dependencies from `frontend/package.json`.
 | `lucide-react` | runtime | [npm](https://www.npmjs.com/package/lucide-react) |
 | `openapi-fetch` | runtime | [npm](https://www.npmjs.com/package/openapi-fetch) |
 | `openapi-typescript` | dev | [npm](https://www.npmjs.com/package/openapi-typescript) |
+| `pdfjs-dist` | runtime | [npm](https://www.npmjs.com/package/pdfjs-dist) |
 | `prettier` | dev | [npm](https://www.npmjs.com/package/prettier) |
 | `react` | runtime | [npm](https://www.npmjs.com/package/react) |
 | `react-dom` | runtime | [npm](https://www.npmjs.com/package/react-dom) |

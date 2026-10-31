@@ -2,8 +2,8 @@
 
 The web app lives in `frontend/`. The tooling, the theme, the app shell, the generated API client
 and the cold-start handling are in place, and so are **Google sign-in** (through Supabase Auth)
-and the first-run **team onboarding**. Behind the sign-in sits the **one-off lineup form** on `/`
-(Lineup), the **Team** page (members and invite links), and the **Roster** page (players, team settings, opponent directory search); the Saved area of the navigation is still a "coming soon" page. The screens arrive phase by phase (see [[Roadmap: Frontend]]
+and the first-run **team onboarding**. Behind the sign-in sits the **lineup creator** on `/`
+(Lineup, with the one-off form as "Quick sheet"), the **Team** page (members and invite links), and the **Roster** page (players, team settings, opponent directory search); the Saved area of the navigation is still a "coming soon" page. The screens arrive phase by phase (see [[Roadmap: Frontend]]
 and `PLAN.md`). The backend it talks to is described in [[Current State: Backend]].
 
 ## How it is built
@@ -204,9 +204,35 @@ signed in, after joining and on sign-out; joining replaces the page in the histo
 not left behind. An unknown link and an expired or revoked one get their own messages. Checked in
 Chromium at phone and desktop sizes against the local stack.
 
-### The lineup form (first screen)
+### The lineup creator (first screen)
 
-`/` shows the one-off lineup form (`src/features/lineup/`), the UI for `POST /lineups`: match data
+`/` opens the **lineup creator** (`src/features/creator/`, #203) for the current team; the page loads
+the team's roster first (`QueryBoundary` + skeleton). A lineup is built like this:
+
+- **Players.** Each slot has a cap number and either a roster player (a select; the name and NSSZ
+  number are copied in and locked, and a player already used in another slot is disabled) or free
+  text. A roster pick is saved as `source_player_id`, so the server freezes the current values.
+- **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
+  directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
+  opponents (`GET /teams/{id}/opponents/recent`). If the typed text equals a listed team's name the
+  form keeps its id (`source_opponent_id`), otherwise the text is sent as `opponent_name`.
+- **Preview.** `POST /lineups` (the stateless endpoint) with the values resolved by
+  `resolve.ts`, shown by `PdfViewer` (`src/features/preview/`) in a `PreviewPanel`: a sticky side
+  column from the `lg` breakpoint, a full-screen sheet below. pdf.js is a lazy chunk and its worker
+  is bundled (`?url`), so nothing comes from a CDN. The PDF is a `Blob` held by the mutation
+  (`gcTime: 0`), never given a URL or stored, and dropped when the panel closes. The slow-PDF notice
+  appears after 5 s as before.
+- **Save.** `POST /lineups/saved`; afterwards "Saved" stays until the next edit, the PDF/DOCX
+  download buttons use `POST /lineups/saved/{id}/generate`, and the saved and recent-opponent
+  queries are refreshed. A 422 is mapped onto the fields (`formPath()`).
+- **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
+  lineup and `valuesFromSaved()` starts the creator from it (staff, division, players; not the
+  match, opponent or date). Only the id travels in the history state, never the lineup itself.
+- The doctor, assistant coach, team leader and ball thrower are optional here and in the API.
+
+### The one-off lineup form ("Quick sheet")
+
+The Lineup page's "Quick sheet" mode shows the one-off lineup form (`src/features/lineup/`), the UI for `POST /lineups`: match data
 (match, division, team name, cap colour, date), five staff names and 1 to 15 players (cap number,
 name, NSSZ number). Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
 since #96 the endpoint it calls requires the token too (rate limited: a `429` comes with `Retry-After`).
