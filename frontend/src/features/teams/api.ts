@@ -31,3 +31,22 @@ export async function createTeam(
 ): Promise<Team> {
   return request(client.POST("/teams", { body: { name: body.name, is_public: body.isPublic } }));
 }
+
+/**
+ * Renames a team and/or changes whether its name is listed in the opponent directory (owners
+ * only). Both values are always sent, so what the form shows is what gets stored. Throws
+ * `ApiError`: 403 for a member who is not the owner, 404 for someone outside the team, 422 with
+ * per-field messages (see `fieldErrors`).
+ */
+export async function updateTeam(
+  teamId: string,
+  body: { name: string; isPublic: boolean },
+  client: Pick<typeof api, "PUT"> = api,
+): Promise<Team> {
+  return request(
+    client.PUT("/teams/{team_id}", {
+      params: { path: { team_id: teamId } },
+      body: { name: body.name, is_public: body.isPublic },
+    }),
+  );
+}
