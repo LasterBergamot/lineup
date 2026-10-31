@@ -205,7 +205,7 @@ Four GitHub Actions workflows (`.github/workflows/`):
   check the Actions tab and re-enable it.
 
 `ci.yml` has four jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
-Prettier, the type check, the Vitest suite and the production build, then `task fe:api:check`, which
+Prettier, the type check, the Vitest suite with a coverage report (it fails below 100 %, set in `frontend/vite.config.ts`) and the production build, then `task fe:api:check`, which
 regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
 and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
 It deliberately has no path filter, so it reports on every PR, which is what lets it be a required check
