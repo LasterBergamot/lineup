@@ -9,7 +9,13 @@ from typing import List, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from lineup.common.types import CleanStr50, CleanStr100, CleanStr120, CleanStr200
+from lineup.common.types import (
+    CleanStr50,
+    CleanStr100,
+    CleanStr120,
+    CleanStr200,
+    OptionalCleanStr200,
+)
 
 
 class PlayerRequest(BaseModel):
@@ -23,7 +29,9 @@ class PlayerRequest(BaseModel):
 class LineupRequest(BaseModel):
     """Everything needed to fill one lineup sheet (no database involved).
 
-    Text fields are trimmed, must not be empty and have a maximum length. `players` holds 1 to 15
+    Text fields are trimmed, must not be empty and have a maximum length. Only the coach is
+    required among the staff: `doctor`, `assistant_coach`, `team_leader` and `ball_thrower` may be
+    omitted or blank (the sheet prints them empty), the same as for saved lineups. `players` holds 1 to 15
     entries with unique cap numbers (1-15) and unique NSSZ numbers.
     """
 
@@ -33,10 +41,10 @@ class LineupRequest(BaseModel):
     cap: Literal["Fehér", "Kék"]
     date: CleanStr50
     coach: CleanStr200
-    doctor: CleanStr200
-    assistant_coach: CleanStr200
-    team_leader: CleanStr200
-    ball_thrower: CleanStr200
+    doctor: OptionalCleanStr200 = None
+    assistant_coach: OptionalCleanStr200 = None
+    team_leader: OptionalCleanStr200 = None
+    ball_thrower: OptionalCleanStr200 = None
     players: List[PlayerRequest] = Field(..., min_length=1, max_length=15)
 
     @field_validator("players")

@@ -219,5 +219,10 @@
     "empty": "Még egy csapat sem szerepel a névjegyzékben.",
     "noMatch": "Nincs ilyen csapat.",
     "more": "Az első {{count}} csapat látható. Írjon be egy nevet a szűkítéshez."
+  },
+  "preview": {
+    "title": "Előnézet",
+    "close": "Előnézet bezárása",
+    "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheted."
   }
 }

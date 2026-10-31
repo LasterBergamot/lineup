@@ -105,16 +105,34 @@ class TestControlCharactersAndBlanks:
             "team_name",
             "date",
             "coach",
-            "doctor",
-            "assistant_coach",
-            "team_leader",
-            "ball_thrower",
         ],
     )
     @pytest.mark.parametrize("value", [*UNSAFE, *BLANK])
     def test_one_off_lineup_fields_rejected(self, client, valid_payload, field, value):
         valid_payload[field] = value
         assert client.post("/lineups", json=valid_payload).status_code == 422
+
+    @pytest.mark.parametrize(
+        "field", ["doctor", "assistant_coach", "team_leader", "ball_thrower"]
+    )
+    @pytest.mark.parametrize("value", UNSAFE)
+    def test_one_off_lineup_optional_staff_reject_control_characters(
+        self, client, valid_payload, field, value
+    ):
+        valid_payload[field] = value
+        assert client.post("/lineups", json=valid_payload).status_code == 422
+
+    @pytest.mark.parametrize(
+        "field", ["doctor", "assistant_coach", "team_leader", "ball_thrower"]
+    )
+    @pytest.mark.parametrize("value", [None, *BLANK])
+    def test_one_off_lineup_optional_staff_may_be_omitted_or_blank(
+        self, client, valid_payload, field, value
+    ):
+        valid_payload[field] = value
+        assert client.post("/lineups?format=docx", json=valid_payload).status_code == 200
+        del valid_payload[field]
+        assert client.post("/lineups?format=docx", json=valid_payload).status_code == 200
 
     @pytest.mark.parametrize("field", ["name", "nssz_number"])
     @pytest.mark.parametrize("value", [*UNSAFE, *BLANK])

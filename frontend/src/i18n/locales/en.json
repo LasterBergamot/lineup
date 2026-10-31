@@ -219,5 +219,10 @@
     "empty": "No teams are listed yet.",
     "noMatch": "No teams found.",
     "more": "Showing the first {{count}} teams. Type a name to narrow the list."
+  },
+  "preview": {
+    "title": "Preview",
+    "close": "Close the preview",
+    "unreadable": "The preview could not be shown. You can still download the file."
   }
 }
