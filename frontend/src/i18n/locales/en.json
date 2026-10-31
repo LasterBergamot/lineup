@@ -224,5 +224,9 @@
     "title": "Preview",
     "close": "Close the preview",
     "unreadable": "The preview could not be shown. You can still download the file."
+  },
+  "opponent": {
+    "directory": "Listed team",
+    "recent": "Recent opponent"
   }
 }

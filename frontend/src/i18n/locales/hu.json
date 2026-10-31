@@ -224,5 +224,9 @@
     "title": "Előnézet",
     "close": "Előnézet bezárása",
     "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheted."
+  },
+  "opponent": {
+    "directory": "Listázott csapat",
+    "recent": "Korábbi ellenfél"
   }
 }
