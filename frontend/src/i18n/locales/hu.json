@@ -81,7 +81,8 @@
     "capNo": "Sapkaszám",
     "name": "Név",
     "nsszNumber": "NSSZ-szám",
-    "inviteLink": "Meghívó hivatkozás"
+    "inviteLink": "Meghívó hivatkozás",
+    "opponent": "Ellenfél"
   },
   "lineup": {
     "title": "Rajtlista",
@@ -222,7 +223,27 @@
   "preview": {
     "title": "Előnézet",
     "close": "Előnézet bezárása",
-    "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheted."
+    "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheti."
+  },
+  "creator": {
+    "description": "Állítsa össze a(z) {{team}} rajtlistáját a keretből, nézze meg az előnézetet, és mentse el későbbre.",
+    "modes": "Rajtlista típusa",
+    "modeCreator": "Keretből",
+    "modeQuick": "Gyors lap (nem mentődik)",
+    "formLabel": "Rajtlista-készítő",
+    "matchName": "Mérkőzés neve (nem kötelező)",
+    "optional": "nem kötelező",
+    "emptyRoster": "A keret üres. Vegyen fel játékosokat a Keret oldalon, vagy írja be őket kézzel.",
+    "rosterPlayer": "Játékos a keretből",
+    "typedIn": "Kézzel beírom",
+    "save": "Rajtlista mentése",
+    "preview": "Előnézet",
+    "saved": "Elmentve. Most le is töltheti.",
+    "seeSaved": "Mentett rajtlisták megnyitása"
+  },
+  "opponent": {
+    "directory": "Listázott csapat",
+    "recent": "Korábbi ellenfél"
   },
   "savedLineups": {
     "listLabel": "A(z) {{team}} mentett rajtlistái",

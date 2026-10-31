@@ -81,7 +81,8 @@
     "capNo": "Cap no.",
     "name": "Name",
     "nsszNumber": "NSSZ number",
-    "inviteLink": "Invite link"
+    "inviteLink": "Invite link",
+    "opponent": "Opponent"
   },
   "lineup": {
     "title": "Lineup",
@@ -223,6 +224,26 @@
     "title": "Preview",
     "close": "Close the preview",
     "unreadable": "The preview could not be shown. You can still download the file."
+  },
+  "creator": {
+    "description": "Build the lineup for {{team}} from the roster, preview the sheet and save it for later.",
+    "modes": "Lineup type",
+    "modeCreator": "From the roster",
+    "modeQuick": "Quick sheet (not saved)",
+    "formLabel": "Lineup creator",
+    "matchName": "Match name (optional)",
+    "optional": "optional",
+    "emptyRoster": "The roster is empty. Add players on the Roster page, or type players in by hand.",
+    "rosterPlayer": "Player from the roster",
+    "typedIn": "Type in by hand",
+    "save": "Save lineup",
+    "preview": "Preview",
+    "saved": "Saved. You can download it now.",
+    "seeSaved": "See saved lineups"
+  },
+  "opponent": {
+    "directory": "Listed team",
+    "recent": "Recent opponent"
   },
   "savedLineups": {
     "listLabel": "Saved lineups of {{team}}",
