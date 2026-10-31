@@ -1,8 +1,8 @@
 {
   "language": {
     "label": "Nyelv",
-    "hu": "Magyar",
-    "en": "English"
+    "hu": "HU – Magyar",
+    "en": "EN – English"
   },
   "common": {
     "loading": "Betöltés",
@@ -158,7 +158,7 @@
     "removeLabel": "{{number, number}}. tag eltávolítása",
     "makeOwner": "Tulajdonossá tétel",
     "makeOwnerConfirm": "Igen, legyen tulajdonos",
-    "makeOwnerLabel": "{{number, number}}. tag tulajdonossá tétele",
+    "makeOwnerLabel": "Tulajdonossá tétel: {{number, number}}. tag",
     "lastOwner": "Ön az egyetlen tulajdonos. Kilépés előtt tegyen tulajdonossá valaki mást."
   },
   "players": {
@@ -259,7 +259,7 @@
       "docxOf": "{{match}} letöltése DOCX-ként"
     },
     "clone": "Másolás új mérkőzéshez",
-    "cloneOf": "{{match}} másolása új mérkőzéshez",
+    "cloneOf": "Másolás új mérkőzéshez: {{match}}",
     "delete": "Törlés",
     "deleteConfirm": "Rajtlista törlése",
     "deleteOf": "{{match}} törlése",

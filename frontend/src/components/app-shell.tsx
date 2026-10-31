@@ -52,7 +52,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-sidebar px-4 py-2 md:hidden">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-sidebar px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 md:hidden">
           <Brand />
           <div className="flex min-w-0 items-center gap-1">
             <TeamLabel className="max-w-24 min-w-0 text-right" />

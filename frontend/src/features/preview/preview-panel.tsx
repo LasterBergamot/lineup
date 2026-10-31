@@ -21,7 +21,7 @@ export function PreviewPanel({
   return (
     <aside
       aria-label={title}
-      className="fixed inset-0 z-50 flex flex-col gap-3 overflow-y-auto bg-background p-4 lg:static lg:inset-auto lg:z-auto lg:max-h-[calc(100vh-2rem)] lg:self-start lg:border lg:bg-card lg:sticky lg:top-4"
+      className="fixed inset-0 z-50 flex flex-col gap-3 overflow-y-auto bg-background p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:inset-auto lg:z-auto lg:max-h-[calc(100vh-2rem)] lg:self-start lg:border lg:bg-card lg:sticky lg:top-4"
     >
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">{title}</h2>

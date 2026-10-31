@@ -219,7 +219,7 @@ describe("in Hungarian", () => {
   it("translates the whole page", async () => {
     renderApp(`/join/${CODE}`, null);
     await screen.findByRole("heading", { name: "Join Ferencváros?" });
-    await userEvent.click(screen.getByRole("button", { name: "Magyar" }));
+    await userEvent.click(screen.getByRole("button", { name: "HU – Magyar" }));
     expect(
       screen.getByRole("heading", { name: "Csatlakozik a(z) Ferencváros csapathoz?" }),
     ).toBeInTheDocument();

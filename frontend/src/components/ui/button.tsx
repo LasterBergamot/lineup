@@ -16,10 +16,11 @@ const buttonVariants = cva(
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-8 px-3",
+        default: "h-10 px-4 py-2 pointer-coarse:h-11",
+        // 44 px on touch screens (the touch-target guideline), compact for a mouse.
+        sm: "h-8 px-3 pointer-coarse:h-11",
         lg: "h-11 px-6",
-        icon: "size-10",
+        icon: "size-10 pointer-coarse:size-11",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

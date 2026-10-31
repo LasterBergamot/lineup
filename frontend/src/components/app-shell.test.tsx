@@ -82,7 +82,7 @@ describe("AppShell", () => {
   it("switches the whole shell to Hungarian from the account panel", async () => {
     await renderAt("/");
     const sidebar = screen.getByRole("complementary");
-    await userEvent.click(within(sidebar).getByRole("button", { name: "Magyar" }));
+    await userEvent.click(within(sidebar).getByRole("button", { name: "HU – Magyar" }));
     const nav = screen.getByRole("navigation", { name: "Oldalsáv" });
     expect(
       within(nav)
@@ -101,7 +101,7 @@ describe("AppShell", () => {
   it("offers the language switch in the mobile header too", async () => {
     await renderAt("/");
     const header = screen.getByRole("banner");
-    await userEvent.click(within(header).getByRole("button", { name: "Magyar" }));
+    await userEvent.click(within(header).getByRole("button", { name: "HU – Magyar" }));
     expect(within(header).getByRole("button", { name: "Kijelentkezés" })).toBeInTheDocument();
   });
 

@@ -91,7 +91,7 @@ describe("members list", () => {
   it("speaks Hungarian", async () => {
     renderApp("/members", fakeSession());
     await screen.findByText("Member 2");
-    await userEvent.click(screen.getAllByRole("button", { name: "Magyar" })[0]!);
+    await userEvent.click(screen.getAllByRole("button", { name: "HU – Magyar" })[0]!);
     expect(await screen.findByText("2. tag")).toBeInTheDocument();
     expect(screen.getByText("Ön")).toBeInTheDocument();
   });
@@ -110,7 +110,7 @@ describe("as an owner", () => {
   it("hands the team over, then reloads the teams so the new role shows", async () => {
     mocks.transferOwnership.mockResolvedValue(teamsPage("SZVTK").items[0]);
     renderApp("/members", fakeSession());
-    await userEvent.click(await screen.findByRole("button", { name: "Make member 2 the owner" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Make owner: member 2" }));
     await userEvent.click(screen.getByRole("button", { name: "Yes, make owner" }));
     expect(mocks.transferOwnership).toHaveBeenCalledWith(TEAM, BEN);
     await waitFor(() => expect(mocks.listTeams).toHaveBeenCalledTimes(2));
@@ -140,7 +140,7 @@ describe("as a member", () => {
     await screen.findByText("Member 1");
     expect(screen.getByRole("button", { name: "Leave team" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Remove/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Make member/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Make owner: member/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Invite people" })).not.toBeInTheDocument();
     expect(mocks.listInvitations).not.toHaveBeenCalled();
   });
