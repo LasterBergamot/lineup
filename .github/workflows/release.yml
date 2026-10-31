@@ -1,0 +1,90 @@
+name: Release
+
+# Manually triggered release (#17): tags the commit the workflow runs on as `vX.Y.Z` and publishes a
+# GitHub Release whose notes come from the merged PRs, plus the Alembic migrations added since the
+# previous release. The version is the one already committed in backend/pyproject.toml and
+# frontend/package.json; bump both first with `task release:bump -- minor` in a normal PR (a workflow
+# cannot commit the bump itself: `develop` and `main` only accept commits that passed the required
+# checks). Creating the release through the API creates the tag server-side, so nothing is pushed.
+#
+# Run it from `develop` (pre-1.0 versions) or `main` (1.0.0 and later), after the bump PR is merged.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Two releases racing for the same tag would fail halfway; queue instead, never cancel.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Tag and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Full history and tags: the notes need the previous tag and the migrations since it.
+          fetch-depth: 0
+
+      - name: Read the version and check it is releasable
+        id: version
+        run: |
+          backend=$(python3 -c "import tomllib; print(tomllib.load(open('backend/pyproject.toml', 'rb'))['project']['version'])")
+          frontend=$(python3 -c "import json; print(json.load(open('frontend/package.json'))['version'])")
+          if [ "$backend" != "$frontend" ]; then
+            echo "::error::backend ($backend) and frontend ($frontend) versions differ"
+            exit 1
+          fi
+          if ! echo "$backend" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+            echo "::error::'$backend' is not MAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$backend" > /dev/null; then
+            echo "::error::v$backend already exists: bump the version first (task release:bump)"
+            exit 1
+          fi
+          if [ "${backend%%.*}" != "0" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::1.0.0 and later are released from main, not $GITHUB_REF_NAME"
+            exit 1
+          fi
+          echo "version=$backend" >> "$GITHUB_OUTPUT"
+          # Pre-1.0 releases are marked as such on GitHub.
+          if [ "${backend%%.*}" = "0" ]; then echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Create the tag and the GitHub Release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          tag="v$VERSION"
+          previous=$(git describe --tags --abbrev=0 --match 'v*' 2> /dev/null || true)
+          args=(-f "tag_name=$tag" -f "target_commitish=$GITHUB_SHA")
+          if [ -n "$previous" ]; then args+=(-f "previous_tag_name=$previous"); fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${args[@]}" --jq .body > notes.md
+
+          # Alembic only goes forward in practice, so say which schema changes a release carries.
+          if [ -n "$previous" ]; then range="$previous..HEAD"; else range="HEAD"; fi
+          migrations=$(git log --diff-filter=A --name-only --format= "$range" -- backend/alembic/versions | sort -u)
+          {
+            echo
+            echo "## Database migrations"
+            echo
+            if [ -n "$migrations" ]; then
+              echo "$migrations" | sed 's/^/- `/; s/$/`/'
+              echo
+              echo "Going back to an earlier version across these needs expand/contract migrations (see documentation/Roadmap-Everything-Else.md)."
+            else
+              echo "None since ${previous:-the start}."
+            fi
+          } >> notes.md
+
+          gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md $PRERELEASE
+          echo "Released $tag at $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

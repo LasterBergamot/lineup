@@ -176,8 +176,10 @@ them: GDPR applies even at this size.
 - [x] #156 Keep-alive cron, twice a week (D8, §5.3). It can land before Fly: `SELECT 1` through the pooler
       with a `KEEPALIVE_DATABASE_URL` Actions secret that the owner sets. (Workflow in PR #168; the owner set the secret and
       verified a manual run on 2026-10-28. Glance at the first scheduled Monday/Thursday runs.)
-- [ ] #17 (deferred, no prod) Tags and releases (D13): the `release` workflow, a test that the two version files match,
-      a baseline `v0.1.0` on `develop` once the first dev deploy works, `lineup:<version>` image tags.
+- [x] #17 Tags and releases (D13): the manual `release` workflow, `task release:bump`, a test that the two version files match
+      and the API reads its version from `pyproject.toml`. (Two deviations from D13: the bump is a PR, not a workflow commit,
+      because protected branches reject a commit that never ran the required checks; and there are no `lineup:<version>` image
+      tags, because Fly builds from source, so the git tag is the version handle. Baseline `v0.1.0` cut after the merge.)
 - [x] Billing (#13): Fly has **no billing alerts or spending cap** (its docs say so), and the free trial (no card, up to 2 h of
       machine runtime or 7 days) ends soon after the first deploy. Before it ends add prepaid credits (the closest thing to a
       cap) or a card, and check the month-to-date bill in the dashboard now and then. Supabase's free plan can't bill; keep the

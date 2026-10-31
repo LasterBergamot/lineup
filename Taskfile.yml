@@ -225,6 +225,12 @@ tasks:
         exit 1
       fi
 
+  release:bump:
+    desc: "Bump the version in backend/pyproject.toml and frontend/package.json, then regenerate the API client: task release:bump -- patch|minor|major|X.Y.Z"
+    cmds:
+      - python3 scripts/bump_version.py {{.CLI_ARGS}}
+      - task: fe:api
+
   docs:references:
     desc: Regenerate the dependency block in documentation/References.md
     cmd: python3 scripts/docs_references.py --write

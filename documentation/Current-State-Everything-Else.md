@@ -198,6 +198,10 @@ Four GitHub Actions workflows (`.github/workflows/`):
   explicit, so a page missing from it would silently never be published: the workflow now
   fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
   checks the same thing on every PR.
+- **`release.yml`** — by hand (#17): checks that `backend/pyproject.toml` and `frontend/package.json` carry the same
+  untagged `MAJOR.MINOR.PATCH` version, then creates the `vX.Y.Z` tag and a GitHub Release (pre-release below 1.0)
+  with generated notes and the Alembic migrations added since the last tag. It needs only `contents: write`, no
+  secrets, and runs from `develop` or `main`. The bump itself is `task release:bump` in a normal PR.
 - **`keepalive.yml`** — on Mondays and Thursdays (and by hand): runs `SELECT 1` through the Supabase
   transaction pooler with the `KEEPALIVE_DATABASE_URL` Actions secret (a plain `postgresql://…?sslmode=require`
   URL, not the app's asyncpg one, which `psql` rejects), so the free-tier dev project never
