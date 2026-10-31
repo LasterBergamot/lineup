@@ -60,7 +60,7 @@ there:
 
 - **Lineup creator** — builds a `POST /lineups` (one-off) or `POST /lineups/saved` (from
   roster) request; opponent field offers both `GET /teams/pool` autocomplete and free text.
-- **Roster management** — CRUD screens over `/teams`, `/players`.
+- **Roster management** — **built** (#197): players CRUD, team settings (owners), opponent directory search. The opponent combobox of the lineup creator reuses `GET /teams/pool`.
 - **Saved lineups list / "Clone to New Match"** — lists `/lineups/saved`, and on clone,
   matches each player's `source_player_id` against the current roster: still-present
   players get pre-selected, deleted ones fall back to the frozen snapshot name/NSSZ as free
