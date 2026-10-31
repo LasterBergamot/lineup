@@ -134,7 +134,6 @@
       "description": "Ez a cím nem tartozik egyetlen oldalhoz sem.",
       "back": "Vissza a rajtlistához"
     },
-    "comingSoon": "Hamarosan",
     "roster": {
       "title": "Keret",
       "description": "A(z) {{team}} játékosai. A csapat minden tagja ugyanazt a keretet látja és szerkesztheti."
@@ -224,5 +223,25 @@
     "title": "Előnézet",
     "close": "Előnézet bezárása",
     "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheted."
+  },
+  "savedLineups": {
+    "listLabel": "A(z) {{team}} mentett rajtlistái",
+    "empty": "Még nincs mentett rajtlista. Készítsen egyet a Rajtlista oldalon, és mentse el; itt fog megjelenni.",
+    "details": "{{date}} · {{division}} · {{cap}} sapka · Ellenfél: {{opponent}}",
+    "preview": "Előnézet",
+    "previewOf": "{{match}} előnézete",
+    "previewTitle": "Előnézet: {{match}}",
+    "download": {
+      "pdf": "PDF",
+      "docx": "DOCX",
+      "pdfOf": "{{match}} letöltése PDF-ként",
+      "docxOf": "{{match}} letöltése DOCX-ként"
+    },
+    "clone": "Másolás új mérkőzéshez",
+    "cloneOf": "{{match}} másolása új mérkőzéshez",
+    "delete": "Törlés",
+    "deleteConfirm": "Rajtlista törlése",
+    "deleteOf": "{{match}} törlése",
+    "gone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A lista frissült."
   }
 }

@@ -197,8 +197,8 @@ them: GDPR applies even at this size.
 - [x] #197 Roster management (teams, players, opponent directory search): the Roster page with a players card (any member adds, edits, deletes), team settings for owners (rename, directory listing) and a name-only opponent directory search. (PR #198)
 - [ ] **new** Lineup creator: roster pick or free text, cap-number validation, opponent combobox
       (directory + recent opponents + free text), Preview panel.
-- [ ] **new** Saved lineups: list, hover/tap preview, generate PDF/DOCX, delete,
-      "Clone to new match".
+- [x] #204 Saved lineups: list (newest first), hover/tap PDF preview cached in memory, generate PDF/DOCX, delete,
+      "Clone to new match" (hands the snapshot to the creator as router state `cloneFrom`; the creator side is #203).
 - [ ] Mobile polish: Playwright at a phone viewport; optional web-app manifest ("Add to home screen").
 
 **Exit criteria:** an acquaintance signs in on dev via an invite link, sees the shared roster,

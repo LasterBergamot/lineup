@@ -134,7 +134,6 @@
       "description": "That address doesn't match anything here.",
       "back": "Back to the lineup"
     },
-    "comingSoon": "Coming soon",
     "roster": {
       "title": "Roster",
       "description": "The players of {{team}}. Everyone in the team sees and edits the same roster."
@@ -224,5 +223,25 @@
     "title": "Preview",
     "close": "Close the preview",
     "unreadable": "The preview could not be shown. You can still download the file."
+  },
+  "savedLineups": {
+    "listLabel": "Saved lineups of {{team}}",
+    "empty": "No saved lineups yet. Make a lineup on the Lineup page and save it; it shows up here.",
+    "details": "{{date}} · {{division}} · {{cap}} caps · Opponent: {{opponent}}",
+    "preview": "Preview",
+    "previewOf": "Preview {{match}}",
+    "previewTitle": "Preview: {{match}}",
+    "download": {
+      "pdf": "PDF",
+      "docx": "DOCX",
+      "pdfOf": "Download {{match}} as PDF",
+      "docxOf": "Download {{match}} as DOCX"
+    },
+    "clone": "Clone to new match",
+    "cloneOf": "Clone {{match}} to a new match",
+    "delete": "Delete",
+    "deleteConfirm": "Delete lineup",
+    "deleteOf": "Delete {{match}}",
+    "gone": "This lineup no longer exists; another member may have deleted it. The list has been refreshed."
   }
 }
