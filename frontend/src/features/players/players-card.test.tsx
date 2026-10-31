@@ -119,7 +119,7 @@ describe("players card", () => {
       await i18n.changeLanguage("hu");
     });
     expect(screen.getByRole("heading", { name: "Játékosok" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kovács Anna törlése" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Törlés: Kovács Anna" })).toBeInTheDocument();
     expect(screen.getByText("NSSZ-szám: MVLSZ1")).toBeInTheDocument();
   });
 });

@@ -30,6 +30,28 @@ for (const theme of ["light", "dark"] as const) {
   });
 }
 
+test.describe("Hungarian, the default language", () => {
+  test.beforeEach(async ({ app }) => {
+    // Runs after the fixture's English default, so this one wins.
+    await app.addInitScript(() => localStorage.setItem("lineup-lang", "hu"));
+  });
+
+  for (const { path } of SCREENS) {
+    test(`${path} fits the screen and passes the accessibility check`, async ({
+      app,
+      expectAccessible,
+      expectNoHorizontalScroll,
+    }) => {
+      await app.goto(path);
+      await expect(app.locator("html")).toHaveAttribute("lang", "hu");
+      await expect(app.getByRole("main")).toBeVisible();
+      await expect(app.getByRole("status", { name: "Betöltés" })).toHaveCount(0);
+      await expectNoHorizontalScroll(app);
+      await expectAccessible(app);
+    });
+  }
+});
+
 test("the navigation is reachable and every item is tall enough to tap", async ({
   app,
   isMobile,

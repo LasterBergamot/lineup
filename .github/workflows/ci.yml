@@ -157,6 +157,8 @@ jobs:
     # Report only at first (#159): it must not block a PR until it has proven stable. It is a
     # separate job so a flaky browser never hides the result of the required `Frontend` job.
     continue-on-error: true
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
@@ -195,6 +197,7 @@ jobs:
           name: playwright-traces
           path: frontend/test-results
           retention-days: 7
+          if-no-files-found: ignore
 
   e2e:
     name: E2E (real PDF conversion)

@@ -2,6 +2,7 @@ import { expect, test } from "./fixtures";
 
 test("a visitor is sent to the sign-in page, which fits the screen and is accessible", async ({
   guest,
+  isMobile,
   expectAccessible,
   expectNoHorizontalScroll,
 }) => {
@@ -10,7 +11,7 @@ test("a visitor is sent to the sign-in page, which fits the screen and is access
   await expect(guest.getByRole("heading", { name: "Sign in" })).toBeVisible();
   const google = guest.getByRole("button", { name: "Continue with Google" });
   await expect(google).toBeVisible();
-  expect((await google.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+  expect((await google.boundingBox())!.height).toBeGreaterThanOrEqual(isMobile ? 44 : 40);
   await expectNoHorizontalScroll(guest);
   await expectAccessible(guest);
 });

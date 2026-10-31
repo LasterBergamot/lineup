@@ -155,7 +155,7 @@
     "leaveConfirm": "Igen, kilépek",
     "remove": "Eltávolítás",
     "removeConfirm": "Igen, eltávolítom",
-    "removeLabel": "{{number, number}}. tag eltávolítása",
+    "removeLabel": "Eltávolítás: {{number, number}}. tag",
     "makeOwner": "Tulajdonossá tétel",
     "makeOwnerConfirm": "Igen, legyen tulajdonos",
     "makeOwnerLabel": "Tulajdonossá tétel: {{number, number}}. tag",
@@ -170,11 +170,11 @@
     "listLabel": "A(z) {{team}} játékosai",
     "nssz": "NSSZ-szám: {{number}}",
     "edit": "Szerkesztés",
-    "editLabel": "{{name}} szerkesztése",
+    "editLabel": "Szerkesztés: {{name}}",
     "save": "Mentés",
     "delete": "Törlés",
     "deleteConfirm": "Igen, törlöm",
-    "deleteLabel": "{{name}} törlése",
+    "deleteLabel": "Törlés: {{name}}",
     "deleteHint": "Egy játékos törlése nem változtatja meg a már mentett rajtlistákat: azok megőrzik a név és az NSSZ-szám saját másolatát."
   },
   "invites": {
@@ -250,7 +250,7 @@
     "empty": "Még nincs mentett rajtlista. Készítsen egyet a Rajtlista oldalon, és mentse el; itt fog megjelenni.",
     "details": "{{date}} · {{division}} · {{cap}} sapka · Ellenfél: {{opponent}}",
     "preview": "Előnézet",
-    "previewOf": "{{match}} előnézete",
+    "previewOf": "Előnézet: {{match}}",
     "previewTitle": "Előnézet: {{match}}",
     "download": {
       "pdf": "PDF",
@@ -262,7 +262,7 @@
     "cloneOf": "Másolás új mérkőzéshez: {{match}}",
     "delete": "Törlés",
     "deleteConfirm": "Rajtlista törlése",
-    "deleteOf": "{{match}} törlése",
+    "deleteOf": "Törlés: {{match}}",
     "gone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A lista frissült."
   }
 }

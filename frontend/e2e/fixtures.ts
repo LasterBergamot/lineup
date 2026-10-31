@@ -228,7 +228,11 @@ export const test = base.extend<Fixtures>({
   // eslint-disable-next-line no-empty-pattern
   expectAccessible: async ({}, use) => {
     await use(async (page) => {
-      const { violations } = await new AxeBuilder({ page }).analyze();
+      // `label-content-name-mismatch` (WCAG 2.5.3: a name starts with the visible text) is an
+      // experimental rule, so it is off unless asked for.
+      const { violations } = await new AxeBuilder({ page })
+        .options({ rules: { "label-content-name-mismatch": { enabled: true } } })
+        .analyze();
       const blocking = violations.filter((v) => v.impact === "serious" || v.impact === "critical");
       expect(
         blocking.map(

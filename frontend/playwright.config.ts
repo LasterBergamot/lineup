@@ -18,7 +18,9 @@ export default defineConfig({
   testMatch: "**/*.e2e.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // No retries: while the CI job is report-only, a test that only passes on a retry is exactly the
+  // flakiness we want to see before making it a required check.
+  retries: 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
@@ -40,7 +42,9 @@ export default defineConfig({
   webServer: {
     command: `pnpm build && pnpm exec vite preview --host 127.0.0.1 --port ${PORT} --strictPort`,
     url: `http://127.0.0.1:${PORT}`,
-    reuseExistingServer: !process.env.CI,
+    // Never reuse a server already on the port: it could be a build made with real `VITE_*` values,
+    // and the fake Supabase host would not apply to it. (The build also replaces `dist/`.)
+    reuseExistingServer: false,
     timeout: 180_000,
     env: {
       VITE_SUPABASE_URL: "http://127.0.0.1:54399",
