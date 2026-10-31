@@ -66,11 +66,14 @@ git-ignored.
 
 ## Containerization
 
-- `backend/Dockerfile` is a two-stage build. Both stages start from `python:3.13-slim`, **pinned by
+- `backend/Dockerfile` is a two-stage build. Both stages start from `python:3.14-slim`, **pinned by
   digest** so a rebuild can't silently change the base (the Dependabot docker ecosystem opens the
   bump PRs). The *builder* stage installs the Python dependencies with the pinned `uv` image
   (`uv sync --frozen --no-dev`, bytecode-compiled). The *runtime* stage adds LibreOffice and the fonts
-  and copies the finished virtualenv in, so `uv` isn't in the image that runs.
+  and copies the finished virtualenv in, so `uv` isn't in the image that runs. It also removes `pip`:
+  the venv is already built, and pip's vendored copies of urllib3, certifi, msgpack and setuptools were
+  the source of the image's Trivy alerts. The image is on 3.14, not 3.15, because lxml, pydantic-core
+  and four other locked packages have no 3.15 wheels yet (a 3.15 build would need a compiler toolchain).
 - **Least privilege**: the container runs as the unprivileged `app` user (uid 10001) that owns `/app`
   (the default SQLite file is created there), and Compose drops all Linux capabilities and sets
   `no-new-privileges`. LibreOffice needs none of them. Check with `docker run --rm lineup id -u`
