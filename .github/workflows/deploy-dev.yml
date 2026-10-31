@@ -64,9 +64,9 @@ jobs:
           uv run alembic upgrade head
         working-directory: backend
 
-      # Pinned to a commit SHA (the tag is v1.5): a moved tag cannot change what runs with our token.
+      # Pinned to a commit SHA (the tag is 1.6): a moved tag cannot change what runs with our token.
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
 
       # --ha=false: Fly otherwise adds a second machine, and the in-memory rate limiter is only
       # correct with exactly one. flyctl waits for the machine's /health check; if it never
