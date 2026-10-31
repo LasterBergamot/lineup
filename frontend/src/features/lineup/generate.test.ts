@@ -1,7 +1,7 @@
 import { afterEach } from "vitest";
 import { createApi } from "@/api/client";
 import { ApiError } from "@/api/errors";
-import { generateLineup } from "@/features/lineup/generate";
+import { generateLineup, generateSavedLineup } from "@/features/lineup/generate";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -62,5 +62,29 @@ describe("generateLineup", () => {
     const error = await generateLineup(body, "pdf", client).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).status).toBe(0);
+  });
+});
+
+describe("generateSavedLineup", () => {
+  it("posts to the saved lineup's generate endpoint and returns the named file", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("PK", {
+          headers: { "content-disposition": `attachment; filename="sheet.docx"` },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const file = await generateSavedLineup("abc-123", "docx", client);
+
+    const sent = (fetchMock.mock.calls[0] as unknown as [Request])[0];
+    expect(sent.method).toBe("POST");
+    expect(sent.url).toBe("http://localhost/api/lineups/saved/abc-123/generate?format=docx");
+    expect(file.filename).toBe("sheet.docx");
+  });
+
+  it("throws an ApiError when the lineup is not found", async () => {
+    vi.stubGlobal("fetch", async () => Response.json({ detail: "nope" }, { status: 404 }));
+    await expect(generateSavedLineup("x", "pdf", client)).rejects.toMatchObject({ status: 404 });
   });
 });
