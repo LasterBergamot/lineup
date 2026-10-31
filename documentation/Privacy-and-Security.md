@@ -123,7 +123,7 @@ The lineup form keeps no drafts. Nothing else is stored client-side.
 |---|---|---|
 | Invitation links | Deleted 7 days after expiry | Yes, in code (`PURGE_GRACE`) and tested |
 | Rate-limit counters | 60 s, memory | Yes, by construction |
-| Generated files | Never stored | Yes, by construction and tested (`no-store`) |
+| Generated files | Never stored. The lineup creator's PDF preview lives only in browser memory (a `Blob` that is dropped when the panel closes), rendered by pdf.js whose worker is bundled with the app, so no third party sees it | Yes, by construction and tested (`no-store`) |
 | Players, saved lineups, teams | Until the club deletes them. Deleting a team needs its players and lineups gone first (409 otherwise) | Manual by the club; a club that stops using the service is cleaned up by the operator on request |
 | Saved-lineup snapshots | Keep the player's name/NSSZ **as it was when saved**, so deleting a player does not remove them from old lineups | **Gap**: erasure of one person across snapshots needs a tool (#95) |
 | Accounts | Until deleted | **Gap**: no self-service deletion (#95); manual on request |

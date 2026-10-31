@@ -16,7 +16,7 @@ There's also a persistence layer (Teams, Players, Saved Lineups) backed by SQLAl
 - `GET /health[?db=1]` — liveness / readiness probe; `200 {"status":"ok"}` or `503 {"status":"unavailable"}`
 - `POST /lineups?format=pdf|docx` — (signed-in users only) fills the template, converts to PDF (or returns DOCX), streams the file back
 - `format` query param defaults to `pdf`; `docx` skips LibreOffice conversion entirely
-- Request body: `LineupRequest` (match, division, team_name, cap, date, coach, doctor, assistant_coach, team_leader, ball_thrower, players)
+- Request body: `LineupRequest` (match, division, team_name, cap, date, coach, players; `doctor`, `assistant_coach`, `team_leader` and `ball_thrower` are optional, omitted or blank prints an empty line — the creator's preview relies on it)
 - `cap` must be `"Fehér"` or `"Kék"`; players: 1–15, unique cap numbers 1–15
 - Returns binary file with `Content-Disposition: attachment` header (`filename=` ASCII fallback + `filename*=UTF-8''…`)
 - Errors: 401 no/invalid token, 413 body over `MAX_BODY_BYTES`, 422 invalid input, 429 rate limit exceeded (+ `Retry-After`), 503 (+ `Retry-After`) when all PDF conversion slots are busy, 504 LibreOffice timeout, 500 other rendering failures — shared with `POST /lineups/saved/{id}/generate` via `lineup/api/file_response.py`

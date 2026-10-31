@@ -242,7 +242,7 @@ export function LineupCreator({
               <Plus /> {t("lineup.addPlayer")}
             </Button>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="@container flex flex-col gap-4">
             {roster.length === 0 && (
               <p className="text-sm text-muted-foreground">{t("creator.emptyRoster")}</p>
             )}
@@ -259,7 +259,7 @@ export function LineupCreator({
                   key={field.id}
                   role="group"
                   aria-label={t("lineup.player", { number: index + 1 })}
-                  className="grid grid-cols-[5rem_1fr_auto] items-start gap-3 md:grid-cols-[5rem_1fr_1fr_12rem_auto]"
+                  className="grid grid-cols-[5rem_1fr_auto] items-start gap-3 @2xl:grid-cols-[5rem_1fr_1fr_12rem_auto]"
                 >
                   <Field label={t("fields.capNo")} error={rowErrors?.cap_number?.message}>
                     {(props) => (
@@ -298,7 +298,7 @@ export function LineupCreator({
                   <Field
                     label={t("fields.name")}
                     error={rowErrors?.name?.message}
-                    className="col-span-2 col-start-1 md:col-span-1 md:col-start-auto"
+                    className="col-span-2 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
                   >
                     {(props) => (
                       <Input
@@ -311,7 +311,7 @@ export function LineupCreator({
                   <Field
                     label={t("fields.nsszNumber")}
                     error={rowErrors?.nssz_number?.message}
-                    className="col-span-2 col-start-1 md:col-span-1 md:col-start-auto"
+                    className="col-span-2 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
                   >
                     {(props) => (
                       <Input

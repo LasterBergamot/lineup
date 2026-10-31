@@ -130,9 +130,13 @@ class TestControlCharactersAndBlanks:
         self, client, valid_payload, field, value
     ):
         valid_payload[field] = value
-        assert client.post("/lineups?format=docx", json=valid_payload).status_code == 200
+        assert (
+            client.post("/lineups?format=docx", json=valid_payload).status_code == 200
+        )
         del valid_payload[field]
-        assert client.post("/lineups?format=docx", json=valid_payload).status_code == 200
+        assert (
+            client.post("/lineups?format=docx", json=valid_payload).status_code == 200
+        )
 
     @pytest.mark.parametrize("field", ["name", "nssz_number"])
     @pytest.mark.parametrize("value", [*UNSAFE, *BLANK])

@@ -58,8 +58,10 @@ These map directly onto existing/planned backend endpoints (see [[Current State:
 and [[Roadmap: Backend]]) — no new backend work is implied beyond what's already scoped
 there:
 
-- **Lineup creator** — builds a `POST /lineups` (one-off) or `POST /lineups/saved` (from
-  roster) request; opponent field offers both `GET /teams/pool` autocomplete and free text.
+- **Lineup creator** — **built** (#203): slots filled from the roster or typed in, an opponent combobox (listed
+  directory + the team's recent opponents + free text), a PDF **Preview** (side panel on desktop, full-screen
+  sheet on a phone) through the stateless `POST /lineups`, and **Save** through `POST /lineups/saved`. The
+  old one-off form stays as "Quick sheet".
 - **Roster management** — **built** (#197): players CRUD, team settings (owners), opponent directory search. The opponent combobox of the lineup creator reuses `GET /teams/pool`.
 - **Saved lineups list / "Clone to New Match"** — the list is **built** (#204): `/lineups/saved`
   newest first, PDF preview (hover intent or tap, cached in memory), PDF/DOCX download, delete,
