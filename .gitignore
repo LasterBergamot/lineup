@@ -17,3 +17,6 @@ lineup.db
 
 # Personal Claude Code settings
 .claude/settings.local.json
+
+# APM: fetched packages (the deployed skills in .claude/ are committed)
+apm_modules/

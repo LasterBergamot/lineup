@@ -21,9 +21,13 @@ Water polo lineup document generator. Takes match details and player info, fills
 | Dockerfile, fonts, Compose | `.claude/rules/container.md` |
 | Frontend | `.claude/rules/frontend.md` (loads for `frontend/**`) |
 | Writing docs or wiki pages | `.claude/rules/documentation.md` (loads for `documentation/**`, `README.md`) |
+| Setting up a dev machine | `documentation/Setup.md` (the `setup-project` skill follows it) |
 | Tasks, environment variables, branches, merge rules | `.claude/context/workflow.md` |
 | Opening a PR, Dependabot alerts and PRs | `.claude/context/pr-checklist.md` |
-| Skills, settings, how this context is organised | `.claude/context/claude-code.md` |
+| Filing or editing issues (labels, milestones, epics, board) | `.claude/context/issues.md` |
+| Which docs exist and how they are published | `.claude/context/docs.md` |
+| Auditing the repo | `.claude/context/audit.md` |
+| Skills, settings, APM, how this context is organised | `.claude/context/claude-code.md` |
 | The dev-preview work (frontend, auth, invitations, dev deploy) | `PLAN.md` |
 | Newcomer overview, design rationale, roadmaps | `documentation/Newcomer-Guide.md`, `documentation/Current-State-Backend.md`, `documentation/Roadmap-Backend.md` |
 
@@ -37,5 +41,6 @@ Explore and Plan subagents load neither this file nor the rules: put the rule fi
 - **Docstrings are documentation too.** Every new or changed public module, class, function and method in `backend/lineup/`, `app.py` and `main.py` needs a docstring that says what it is *for*, the non-obvious *why* (constraint, invariant, gotcha) and what it raises or returns when the signature doesn't show it, not a restatement of the name. Audience: a junior developer new to the repo. Pydantic models and FastAPI route functions are shown in `/docs`, so write those for an API consumer. `task lint` enforces presence (ruff `D1`; tests and migration revisions are exempt); the content is on you, and `update-documentation` checks it.
 - For any new code: write tests. For changed code: update existing tests. Coverage must stay at 100%.
 - When starting implementation of a feature or fix, run the `compliance-audit` skill in quick mode (`compliance-audit quick <issue#>`) before coding, and fold its findings into the plan and the tests. It checks the change against the GDPR/security requirements in `.claude/skills/compliance-audit/requirements.md` (epic #92) and stops immediately when nothing is compliance-relevant.
+- The generic skills and the `convention-reviewer` agent are installed from `ai-common` (pinned in `apm.yml`, listed in `apm.lock.yaml`). Never edit them here: change lineup's values in `.claude/context/`, or change the skill in `ai-common` and bump the tag (`.claude/context/claude-code.md`).
 - Before creating a PR, follow `.claude/context/pr-checklist.md` (Dependabot alerts and version-update PRs).
 - Never edit generated files (`frontend/src/api/openapi.json`, `schema.d.ts`, the generated block in `documentation/References.md`); regenerate them with the `task` targets named in the rule files.

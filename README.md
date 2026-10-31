@@ -22,7 +22,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root is a short router that Claude Code reads at the start of every session: what the project is, the always-on rules, and a table that says where the detail for each area lives. That detail sits in `.claude/rules/` (one file per area, loaded automatically when Claude reads or edits a matching file) and `.claude/context/` (workflow, pre-PR checklist and skills, read on demand), so a session on the frontend doesn't carry the database notes. `.claude/context/claude-code.md` explains the layout and says which file to update for which kind of change.
 
-Recurring workflows are packaged as project skills in `.claude/skills/`. Claude picks one up when a request matches its description, or you can call it directly as `/<name>`. Several pin a model in their frontmatter (`model:`), so heavy analysis runs on a stronger model and mechanical steps on a cheaper one, whatever the session default is. The value is always an alias (`opus`, `sonnet`, `haiku`), which Claude Code resolves to the newest model of that tier (currently Claude 5.5), so the skills follow new releases without edits; a test rejects a full model ID:
+Recurring workflows are packaged as skills in `.claude/skills/`. Two of them are lineup-only (`compliance-audit`, `supabase-smoke`). The others, plus the read-only `convention-reviewer` agent in `.claude/agents/`, are generic and come from the owner's private `ai-common` repo through [APM](https://github.com/microsoft/apm) (`apm.yml` pins the version, `apm.lock.yaml` records exactly what was installed). They hold the procedure; lineup's own values (labels, milestones, gates, doc map, audit scope) are in `.claude/context/`. The installed copies are committed, so you need neither APM nor access to `ai-common` to use them; to change one, see `.claude/context/claude-code.md`. Claude picks one up when a request matches its description, or you can call it directly as `/<name>`. Several pin a model in their frontmatter (`model:`), so heavy analysis runs on a stronger model and mechanical steps on a cheaper one, whatever the session default is. The value is always an alias (`opus`, `sonnet`, `haiku`), which Claude Code resolves to the newest model of that tier (currently Claude 5.5), so the skills follow new releases without edits; a test rejects a full model ID:
 
 | Skill | Model | Use it to |
 |---|---|---|
@@ -317,10 +317,11 @@ lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
-├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md)
-├── scripts/                         # Repo tooling: check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
+├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md)
+├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the supabase-smoke skill)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
-├── .claude/                         # settings.json; skills/; rules/ (path-scoped, auto-loaded); context/ (read on demand); commands/
+├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
+├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
 ├── PLAN.md  CLAUDE.md  README.md    # Working plan; assistant router (detail in .claude/rules + .claude/context); this file
 ├── frontend/                        # React + TypeScript + Vite web app (pnpm)
 │   ├── DESIGN.md                    # Polaris theme spec

@@ -377,3 +377,36 @@ class TestSkillModelAliases:
         assert effort is None or effort in EFFORT_LEVELS, (
             f"{path.relative_to(REPO_ROOT)}: effort {effort!r} is not one of {sorted(EFFORT_LEVELS)}"
         )
+
+
+APM_LOCK = REPO_ROOT / "apm.lock.yaml"
+
+
+class TestAiCommonSkills:
+    """The generic skills come from `ai-common` (APM, `apm.yml`) and read lineup's context files."""
+
+    def test_every_context_file_a_skill_reads_exists(self):
+        """A generic skill holds the procedure; lineup's values live in `.claude/context/*.md`."""
+        named = {
+            name
+            for path in SKILL_FILES + AGENT_FILES
+            for name in re.findall(r"\.claude/context/([\w-]+\.md)", path.read_text())
+        }
+        assert named, "expected skills to name .claude/context/ files"
+        missing = sorted(
+            name
+            for name in named
+            if not (REPO_ROOT / ".claude" / "context" / name).exists()
+        )
+        assert not missing, f"skills read context files that don't exist: {missing}"
+
+    def test_deployed_files_are_committed(self):
+        """Deployed skills are committed so contributors and CI don't need the private repo."""
+        deployed = re.findall(
+            r"^  - (\.claude/\S+)$", APM_LOCK.read_text(), re.MULTILINE
+        )
+        assert deployed, "expected deployed files in apm.lock.yaml"
+        missing = sorted(path for path in deployed if not (REPO_ROOT / path).exists())
+        assert not missing, (
+            f"apm.lock.yaml lists files that aren't in the repo: {missing}. Run `apm install`."
+        )

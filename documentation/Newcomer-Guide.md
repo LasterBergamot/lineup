@@ -81,6 +81,7 @@ Three things in this picture surprise newcomers:
 | **pytest** | Test runner; coverage must stay at 100% | Safety net for refactoring | `backend/tests/` |
 | **GitHub Actions** | Runs lint, tests, the container test and a docs check on every PR | Nothing broken reaches `develop` | `.github/workflows/` |
 | **Claude Code + skills** | An AI assistant with project rules and recipes | Repetitive workflows (PRs, issues, audits) are written down once | `CLAUDE.md`, `.claude/rules/`, `.claude/context/`, `.claude/skills/` |
+| **APM** | A package manager for AI-assistant files | The generic skills are shared with other projects from one place (`ai-common`), pinned to a version | `apm.yml`, `apm.lock.yaml` |
 
 ## 4. Glossary
 

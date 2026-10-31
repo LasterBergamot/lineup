@@ -63,6 +63,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | Docker, Docker Compose | Container image and local run | [docs.docker.com](https://docs.docker.com/) · [Compose](https://docs.docker.com/compose/) |
 | Mermaid | Diagrams in these wiki pages | [mermaid.js.org](https://mermaid.js.org/) |
 | Claude Code | AI assistant used on this repo (`CLAUDE.md`, `.claude/rules/`, `.claude/context/`, `.claude/skills/`) | [docs.claude.com/claude-code](https://docs.claude.com/en/docs/claude-code/overview) |
+| APM (Agent Package Manager) | Installs the generic skills and agent from the private `ai-common` repo at a pinned tag (`apm.yml`, `apm.lock.yaml`); `apm audit` checks for drift | [github.com/microsoft/apm](https://github.com/microsoft/apm) · [docs](https://microsoft.github.io/apm/) |
 | Claude Code memory (`CLAUDE.md`, `.claude/rules/` with `paths:`) | How project instructions are loaded; the reason `CLAUDE.md` is a router | [code.claude.com/docs/en/memory](https://code.claude.com/docs/en/memory) |
 
 ## CI/CD and security tooling
