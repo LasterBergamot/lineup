@@ -219,6 +219,9 @@ copy `backend/.env.example` to `backend/.env`, fill it in and use `task db:postg
   components with Testing Library and mock `fetch`, so they need no running API. `task fe:coverage`
   runs them with a coverage report and, like the backend, fails if coverage is below 100 %
   (`frontend/vite.config.ts`): a new branch without a test is rejected.
+- `task fe:e2e` runs Playwright browser tests (`frontend/e2e/`) against the production build at a phone
+  and a desktop size. The network is mocked in the browser, so no backend or login is needed; they
+  catch what Vitest cannot: a page that scrolls sideways on a phone, or an accessibility violation.
 
 ## 9. Make your first change
 

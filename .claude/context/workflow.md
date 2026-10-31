@@ -33,6 +33,7 @@ task fe:format    # Prettier write
 task fe:typecheck # tsc --noEmit
 task fe:test      # Vitest (fast loop)
 task fe:coverage  # Vitest + coverage report; fails below 100 % (CI runs this one)
+task fe:e2e       # Playwright at phone + desktop size, network mocked (LINEUP_CHROMIUM=/usr/bin/chromium to use an installed browser)
 task fe:build     # tsc + vite build into frontend/dist
 task fe:api       # regenerate frontend/src/api (openapi.json + schema.d.ts) from the backend's OpenAPI spec
 task fe:api:check # fail if that generated client is stale (CI runs it)

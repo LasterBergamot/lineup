@@ -128,6 +128,8 @@ The whole app sits behind **Google sign-in**: the sign-in page (`/sign-in`) hand
 
 The first screen is the **lineup creator** (`/`): pick the players from the roster (or type them in), choose the opponent from the directory, your recent opponents or free text, **preview** the sheet as a PDF (rendered in the browser with pdf.js) and **save** it, then download it as PDF or DOCX. "Quick sheet" is the one-off form: it calls `POST /lineups` and stores nothing. Both validate with the same limits as the API and shows the API's own field errors if one slips through. The **Roster** page (`/roster`) manages the current team: every member can add, edit and delete players (name and NSSZ number only), owners can rename the team and choose whether its name is listed in the opponent directory, and a search box browses the listed teams (names only). For PDFs run the API with `task build && task up` (LibreOffice is only in the container), otherwise only DOCX works.
 
+**On a phone** the app has a top bar and a bottom navigation, 44 px tap targets on touch screens, 16 px text fields (so iOS does not zoom in on focus) and a web-app manifest, so it can be added to the home screen and opens full-screen (there is no service worker: nothing is cached for offline use). `task fe:e2e` drives the production build in Chromium at a phone and a desktop size with the network mocked, checks that no page scrolls sideways and runs axe accessibility checks (no serious or critical violations); CI runs it as a report-only job.
+
 The UI is **Hungarian by default** and English is selectable (`react-i18next`; the HU/EN switch is in the account panel and on the sign-in page). The texts live in `frontend/src/i18n/locales/hu.json` and `en.json`; a component never contains a literal string (ESLint's `i18next/no-literal-string` fails `task fe:lint`) and a test fails when the two files differ in their keys. The choice is kept in localStorage under `lineup-lang` (the only thing stored besides the sign-in session and the theme) and `<html lang>` follows it. The `.docx` template, the API and the sentences the API returns for a rejected field stay as they are, so those few sentences appear in English.
 
 The hosted API is expected to sleep when idle, so the app asks `GET /health` as soon as it loads and, if the answer takes more than ~1.5 s, shows a non-blocking "server is starting up" banner (set `VITE_COLD_START_NOTICE=false` to turn it off on always-on hosting). Data regions show skeletons meanwhile, and failed requests are retried with backoff only when the failure looks temporary. See *Current State: Frontend* on the wiki.
@@ -312,6 +314,7 @@ POST /lineups/saved
 | `task fe:typecheck` | TypeScript type check                                       |
 | `task fe:test`  | Run the frontend unit tests (Vitest)                            |
 | `task fe:coverage` | Run them with a coverage report; fails below 100 % (CI runs it)  |
+| `task fe:e2e`   | Browser tests (Playwright) at phone and desktop size; set `LINEUP_CHROMIUM=/usr/bin/chromium` to use an installed browser, or run `task fe:e2e:install` once |
 | `task fe:build` | Type-check and build the production bundle into `frontend/dist` |
 | `task fe:api`   | Regenerate the typed API client from the backend's OpenAPI spec |
 | `task fe:api:check` | Fail if the committed API client is stale (CI runs it)      |
