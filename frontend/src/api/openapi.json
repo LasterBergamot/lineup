@@ -41,6 +41,123 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "InvitationCreate": {
+        "description": "Body for creating an invite link. The link stops working after `expires_in_hours`\n(2, 24 or 72; default 24): a short life limits the damage if it is forwarded further than\nintended. Anyone who opens it while signed in joins as a member.",
+        "properties": {
+          "expires_in_hours": {
+            "default": 24,
+            "enum": [
+              2,
+              24,
+              72
+            ],
+            "title": "Expires In Hours",
+            "type": "integer"
+          }
+        },
+        "title": "InvitationCreate",
+        "type": "object"
+      },
+      "InvitationCreated": {
+        "description": "A freshly created invite link. `code` and `url` are shown **only in this response**: the\nserver keeps just a hash, so they cannot be shown again. Send `url` to the person you want\nto invite.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "url",
+          "role",
+          "expires_at"
+        ],
+        "title": "InvitationCreated",
+        "type": "object"
+      },
+      "InvitationPreview": {
+        "description": "What anyone holding a link may see before signing in: the team's name, the display name of\nwhoever created the link (if their sign-in provided one) and when the link expires. Nothing\nelse about the team or its members.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "invited_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invited By Name"
+          },
+          "team_name": {
+            "title": "Team Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team_name",
+          "invited_by_name",
+          "expires_at"
+        ],
+        "title": "InvitationPreview",
+        "type": "object"
+      },
+      "InvitationResponse": {
+        "description": "An invite link that still works, as listed to the team's owners. It carries no code (that\nwas shown once, at creation); `id` is what you pass to revoke it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InvitationResponse",
+        "type": "object"
+      },
       "LineupRequest": {
         "description": "Everything needed to fill one lineup sheet (no database involved).\n\nText fields are trimmed, must not be empty and have a maximum length. `players` holds 1 to 15\nentries with unique cap numbers (1-15) and unique NSSZ numbers.",
         "properties": {
@@ -130,6 +247,52 @@
           "players"
         ],
         "title": "LineupRequest",
+        "type": "object"
+      },
+      "MemberResponse": {
+        "description": "One member of a team. Only ids and roles: the API stores no names or e-mail addresses for\nmembers. `is_you` marks the caller's own row so a client can show \"(you)\" and a Leave button.",
+        "properties": {
+          "is_you": {
+            "title": "Is You",
+            "type": "boolean"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "role",
+          "joined_at",
+          "is_you"
+        ],
+        "title": "MemberResponse",
+        "type": "object"
+      },
+      "OwnershipTransfer": {
+        "description": "Body for handing a team over: the member who becomes its owner.",
+        "properties": {
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id"
+        ],
+        "title": "OwnershipTransfer",
         "type": "object"
       },
       "PaginatedPlayers": {
@@ -1008,6 +1171,109 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/invitations/{code}": {
+      "get": {
+        "description": "Public: what a link is for, so the join page can ask \"Join <team>?\" before sign-in.\nReturns the team name, the inviter's display name (if known) and the expiry, nothing else.\n404 for an unknown code, 410 when the link expired or was revoked.",
+        "operationId": "preview_invitation_invitations__code__get",
+        "parameters": [
+          {
+            "description": "The code from the invite link.",
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "description": "The code from the invite link.",
+              "maxLength": 200,
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests; wait for the `Retry-After` seconds."
+          }
+        },
+        "summary": "Preview Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{code}/accept": {
+      "post": {
+        "description": "Join the team behind the link (sign-in required). Returns the team with your role.\nSafe to repeat: if you are already a member nothing changes (and an owner stays an owner).\n404 for an unknown code, 410 when the link expired or was revoked.",
+        "operationId": "accept_invitation_invitations__code__accept_post",
+        "parameters": [
+          {
+            "description": "The code from the invite link.",
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "description": "The code from the invite link.",
+              "maxLength": 200,
+              "title": "Code",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests; wait for the `Retry-After` seconds."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept Invitation",
+        "tags": [
+          "invitations"
         ]
       }
     },
@@ -1982,6 +2248,283 @@
         ]
       }
     },
+    "/teams/{team_id}/invitations": {
+      "get": {
+        "description": "The team's invite links that still work, newest first, without their codes (owners only:\n403 for other members, 404 for non-members).",
+        "operationId": "list_invitations_teams__team_id__invitations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationResponse"
+                  },
+                  "title": "Response List Invitations Teams  Team Id  Invitations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Invitations",
+        "tags": [
+          "invitations"
+        ]
+      },
+      "post": {
+        "description": "Create an invite link for the team (owners only: 403 for other members, 404 for\nnon-members). The body is optional; `expires_in_hours` is 2, 24 (default) or 72. The `code`\nand `url` in the response are shown only once. Anyone who opens the link while signed in\njoins as a member until it expires or is revoked.",
+        "operationId": "create_invitation_teams__team_id__invitations_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/InvitationCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Too many requests; wait for the `Retry-After` seconds."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/teams/{team_id}/invitations/{invitation_id}": {
+      "delete": {
+        "description": "Revoke an invite link so it stops working (owners only: 403 for other members, 404 for\nnon-members or an unknown invitation). People who already joined stay in the team.",
+        "operationId": "revoke_invitation_teams__team_id__invitations__invitation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invitation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invitation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Invitation",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/teams/{team_id}/members": {
+      "get": {
+        "description": "Who is in this team: user id, role and join date, oldest first (`is_you` marks your own\nrow). No names or e-mail addresses are stored. 404 unless you are a member.",
+        "operationId": "list_members_teams__team_id__members_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberResponse"
+                  },
+                  "title": "Response List Members Teams  Team Id  Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Members",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/teams/{team_id}/members/{member_id}": {
+      "delete": {
+        "description": "Remove a member, or leave the team by passing your own id. Owners may remove anyone (403\nfor other members, 404 for non-members or an unknown member). 409 when it would leave the\nteam without an owner: transfer ownership first.",
+        "operationId": "remove_member_teams__team_id__members__member_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Member Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Member",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
     "/teams/{team_id}/opponents/recent": {
       "get": {
         "description": "Opponent names used in this team's saved lineups, most recent first (no duplicates). Lets\nthe lineup form suggest opponents that are not in the directory. 404 unless you are a\nmember of the team.",
@@ -2042,6 +2585,65 @@
           }
         ],
         "summary": "Recent Opponents",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/teams/{team_id}/transfer-ownership": {
+      "post": {
+        "description": "Make another member the owner; you become a regular member (the response shows your new\nrole). Owners only: 403 for other members, 404 for non-members or an unknown target, 422 if\nthe target is you.",
+        "operationId": "transfer_ownership_teams__team_id__transfer_ownership_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnershipTransfer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Transfer Ownership",
         "tags": [
           "teams"
         ]

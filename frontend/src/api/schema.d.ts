@@ -28,6 +28,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invitations/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Invitation
+         * @description Public: what a link is for, so the join page can ask "Join <team>?" before sign-in.
+         *     Returns the team name, the inviter's display name (if known) and the expiry, nothing else.
+         *     404 for an unknown code, 410 when the link expired or was revoked.
+         */
+        get: operations["preview_invitation_invitations__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{code}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Invitation
+         * @description Join the team behind the link (sign-in required). Returns the team with your role.
+         *     Safe to repeat: if you are already a member nothing changes (and an owner stays an owner).
+         *     404 for an unknown code, 410 when the link expired or was revoked.
+         */
+        post: operations["accept_invitation_invitations__code__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lineups": {
         parameters: {
             query?: never;
@@ -266,6 +310,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/teams/{team_id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invitations
+         * @description The team's invite links that still work, newest first, without their codes (owners only:
+         *     403 for other members, 404 for non-members).
+         */
+        get: operations["list_invitations_teams__team_id__invitations_get"];
+        put?: never;
+        /**
+         * Create Invitation
+         * @description Create an invite link for the team (owners only: 403 for other members, 404 for
+         *     non-members). The body is optional; `expires_in_hours` is 2, 24 (default) or 72. The `code`
+         *     and `url` in the response are shown only once. Anyone who opens the link while signed in
+         *     joins as a member until it expires or is revoked.
+         */
+        post: operations["create_invitation_teams__team_id__invitations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{team_id}/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Invitation
+         * @description Revoke an invite link so it stops working (owners only: 403 for other members, 404 for
+         *     non-members or an unknown invitation). People who already joined stay in the team.
+         */
+        delete: operations["revoke_invitation_teams__team_id__invitations__invitation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{team_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Members
+         * @description Who is in this team: user id, role and join date, oldest first (`is_you` marks your own
+         *     row). No names or e-mail addresses are stored. 404 unless you are a member.
+         */
+        get: operations["list_members_teams__team_id__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{team_id}/members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Member
+         * @description Remove a member, or leave the team by passing your own id. Owners may remove anyone (403
+         *     for other members, 404 for non-members or an unknown member). 409 when it would leave the
+         *     team without an owner: transfer ownership first.
+         */
+        delete: operations["remove_member_teams__team_id__members__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/teams/{team_id}/opponents/recent": {
         parameters: {
             query?: never;
@@ -282,6 +418,28 @@ export interface paths {
         get: operations["recent_opponents_teams__team_id__opponents_recent_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{team_id}/transfer-ownership": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer Ownership
+         * @description Make another member the owner; you become a regular member (the response shows your new
+         *     role). Owners only: 403 for other members, 404 for non-members or an unknown target, 422 if
+         *     the target is you.
+         */
+        post: operations["transfer_ownership_teams__team_id__transfer_ownership_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -313,6 +471,85 @@ export interface components {
              * @enum {string}
              */
             status: "ok" | "unavailable";
+        };
+        /**
+         * InvitationCreate
+         * @description Body for creating an invite link. The link stops working after `expires_in_hours`
+         *     (2, 24 or 72; default 24): a short life limits the damage if it is forwarded further than
+         *     intended. Anyone who opens it while signed in joins as a member.
+         */
+        InvitationCreate: {
+            /**
+             * Expires In Hours
+             * @default 24
+             * @enum {integer}
+             */
+            expires_in_hours: 2 | 24 | 72;
+        };
+        /**
+         * InvitationCreated
+         * @description A freshly created invite link. `code` and `url` are shown **only in this response**: the
+         *     server keeps just a hash, so they cannot be shown again. Send `url` to the person you want
+         *     to invite.
+         */
+        InvitationCreated: {
+            /** Code */
+            code: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Role */
+            role: string;
+            /** Url */
+            url: string;
+        };
+        /**
+         * InvitationPreview
+         * @description What anyone holding a link may see before signing in: the team's name, the display name of
+         *     whoever created the link (if their sign-in provided one) and when the link expires. Nothing
+         *     else about the team or its members.
+         */
+        InvitationPreview: {
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Invited By Name */
+            invited_by_name: string | null;
+            /** Team Name */
+            team_name: string;
+        };
+        /**
+         * InvitationResponse
+         * @description An invite link that still works, as listed to the team's owners. It carries no code (that
+         *     was shown once, at creation); `id` is what you pass to revoke it.
+         */
+        InvitationResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Role */
+            role: string;
         };
         /**
          * LineupRequest
@@ -347,6 +584,38 @@ export interface components {
             team_leader: string;
             /** Team Name */
             team_name: string;
+        };
+        /**
+         * MemberResponse
+         * @description One member of a team. Only ids and roles: the API stores no names or e-mail addresses for
+         *     members. `is_you` marks the caller's own row so a client can show "(you)" and a Leave button.
+         */
+        MemberResponse: {
+            /** Is You */
+            is_you: boolean;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            /** Role */
+            role: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /**
+         * OwnershipTransfer
+         * @description Body for handing a team over: the member who becomes its owner.
+         */
+        OwnershipTransfer: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /**
          * PaginatedPlayers
@@ -736,6 +1005,84 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
+            };
+        };
+    };
+    preview_invitation_invitations__code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The code from the invite link. */
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests; wait for the `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    accept_invitation_invitations__code__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The code from the invite link. */
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests; wait for the `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -1330,6 +1677,170 @@ export interface operations {
             };
         };
     };
+    list_invitations_teams__team_id__invitations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_invitation_teams__team_id__invitations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["InvitationCreate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests; wait for the `Retry-After` seconds. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revoke_invitation_teams__team_id__invitations__invitation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_members_teams__team_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_member_teams__team_id__members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     recent_opponents_teams__team_id__opponents_recent_get: {
         parameters: {
             query?: {
@@ -1350,6 +1861,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transfer_ownership_teams__team_id__transfer_ownership_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnershipTransfer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
                 };
             };
             /** @description Validation Error */
