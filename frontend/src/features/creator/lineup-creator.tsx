@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useFieldArray, useForm, type FieldPath } from "react-hook-form";
+import { useFieldArray, useForm, useWatch, type FieldPath } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { describeError, fieldErrors } from "@/api/errors";
@@ -13,6 +13,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createSavedLineup } from "@/features/creator/api";
+import { recentOpponentsKey } from "@/features/creator/opponent/api";
 import { OpponentCombobox } from "@/features/creator/opponent/opponent-combobox";
 import {
   emptyValues,
@@ -34,6 +35,11 @@ import { useAfterDelay } from "@/lib/use-after-delay";
 
 /** Sample values for the placeholders: real Hungarian data formats, the same in both languages. */
 const EXAMPLES = { match: "SZVTK - Csongrád", division: "OB II.", date: "2024. 12. 21." };
+
+const DOWNLOADS = [
+  ["pdf", "lineup.downloadPdf"],
+  ["docx", "lineup.downloadDocx"],
+] as const;
 
 const STAFF_FIELDS = [
   ["doctor", "fields.doctor"],
@@ -72,7 +78,6 @@ export function LineupCreator({
     setError,
     setValue,
     getValues,
-    watch,
     reset,
     formState: { errors, isDirty },
   } = useForm<CreatorValues>({
@@ -80,7 +85,8 @@ export function LineupCreator({
     defaultValues: initialValues ?? emptyValues(),
   });
   const { fields, append, remove } = useFieldArray({ control, name: "players" });
-  const players = watch("players");
+  const players = useWatch({ control, name: "players" });
+  const opponent = useWatch({ control, name: "opponent" });
 
   function showServerErrors(error: unknown) {
     for (const { path, message } of fieldErrors(error)) {
@@ -92,7 +98,8 @@ export function LineupCreator({
   // gcTime 0: the preview file holds personal data, so it is dropped as soon as nothing shows it.
   const preview = useMutation({
     gcTime: 0,
-    mutationFn: (values: CreatorValues) => generateLineup(toLineupRequest(values, team.name), "pdf"),
+    mutationFn: (values: CreatorValues) =>
+      generateLineup(toLineupRequest(values, team.name), "pdf"),
     onError: showServerErrors,
   });
   const save = useMutation({
@@ -101,7 +108,7 @@ export function LineupCreator({
       // Mark the form as unchanged, so "Saved" stays until the next edit.
       reset(values);
       await queryClient.invalidateQueries({ queryKey: ["saved"] });
-      await queryClient.invalidateQueries({ queryKey: ["opponents", userId, team.id] });
+      await queryClient.invalidateQueries({ queryKey: recentOpponentsKey(userId, team.id) });
     },
     onError: showServerErrors,
   });
@@ -162,7 +169,7 @@ export function LineupCreator({
                 <OpponentCombobox
                   {...props}
                   teamId={team.id}
-                  value={watch("opponent")}
+                  value={opponent}
                   onChange={(value, match) => {
                     setValue("opponent", value, { shouldDirty: true });
                     setValue("opponentId", match?.directoryId ?? "", { shouldDirty: true });
@@ -278,7 +285,9 @@ export function LineupCreator({
                           <option
                             key={player.id}
                             value={player.id}
-                            disabled={chosen.has(player.id) && players[index]?.playerId !== player.id}
+                            disabled={
+                              chosen.has(player.id) && players[index]?.playerId !== player.id
+                            }
                           >
                             {player.name}
                           </option>
@@ -349,7 +358,7 @@ export function LineupCreator({
                 </p>
               )}
               <div className="flex flex-wrap gap-3">
-                {(["pdf", "docx"] as const).map((format) => (
+                {DOWNLOADS.map(([format, labelKey]) => (
                   <Button
                     key={format}
                     type="button"
@@ -359,14 +368,18 @@ export function LineupCreator({
                     disabled={download.isPending}
                     onClick={() => download.mutate({ id: saved.id, format })}
                   >
-                    {t(format === "pdf" ? "lineup.downloadPdf" : "lineup.downloadDocx")}
+                    {t(labelKey)}
                   </Button>
                 ))}
               </div>
             </div>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button type="submit" loading={save.isPending} disabled={save.isPending || Boolean(saved)}>
+            <Button
+              type="submit"
+              loading={save.isPending}
+              disabled={save.isPending || Boolean(saved)}
+            >
               {t("creator.save")}
             </Button>
             <Button
@@ -394,9 +407,7 @@ export function LineupCreator({
           )}
           {preview.isError && (
             <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
-              {previewRejected
-                ? t("errors.serverRejectedFields")
-                : describeError(preview.error, t)}
+              {previewRejected ? t("errors.serverRejectedFields") : describeError(preview.error, t)}
             </p>
           )}
           {preview.isSuccess && <PdfViewer file={preview.data.blob} />}

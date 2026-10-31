@@ -76,7 +76,9 @@ export function LineupPage() {
               key={isSavedLineup(cloneFrom) ? cloneFrom.id : "new"}
               team={current}
               roster={players}
-              initialValues={isSavedLineup(cloneFrom) ? valuesFromSaved(cloneFrom, players) : undefined}
+              initialValues={
+                isSavedLineup(cloneFrom) ? valuesFromSaved(cloneFrom, players) : undefined
+              }
             />
           )}
         </QueryBoundary>

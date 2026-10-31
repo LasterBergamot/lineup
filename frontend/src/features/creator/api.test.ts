@@ -28,7 +28,9 @@ describe("createSavedLineup", () => {
   });
 
   it("throws an ApiError for a team the caller is not in", async () => {
-    vi.stubGlobal("fetch", async () => Response.json({ detail: "Team not found" }, { status: 404 }));
+    vi.stubGlobal("fetch", async () =>
+      Response.json({ detail: "Team not found" }, { status: 404 }),
+    );
     await expect(createSavedLineup(body, client)).rejects.toMatchObject({ status: 404 });
   });
 });
