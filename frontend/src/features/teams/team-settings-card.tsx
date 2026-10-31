@@ -62,7 +62,9 @@ function TeamSettingsForm({ team }: { team: Team }) {
       }
     },
   });
-  const rejectedByServer = save.isError && fieldErrors(save.error).length > 0;
+  // The generic message is hidden only when a field error was really put under the name field;
+  // a 422 about some other field would otherwise leave the user with no feedback at all.
+  const shownOnName = fieldErrors(save.error).some(({ path }) => path === "name");
 
   return (
     <Card>
@@ -99,7 +101,7 @@ function TeamSettingsForm({ team }: { team: Team }) {
               </span>
             </span>
           </label>
-          {save.isError && !rejectedByServer && (
+          {save.isError && !shownOnName && (
             <p role="alert" className="text-sm text-destructive">
               {describeError(save.error, t)}
             </p>

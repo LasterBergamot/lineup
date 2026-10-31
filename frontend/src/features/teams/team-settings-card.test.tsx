@@ -119,7 +119,7 @@ describe("team settings card", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("ignores a 422 for a field the form does not have", async () => {
+  it("shows the generic message for a 422 about a field the form does not have", async () => {
     mocks.updateTeam.mockRejectedValue(
       new ApiError(422, { detail: [{ loc: ["body", "is_public"], msg: "Value error, odd" }] }),
     );
@@ -127,7 +127,7 @@ describe("team settings card", () => {
     await userEvent.type(nameInput(), " II");
     await userEvent.click(saveButton());
     await waitFor(() => expect(mocks.updateTeam).toHaveBeenCalledOnce());
-    await waitFor(() => expect(saveButton()).toBeEnabled());
+    expect(await screen.findByRole("alert")).toHaveTextContent("rejected");
     expect(nameInput()).not.toHaveAttribute("aria-invalid", "true");
     expect(screen.queryByText("odd")).not.toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
