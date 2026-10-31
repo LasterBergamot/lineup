@@ -52,9 +52,16 @@ export interface FakeApi {
   saved: Saved[];
   /** Every `POST /lineups` body, so a test can check what the preview was asked to render. */
   previews: unknown[];
+  /** Invite links by code: `active` previews and joins, `gone` answers 410; any other code is a 404. */
+  invites: Record<string, "active" | "gone">;
+  /** Every code sent to `POST /invitations/{code}/accept`. */
+  accepted: string[];
   /** Requests nobody handled; a test fails when this is not empty. */
   unhandled: string[];
 }
+
+/** The team every `active` invite link leads to. */
+export const INVITED_TEAM = "Invited WPC";
 
 /** One-page PDF, enough for pdf.js to draw a canvas. */
 const PDF = Buffer.from(
@@ -166,6 +173,26 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
       if (method === "GET" && path === "/lineups/saved") {
         return json(route, page_(api.saved.filter((s) => s.team_id === teamId)));
       }
+      const invite = /^\/invitations\/([^/]+)(\/accept)?$/.exec(path);
+      if (invite) {
+        const [, code, accept] = invite;
+        const state = api.invites[code!];
+        if (!state) return json(route, { detail: "not found" }, 404);
+        if (state === "gone") return json(route, { detail: "gone" }, 410);
+        if (method === "GET" && !accept) {
+          return json(route, {
+            team_name: INVITED_TEAM,
+            invited_by_name: "Made-up Owner",
+            expires_at: "2026-11-01T12:00:00Z",
+          });
+        }
+        if (method === "POST" && accept) {
+          api.accepted.push(code!);
+          const joined = team(INVITED_TEAM, "member");
+          api.teams.push(joined);
+          return json(route, joined);
+        }
+      }
       if (method === "GET" && path === "/teams/pool") return json(route, []);
       if (method === "GET" && /^\/teams\/[^/]+\/opponents\/recent$/.test(path)) {
         return json(route, ["Opponent 1"]);
@@ -213,6 +240,8 @@ export const test = base.extend<Fixtures>({
       players: makePlayers(t.id),
       saved: [makeSaved(t, 1), makeSaved(t, 2), makeSaved(t, 3)],
       previews: [],
+      invites: {},
+      accepted: [],
       unhandled: [],
     });
   },
