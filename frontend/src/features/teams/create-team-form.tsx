@@ -39,7 +39,9 @@ export function CreateTeamForm() {
       }
     },
   });
-  const rejectedByServer = create.isError && fieldErrors(create.error).length > 0;
+  // The generic message is hidden only when a field error was really put under the name field;
+  // a 422 about some other field would otherwise leave the user with no feedback at all.
+  const shownOnName = fieldErrors(create.error).some(({ path }) => path === "name");
 
   return (
     <form
@@ -64,7 +66,7 @@ export function CreateTeamForm() {
           <span className="block text-muted-foreground">{t("teams.form.listInDirectoryHint")}</span>
         </span>
       </label>
-      {create.isError && !rejectedByServer && (
+      {create.isError && !shownOnName && (
         <p role="alert" className="text-sm text-destructive">
           {describeError(create.error, t)}
         </p>

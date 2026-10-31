@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 describe("create team form", () => {
-  it("shows no field error for a 422 about a field the form does not show", async () => {
+  it("shows the generic message for a 422 about a field the form does not show", async () => {
     mocks.createTeam.mockImplementation(async () => {
       throw new ApiError(422, {
         detail: [{ loc: ["body", "is_public"], msg: "Value error, odd" }],
@@ -45,6 +45,7 @@ describe("create team form", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create team" }));
     await waitFor(() => expect(mocks.createTeam).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.getByRole("button", { name: "Create team" })).toBeEnabled());
+    expect(await screen.findByRole("alert")).toHaveTextContent("rejected");
     expect(name).not.toHaveAttribute("aria-invalid", "true");
     expect(screen.queryByText("odd")).not.toBeInTheDocument();
   });
