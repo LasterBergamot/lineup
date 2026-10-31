@@ -41,8 +41,9 @@ const isGone = (error: unknown) => error instanceof ApiError && error.status ===
  * mouse across the list does not start a PDF for every row; each one counts against the generate
  * rate limit). A preview is cached in memory per lineup for as long as the page is open
  * (`staleTime: Infinity`: snapshots never change) and never stored or given a URL. Clone opens the
- * Lineup page with the snapshot in the router's state (`cloneFrom`), where the creator pre-fills a
- * new lineup from it. A 404 means another member deleted the lineup meanwhile: the list reloads
+ * Lineup page with only the lineup's id in the router state (`cloneFromId`); the page fetches the
+ * lineup itself and pre-fills a new one from it. Router state is kept in the browser's tab history,
+ * so it must never carry names or NSSZ numbers. A 404 means another member deleted the lineup meanwhile: the list reloads
  * and says so.
  */
 export function SavedLineups({ team }: { team: Team }) {
@@ -165,7 +166,7 @@ export function SavedLineups({ team }: { team: Team }) {
                     size="sm"
                     variant="outline"
                     aria-label={t("savedLineups.cloneOf", { match: lineup.match_name })}
-                    onClick={() => void navigate("/", { state: { cloneFrom: lineup } })}
+                    onClick={() => void navigate("/", { state: { cloneFromId: lineup.id } })}
                   >
                     {t("savedLineups.clone")}
                   </Button>

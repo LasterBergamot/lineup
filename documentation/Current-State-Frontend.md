@@ -256,9 +256,10 @@ has:
   page is open and opening it again costs nothing. The file is never given a URL or stored. After 5 s
   the usual "the first PDF after a break takes longer" note appears.
 - **PDF / DOCX**: downloads the file again.
-- **Clone to new match**: opens the Lineup page with the saved lineup handed over in the router's
-  state (`cloneFrom`), so the creator can pre-fill a new lineup from it (nothing goes into the
-  address bar).
+- **Clone to new match**: opens the Lineup page with only the lineup's id in the router's state
+  (`cloneFromId`); the page fetches the saved lineup itself and pre-fills a new one from it. The
+  browser keeps router state in the tab's history, so only an id travels there, never names or
+  NSSZ numbers (and nothing goes into the address bar).
 - **Delete**: asks for a second click, then deletes it for the whole team.
 
 If another member deleted a lineup in the meantime, the server answers 404: the page says so and

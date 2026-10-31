@@ -58,10 +58,9 @@ function lineup(n: number, overrides: Partial<SavedLineup> = {}): SavedLineup {
 /** A file whose `label` the mocked viewer prints, so a test can tell previews apart. */
 const pdfFile = (label: string) => ({ blob: Object.assign(new Blob(["%PDF"]), { label }) });
 
-/** Shows where "Clone" navigated to, and what it handed the creator. */
+/** Shows where "Clone" navigated to, and the whole router state it handed the creator. */
 function LineupProbe() {
-  const state = useLocation().state as { cloneFrom?: SavedLineup } | null;
-  return <p>{`creator from ${state?.cloneFrom?.match_name}`}</p>;
+  return <p>{`creator with ${JSON.stringify(useLocation().state)}`}</p>;
 }
 
 function SignedIn({ team }: { team: Team }) {
@@ -252,12 +251,12 @@ describe("SavedLineups", () => {
     expect(mocks.listSavedLineups).toHaveBeenCalledOnce();
   });
 
-  it("opens the creator with the lineup to clone", async () => {
+  it("opens the creator with only the id of the lineup to clone, no names", async () => {
     renderList();
     await userEvent.click(
       await screen.findByRole("button", { name: "Clone SZVTK - Opponent 2 to a new match" }),
     );
-    expect(screen.getByText("creator from SZVTK - Opponent 2")).toBeInTheDocument();
+    expect(screen.getByText('creator with {"cloneFromId":"l-2"}')).toBeInTheDocument();
   });
 
   it("deletes a lineup after a confirm and reloads the list", async () => {
