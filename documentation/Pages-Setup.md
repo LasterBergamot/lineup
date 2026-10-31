@@ -16,7 +16,7 @@ repository, and gives every pull request its own preview URL. Three things matte
   Supabase project URL and the Supabase **publishable** key. Never the Supabase secret key and
   never `DATABASE_URL` (the app also refuses a secret key at startup).
 - **Deep links work without configuration.** Pages serves `index.html` for any unknown path as long
-  as the project has no top-level `404.html`, so a link such as `/join/<code>` (Phase 5) reaches the
+  as the project has no top-level `404.html`, so a link such as `/join/<code>` reaches the
   React router. A test (`frontend/src/security-headers.test.ts`) fails if someone adds a
   `public/404.html`.
 - **Security headers come from a file.** `frontend/public/_headers` is copied into the build and

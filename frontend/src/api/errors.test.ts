@@ -53,6 +53,8 @@ describe("request", () => {
 describe("describeError", () => {
   it.each([
     [0, /can't reach the server/i],
+    [403, /permission/i],
+    [404, /no longer exists/i],
     [422, /rejected/i],
     [502, /busy or starting up/i],
     [503, /busy or starting up/i],

@@ -4,21 +4,7 @@ import { useAuth } from "@/auth/context";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTeams } from "@/features/teams/context";
-
-/**
- * The API's role names (`owner`, `member`) as locale keys. A role the UI does not know yet
- * falls back to a neutral label rather than showing the raw API value.
- */
-function roleKey(role: string) {
-  switch (role) {
-    case "owner":
-      return "account.role.owner";
-    case "member":
-      return "account.role.member";
-    default:
-      return "account.role.unknown";
-  }
-}
+import { roleKey } from "@/features/teams/role";
 
 /** The current team's name and the caller's role in it, or a skeleton while it loads. */
 export function TeamLabel({ className }: { className?: string }) {

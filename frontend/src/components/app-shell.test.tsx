@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe("AppShell", () => {
-  it("shows the same three destinations in the sidebar and the bottom bar", async () => {
+  it("shows the same four destinations in the sidebar and the bottom bar", async () => {
     await renderAt("/");
     for (const name of ["Sidebar", "Bottom"]) {
       const nav = screen.getByRole("navigation", { name });
@@ -30,7 +30,7 @@ describe("AppShell", () => {
         within(nav)
           .getAllByRole("link")
           .map((a) => a.textContent),
-      ).toEqual(["Lineup", "Roster", "Saved"]);
+      ).toEqual(["Lineup", "Roster", "Saved", "Team"]);
     }
   });
 
@@ -88,7 +88,7 @@ describe("AppShell", () => {
       within(nav)
         .getAllByRole("link")
         .map((a) => a.textContent),
-    ).toEqual(["Rajtlista", "Keret", "Mentett"]);
+    ).toEqual(["Rajtlista", "Keret", "Mentett", "Csapat"]);
     expect(screen.getByRole("navigation", { name: "Alsó sáv" })).toBeInTheDocument();
     expect(within(sidebar).getByText("tulajdonos")).toBeInTheDocument();
     expect(within(sidebar).getByRole("button", { name: "Kijelentkezés" })).toBeInTheDocument();

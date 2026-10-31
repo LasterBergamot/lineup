@@ -124,7 +124,7 @@ In dev the browser calls the same-origin `/api/...` and Vite proxies it to the c
 
 The API client in `frontend/src/api/` is **generated** from the backend's OpenAPI spec, so request and response types can't drift from the API. After changing a backend endpoint or schema run `task fe:api` and commit the result; `task fe:api:check` (run by CI) fails when it is stale. `task fe:check` runs everything the CI `Frontend` job does.
 
-The whole app sits behind **Google sign-in**: the sign-in page (`/sign-in`) hands over to Supabase Auth (`@supabase/supabase-js`, used for sign-in only, PKCE flow), every API call then carries the access token, and the API answers `401` without one. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `frontend/.env` (the *publishable* key; the app refuses a secret key because `VITE_*` values are public) and do the one-off dashboard setup from `documentation/Auth-Setup.md`; until then the sign-in page says that sign-in is not configured. A signed-in user who is in no team yet is asked to create one (joining by invite link is not built yet, the field is shown disabled); after that the shell shows the current team and a sign-out button.
+The whole app sits behind **Google sign-in**: the sign-in page (`/sign-in`) hands over to Supabase Auth (`@supabase/supabase-js`, used for sign-in only, PKCE flow), every API call then carries the access token, and the API answers `401` without one. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `frontend/.env` (the *publishable* key; the app refuses a secret key because `VITE_*` values are public) and do the one-off dashboard setup from `documentation/Auth-Setup.md`; until then the sign-in page says that sign-in is not configured. A signed-in user who is in no team yet is asked to create one or to paste an invite link; after that the shell shows the current team and a sign-out button. The **Team** page (`/members`) lists the members (as "You" and "Member N", the API stores no names) and lets an owner remove a member, hand the team over, and create, copy or share and revoke invite links (2 hours, 24 hours or 3 days); anyone can leave. An invite link opens `/join/<code>`, which shows what you are joining before you sign in, survives the Google round trip and joins only when you press the button.
 
 The first screen is the **one-off lineup form** (`/`): fill in the match, the staff and up to 15 players and download the sheet as PDF or DOCX. It calls `POST /lineups` and stores nothing; it validates with the same limits as the API and shows the API's own field errors if one slips through. For PDFs run the API with `task build && task up` (LibreOffice is only in the container), otherwise only DOCX works.
 
@@ -344,12 +344,14 @@ lineup/
 │       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
 │       ├── auth/                    # Google sign-in: config.ts (env check), supabase.ts (sign-in-only client), provider/context, require-auth, return-path, events
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
-│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, ui/ (shadcn-style)
+│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, confirm-button (two-step confirm), ui/ (shadcn-style)
 │       ├── features/lineup/         # One-off lineup form: schema.ts (Zod), generate.ts, download.ts, lineup-form.tsx
-│       ├── features/teams/          # Teams of the signed-in user: api.ts (list/create), provider/context, team-gate, onboarding, create-team-form
+│       ├── features/teams/          # Teams of the signed-in user: api.ts (list/create), provider/context, team-gate, onboarding, create-team-form, role.ts
+│       ├── features/members/        # A team's people: api.ts (list/remove/leave/hand over), members-list
+│       ├── features/invitations/    # Invite links: api.ts, code.ts (parse a pasted link), invite-panel (owner tools), invite-link-form (onboarding)
 │       ├── i18n/                    # react-i18next setup (index.ts), error-key.ts (translated form errors), locales/hu.json + en.json
 │       ├── pages/                   # One file per route
-│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, clean-text.ts (shared Zod text rule)
+│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, clean-text.ts (shared Zod text rule), format-date.ts
 │       └── test/                    # setup.ts (Vitest + Testing Library), auth.tsx (fake auth client, renderApp)
 └── backend/                         # All Python; the working directory for Python commands
     ├── main.py                          # CLI entry point

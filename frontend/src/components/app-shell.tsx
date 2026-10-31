@@ -71,7 +71,7 @@ export function AppShell() {
 
       <nav
         aria-label={t("nav.bottom")}
-        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-3 border-t bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t bg-sidebar pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon }) => (
           <NavLink

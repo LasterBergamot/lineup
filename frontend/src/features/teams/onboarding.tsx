@@ -1,16 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { InviteLinkForm } from "@/features/invitations/invite-link-form";
 import { CreateTeamForm } from "@/features/teams/create-team-form";
-
-const INVITE_EXAMPLE = "https://…/join/…";
 
 /**
  * First-run screen for a signed-in user who belongs to no team yet. Everything in the app
  * (roster, lineups) lives inside a team, so the two ways in are offered: create one, or join
- * an existing one from an invite link. Invitations do not exist in the API yet (#51), so the
- * link field is visible but disabled, to say where that path will be rather than hide it.
+ * an existing one from an invite link (paste it here, or just open it: both end on `/join/:code`).
  */
 export function Onboarding() {
   const { t } = useTranslation();
@@ -35,11 +31,7 @@ export function Onboarding() {
           <CardDescription>{t("teams.onboarding.joinDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Field label={t("fields.inviteLink")}>
-            {(props) => (
-              <Input {...props} disabled placeholder={INVITE_EXAMPLE} aria-disabled="true" />
-            )}
-          </Field>
+          <InviteLinkForm />
         </CardContent>
       </Card>
     </div>

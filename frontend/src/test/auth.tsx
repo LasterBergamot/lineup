@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { render } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { AppRoutes } from "@/app";
 import type { AuthClient } from "@/auth/context";
@@ -51,8 +52,11 @@ export function testQueryClient(): QueryClient {
   });
 }
 
-/** Renders the whole route table at `path` with a fake auth client and a healthy backend. */
-export function renderApp(path: string, session: Session | null) {
+/**
+ * Renders the whole route table at `path` with a fake auth client and a healthy backend. `extra`
+ * is rendered next to the routes, inside the router (a test can put a location probe there).
+ */
+export function renderApp(path: string, session: Session | null, extra?: ReactNode) {
   const auth = fakeAuthClient(session);
   const queryClient = testQueryClient();
   const view = render(
@@ -61,6 +65,7 @@ export function renderApp(path: string, session: Session | null) {
         <AuthProvider client={auth.client}>
           <MemoryRouter initialEntries={[path]}>
             <AppRoutes />
+            {extra}
           </MemoryRouter>
         </AuthProvider>
       </QueryClientProvider>
@@ -84,4 +89,22 @@ export function teamsPage(...names: string[]) {
     limit: 200,
     offset: 0,
   };
+}
+
+/** Builds the JSON a `GET /teams/{id}/members` answers with: the caller first, then others. */
+export function membersList(...others: { id: string; role?: string }[]) {
+  return [
+    {
+      user_id: "11111111-1111-4111-8111-111111111111",
+      role: "owner",
+      joined_at: "2026-10-05T10:00:00",
+      is_you: true,
+    },
+    ...others.map(({ id, role = "member" }) => ({
+      user_id: id,
+      role,
+      joined_at: "2026-10-06T09:30:00",
+      is_you: false,
+    })),
+  ];
 }

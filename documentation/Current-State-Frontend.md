@@ -13,7 +13,7 @@ and `PLAN.md`). The backend it talks to is described in [[Current State: Backend
 | Language and UI | React 19 + TypeScript, built by Vite | Mainstream, fast dev server, one static bundle to host |
 | Styling | Tailwind CSS v4 with the **Polaris** theme (`frontend/DESIGN.md`) as CSS variables in `src/index.css`, light and dark | Components use semantic tokens (`bg-primary`) and never raw colors, so the theme can change in one file |
 | Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Skeleton) on Radix primitives | We own the code and can keep Polaris's square corners |
-| Routing | React Router (`src/app.tsx`) | Client-side navigation; `/sign-in` is public, `/`, `/roster`, `/saved` need a signed-in user |
+| Routing | React Router (`src/app.tsx`) | Client-side navigation; `/sign-in` and `/join/:code` are public, `/`, `/roster`, `/saved`, `/members` need a signed-in user |
 | Sign-in | `@supabase/supabase-js`, for sign-in only | Supabase Auth runs the Google flow; the browser never queries Supabase's Data API, every piece of data goes through our API, which checks the token |
 | Language | `react-i18next` with `src/i18n/locales/hu.json` and `en.json`, Hungarian by default | The users and the generated document are Hungarian; both files ship in the bundle, so there is no extra request and no loading state (see *Language* below) |
 | Forms | React Hook Form + a Zod schema (`src/features/lineup/schema.ts`) | Validation runs in the browser first, with the same limits as the API, so a slow request is not wasted on input the API would reject |
@@ -180,8 +180,29 @@ sequenceDiagram
   role, next to *Sign out*. `TeamGate` wraps the page area: while the list loads it shows a skeleton,
   a user with no team gets **Onboarding** instead of the page, and everyone else sees their page. The
   onboarding form creates a team (`POST /teams`, the creator becomes its owner) and says out loud that
-  the checked-by-default box lists only the team *name* in the opponent directory. Joining with an
-  invite link is not built yet (#51), so that field is visible but disabled.
+  the checked-by-default box lists only the team *name* in the opponent directory. It also has a
+  field for pasting an invite link (or just its code): it keeps only the code and opens `/join/<code>`.
+
+### Team members and invitations
+
+The **Team** page (`/members`, the fourth item in the sidebar and the bottom bar) shows who is in
+the current team. The API stores no names or e-mail addresses for members, so rows read **You** and
+**Member 1**, **Member 2** … with their role and join date, and a user id is never shown. Everyone
+can **leave** (the only owner gets a message to hand the team over first). An **owner** can also
+**remove** a member, **make** someone else the owner, and create **invite links**: pick 2 hours,
+24 hours (the default) or 3 days, then copy the link or use the phone's share sheet. The link is
+shown once, right after it is made (the server keeps only a hash of the code), and the list of
+active links below lets the owner revoke one. Removing, handing over, leaving and revoking each ask
+for a second click first. Members do not see the owner controls (the server enforces it anyway).
+
+`/join/<code>` is the page an invite link opens, and it is public: it shows "Join <team>?" with the
+inviter's name and the expiry before anyone signs in. Signed out, the button remembers the page and
+sends the visitor to Google; the sign-in page forwards them back, and then a second button joins
+them (merely opening a link never joins anyone). The remembered path, which contains the code, sits
+in `sessionStorage` only for the Google round trip and is cleared as soon as the visitor is back and
+signed in, after joining and on sign-out; joining replaces the page in the history so the code is
+not left behind. An unknown link and an expired or revoked one get their own messages. Checked in
+Chromium at phone and desktop sizes against the local stack.
 
 ### The lineup form (first screen)
 
@@ -237,7 +258,7 @@ ecosystem). Details are in [[Current State: Everything Else]].
 
 ## Not built yet
 
-Roster screens, joining a team by invite link, team switching, saved-lineup previews and committed
+Roster screens, team switching (a user in several teams always sees the first by name), saved-lineup previews and committed
 browser (Playwright) tests. The sign-in code is covered by unit tests
 and was checked in a real browser against a local stand-in for Supabase Auth, but a real Google
 sign-in only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].
