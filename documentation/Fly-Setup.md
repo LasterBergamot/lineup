@@ -66,6 +66,8 @@ Commands run from `backend/` (the Docker build context, like `task build`).
      the same value as in your local `backend/.env`. Never the migration role.
    - `CORS_ORIGINS` is the frontend's address. Until the Cloudflare Pages site exists use
      `http://localhost:5173` and update it later with `fly secrets set CORS_ORIGINS=…`.
+   - Invite links are built from `APP_BASE_URL`, which is **not** a secret and lives in `fly.toml`
+     (`[env]`, the Cloudflare Pages URL). If the Pages URL ever changes, change it there and in `CORS_ORIGINS`.
    - `--stage` only stores the values; the first deploy picks them up.
    - Don't paste secrets into chat or issues. To read what is set (names only): `fly secrets list`.
 5. **Deploy.**

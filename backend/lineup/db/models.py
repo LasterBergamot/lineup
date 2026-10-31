@@ -103,6 +103,9 @@ class TeamInvitation(Base):
 
     A link works until `expires_at` or until it is revoked (`revoked_at` set), and admits people
     with the bound `role`. `email` is reserved for a later e-mail-bound variant.
+    `invited_by_name` is the inviter's display name copied from their token when the link was
+    created, so the public preview can say who invited you without any lookup of user data. It is
+    personal data: it lives and dies with this row. Rows are purged a week after `expires_at`.
 
     """
 
@@ -117,6 +120,7 @@ class TeamInvitation(Base):
         UUID, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
     )
     invited_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
+    invited_by_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     invite_code_hash: Mapped[str] = mapped_column(
         String(64), unique=True, nullable=False
     )

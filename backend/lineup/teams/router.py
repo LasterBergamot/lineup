@@ -1,4 +1,5 @@
-"""HTTP endpoints under `/teams`: CRUD, the shared opponent pool and a team's recent opponents.
+"""HTTP endpoints under `/teams`: CRUD, the shared opponent pool, a team's recent opponents, its
+members and the hand-over of ownership (invitation links live in `lineup/invitations`).
 
 A team is a workspace shared by its members. Routes that take a team id answer `404` when the
 caller is not a member (whether or not the team exists), and `403` when a member lacks the
@@ -19,6 +20,8 @@ from lineup.auth.dependencies import get_current_user_id
 from lineup.db.engine import get_session
 from lineup.teams import service
 from lineup.teams.schemas import (
+    MemberResponse,
+    OwnershipTransfer,
     PaginatedTeams,
     TeamCreate,
     TeamDeleteResponse,
@@ -114,6 +117,48 @@ async def recent_opponents(
     return await service.recent_opponents(
         session, team_id=team_id, user_id=user_id, limit=limit
     )
+
+
+@router.get("/{team_id}/members", response_model=list[MemberResponse])
+async def list_members(
+    team_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> list[MemberResponse]:
+    """Who is in this team: user id, role and join date, oldest first (`is_you` marks your own
+    row). No names or e-mail addresses are stored. 404 unless you are a member."""
+    return await service.list_members(session, team_id=team_id, user_id=user_id)
+
+
+@router.delete("/{team_id}/members/{member_id}", status_code=204)
+async def remove_member(
+    team_id: uuid.UUID,
+    member_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> None:
+    """Remove a member, or leave the team by passing your own id. Owners may remove anyone (403
+    for other members, 404 for non-members or an unknown member). 409 when it would leave the
+    team without an owner: transfer ownership first."""
+    await service.remove_member(
+        session, team_id=team_id, member_id=member_id, user_id=user_id
+    )
+
+
+@router.post("/{team_id}/transfer-ownership", response_model=TeamResponse)
+async def transfer_ownership(
+    team_id: uuid.UUID,
+    body: OwnershipTransfer,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> TeamResponse:
+    """Make another member the owner; you become a regular member (the response shows your new
+    role). Owners only: 403 for other members, 404 for non-members or an unknown target, 422 if
+    the target is you."""
+    team, role = await service.transfer_ownership(
+        session, team_id=team_id, new_owner_id=body.user_id, user_id=user_id
+    )
+    return TeamResponse.from_team(team, role)
 
 
 @router.put("/{team_id}", response_model=TeamResponse)

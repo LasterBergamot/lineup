@@ -16,6 +16,7 @@ from lineup.auth.tokens import (
     AuthConfigError,
     AuthUnavailableError,
     TokenError,
+    display_name_from_token,
     get_jwks_cache,
     load_config,
     verify_token,
@@ -68,3 +69,15 @@ async def get_current_user_id(
         raise HTTPException(
             status_code=503, detail="Authentication unavailable"
         ) from exc
+
+
+async def get_current_display_name(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    _user_id: UUID = Depends(get_current_user_id),
+) -> str | None:
+    """The signed-in user's display name from their token, or `None` when it carries none.
+
+    Depends on `get_current_user_id`, so the token has been verified (and a bad one rejected with
+    401) before the name is read. Used to snapshot "who invited you" on an invitation.
+    """
+    return display_name_from_token(credentials.credentials) if credentials else None

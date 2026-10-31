@@ -221,6 +221,7 @@ erDiagram
         uuid id PK
         uuid team_id FK
         uuid invited_by
+        string invited_by_name "nullable, inviter display name"
         string invite_code_hash "SHA-256, unique"
         string email "optional, for a later variant"
         string role "owner | member"
@@ -270,7 +271,7 @@ is in another schema that local SQLite doesn't have. Creating a team inserts its
 the same transaction. `team_invitations` holds multi-use invite links: only the SHA-256 hash of the code
 is stored (`invite_code_hash`), so a database leak hands out no working invitation; a link stops working
 at `expires_at` or once `revoked_at` is set. Both tables go when their team does (`ON DELETE CASCADE`).
-The endpoints that use them come later (see [[Roadmap: Backend]]).
+The endpoints that use them are described under *Invitation links and members* below.
 
 **The team is the workspace.** Who may see a row is decided by `team_members`, never by who created
 it: a player or saved lineup belongs to a team (`players.team_id`, `saved_lineups.team_id`, both required)
@@ -527,8 +528,44 @@ That `sub` is the user id stored in `team_members.user_id` and the `created_by` 
 **team membership**: the caller must have a `team_members` row for the row's team. A team you're not in
 is a `404` (indistinguishable from an unknown id, so the API never confirms it exists); a member without
 the `owner` role gets `403` for owner-only actions (rename, list/unlist, delete). Members are added by
-invitation links, which are the next step (see [[Roadmap: Backend]]). Using Supabase Postgres for the
+invitation links (next section). Using Supabase Postgres for the
 database is independent of this. Setup steps for Google and Supabase: [[Auth Setup]].
+
+## Invitation links and members
+
+Added in #51; the code is in `lineup/invitations/` (the team-scoped routes) and `lineup/teams/` (members).
+
+**Creating a link.** An owner calls `POST /teams/{id}/invitations` (lifetime 2, 24 or 72 hours, default 24).
+The API draws a code with `secrets.token_urlsafe(32)` (256 bits), stores only its SHA-256 in
+`team_invitations.invite_code_hash` and returns the code and the ready-to-send `url`
+(`APP_BASE_URL` + `/join/<code>`) **once**. Nothing can show the code again, so owners list their links
+(`GET`) without codes and revoke by id (`DELETE`, which sets `revoked_at`).
+
+**Using a link.** `GET /invitations/{code}` is the one public route that takes a code. It answers with the
+team's name, the inviter's display name and the expiry, so the join page can ask "Join X?" before
+sign-in, and nothing else (no member list, no ids, no e-mail). `POST /invitations/{code}/accept` needs
+sign-in and makes the caller a `member`. It is idempotent: someone already in the team keeps their role
+(an owner is never demoted by opening a member link), and losing a double-click race still answers 200.
+An unknown code is `404`; an expired or revoked one is `410`. One link admits any number of people until it
+expires.
+
+**The inviter's name.** The database stores no names, so the link carries a snapshot:
+`invited_by_name` is copied from the verified token's `user_metadata` (`full_name`, else `name`; control
+characters dropped, 100 characters at most) when the link is created, and is `null` if the token has none.
+It is personal data that lives and dies with the invitation row. **Retention:** expired links stay a
+week (so a late guest still sees "expired", not "unknown"), then are deleted whenever an owner creates
+or lists links.
+
+**Members.** `GET /teams/{id}/members` lists user ids, roles and join dates to any member (no names or
+e-mail addresses exist to show). `DELETE /teams/{id}/members/{member_id}` lets an owner remove anyone and
+any member remove themselves (leave); a team must keep an owner, so the last owner gets `409` and has to
+`POST /teams/{id}/transfer-ownership` first, which makes another member the owner and demotes the caller.
+Removing a member never touches the roster or lineups: they belong to the team.
+
+**Why the access log is off.** The code travels in the URL path, and uvicorn's access log prints every
+request path and client address, which would put live codes into the platform logs. The Dockerfile starts
+uvicorn with `--no-access-log` (guarded by `tests/test_container_config.py`). Sentry also records request
+URLs, so the code has to be scrubbed there before a `SENTRY_DSN` is set (#93).
 
 ## Hardening for public exposure
 
@@ -541,7 +578,7 @@ so a typo stops the deploy instead of silently weakening it.
 |---|---|---|
 | Security headers | `headers.py` (ASGI middleware) | Every response carries `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, CSP `frame-ancestors 'none'`, `Permissions-Policy` and `Cache-Control: no-store`. `no-store` is on *every* response because every payload is personal data (rosters, lineups) or a generated document containing it |
 | Body size cap | `body_limit.py` | Bodies over `MAX_BODY_BYTES` (default 256 KiB) get `413`. A declared `Content-Length` is refused before reading anything; chunked bodies are counted while they stream |
-| Rate limits | `rate_limit.py` | Sliding window, 60 s, in memory. `POST /lineups` and `POST /lineups/saved/{id}/generate` share one per-IP budget (`RATE_LIMIT_GENERATE_PER_IP`, 30) that is checked before sign-in, and one per-user budget (`RATE_LIMIT_GENERATE_PER_USER`, 10). Over the limit: `429` + `Retry-After`. Neither the IP nor the user id is logged |
+| Rate limits | `rate_limit.py` | Sliding window, 60 s, in memory. `POST /lineups` and `POST /lineups/saved/{id}/generate` share one per-IP budget (`RATE_LIMIT_GENERATE_PER_IP`, 30) that is checked before sign-in, and one per-user budget (`RATE_LIMIT_GENERATE_PER_USER`, 10). Over the limit: `429` + `Retry-After`. Neither the IP nor the user id is logged. The invitation endpoints have their own pair, `invite:ip` (30 per minute: preview and accept) and `invite:user` (10 per minute: accept and creating a link), fixed constants rather than environment variables |
 | Docs exposure | `config.py` | `/docs`, `/redoc`, `/openapi.json` are served unless `DOCS_ENABLED=false`, and are always off with `ENV=production`. The frontend's client is generated offline by `scripts/dump_openapi.py` (`app.openapi()`), which needs no route |
 | Fail-closed production config | `config.py`, called from the app's lifespan | With `ENV=production` startup raises unless `DATABASE_URL` is set, uses `postgresql+asyncpg` and has `ssl=require` or `ssl=verify-full` (`sslmode=` also accepted), and `SUPABASE_URL` is set. `require` encrypts but does not verify the server certificate, so it logs a warning; `verify-full` needs the Supabase CA and is the goal. The check runs at startup, not at import, so tests and `dump_openapi.py` can import the app |
 
@@ -554,4 +591,4 @@ each instance counts alone. That is fine for the planned single scale-to-zero Fl
 running several instances, move the counters to a shared store. The per-IP limit needs the real client
 address: behind Fly's proxy the TCP peer is the proxy, so set `CLIENT_IP_HEADER=Fly-Client-IP` (Fly
 overwrites that header on every request). Do not point it at `X-Forwarded-For`, which a client can
-extend. Invite preview/accept limits are added with the invitation endpoints (#51).
+extend.

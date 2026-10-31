@@ -144,7 +144,7 @@ What each layer may and may not do:
 - **`repository.py`**: the only place that writes queries. The service never sees SQL.
 
 The three persistence modules (`lineup/teams/`, `lineup/players/`, `lineup/saved_lineups/`) all
-follow this four-file pattern, so once you've read `teams/` you can read the others.
+follow this four-file pattern, so once you've read `teams/` you can read the others. `lineup/invitations/` (invite links into a team) uses the same four files.
 
 Document generation (`lineup/water_polo/` and `lineup/document/`): `WaterPoloLineupCreator` takes
 the DTO, `DocumentManager` writes the values into the template, and for PDFs `PdfConverter` runs

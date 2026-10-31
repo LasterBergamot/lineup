@@ -141,6 +141,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name. It also makes startup **fail closed**: the app refuses to start unless `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` (or `verify-full`, preferred) and `SUPABASE_URL` is set, and it turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
+| `APP_BASE_URL` | `http://localhost:5173` | The web app's origin: team invite links are built as `<APP_BASE_URL>/join/<code>`. `fly.toml` sets it to the Cloudflare Pages URL |
 | `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc` and `/openapi.json`. Always off when `ENV=production`, whatever this says. The frontend's client is generated offline (`task fe:api`), so it never needs the route |
 | `MAX_BODY_BYTES` | `262144` | Largest request body (256 KiB). Bigger ones get `413`, checked on `Content-Length` and again while streaming |
 | `RATE_LIMIT_GENERATE_PER_USER` | `10` | Document generations per minute and signed-in user (`POST /lineups`, `POST /lineups/saved/{id}/generate` share it). Over the limit: `429` + `Retry-After` |
@@ -247,6 +248,13 @@ Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup
 | `GET`/`POST` | `/teams` | List the teams you belong to (each with your `role`) / create a team (you become its owner) |
 | `GET` | `/teams/pool?search=&limit=` | Search the opponent directory (teams that chose to be listed; only `id` + `name` are exposed) — plain list, not paginated. `search` is a literal, case-insensitive substring (`%` and `_` are not wildcards), max 120 characters |
 | `GET` | `/teams/{id}/opponents/recent?limit=` | Opponent names used in this team's saved lineups, newest first (for the opponent combobox) |
+| `GET`/`POST` | `/teams/{id}/invitations` | Owner-only: list the invite links that still work (no codes) / create one (`{"expires_in_hours": 2 \| 24 \| 72}`, default 24). The response carries `code` and `url` **once**; only a hash is stored |
+| `DELETE` | `/teams/{id}/invitations/{invitation_id}` | Owner-only: revoke a link (204) |
+| `GET` | `/invitations/{code}` | **Public**, rate limited: team name, inviter's display name and expiry of a link. **404** unknown, **410** expired or revoked |
+| `POST` | `/invitations/{code}/accept` | Join the team behind the link as a member (returns the team with your role). Safe to repeat; **404**/**410** as above |
+| `GET` | `/teams/{id}/members` | Members of the team: user id, role, join date, `is_you` (any member) |
+| `DELETE` | `/teams/{id}/members/{member_id}` | Owner removes a member, or a member removes themselves (leave). **409** for the last owner |
+| `POST` | `/teams/{id}/transfer-ownership` | Owner-only: `{"user_id"}` becomes the owner, you become a member |
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename and list-or-unlist (`is_public`) / delete a team. Update and delete are owner-only (**403** for other members). Delete returns **409** while the team has players or saved lineups |
 | `GET`/`POST` | `/players` | List the players of your teams (optionally `?team_id=`) / add a player to a team's roster (`team_id` is required and must be a team you belong to, else **404** `Team not found`) |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (moving to a team you're not in is a **404**) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
@@ -359,7 +367,8 @@ lineup/
     │       ├── 8b1f3c2d9a47_rls_and_least_privilege_role.py  # Postgres-only RLS + lineup_app role
     │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
     │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
-    │       └── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
+    │       ├── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
+    │       └── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
@@ -383,19 +392,20 @@ lineup/
     │   │   ├── urls.py                  # to_asyncpg_url(): plain postgresql:// -> postgresql+asyncpg://
     │   │   └── models.py                # Team, Player, SavedLineup, LineupPlayerSnapshot
     │   ├── auth/
-    │   │   ├── dependencies.py          # get_current_user_id(): verifies the Bearer JWT, 401/503 otherwise
-    │   │   └── tokens.py                # JWT verification + JWKS cache
+    │   │   ├── dependencies.py          # get_current_user_id(): verifies the Bearer JWT, 401/503 otherwise; get_current_display_name()
+    │   │   └── tokens.py                # JWT verification + JWKS cache; display_name_from_token()
     │   ├── security/
     │   │   ├── headers.py               # Security headers + Cache-Control: no-store on every response (ASGI middleware)
     │   │   ├── body_limit.py            # Request body size cap (MAX_BODY_BYTES), 413
-    │   │   ├── rate_limit.py            # In-memory sliding-window limiter for the generate endpoints, 429
+    │   │   ├── rate_limit.py            # In-memory sliding-window limiter (generate and invitation endpoints), 429
     │   │   └── config.py                # DOCS_ENABLED parsing + fail-closed ENV=production startup check
     │   ├── common/
     │   │   ├── types.py                 # CleanStr* / OptionalCleanStr* input types
     │   │   └── errors.py                # IntegrityError -> 409 handler
     │   ├── health/
     │   │   └── router.py                # GET /health, /health?db=1
-    │   ├── teams/                       # schemas / repository / service / router
+    │   ├── teams/                       # schemas / repository / service / router (incl. members, ownership transfer)
+    │   ├── invitations/                 # schemas / repository / service / router (invite links: create, list, revoke, preview, accept)
     │   ├── players/                     # schemas / repository / service / router
     │   └── saved_lineups/                # schemas / repository / service / router
     ├── tests/

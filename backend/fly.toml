@@ -29,6 +29,9 @@ primary_region = "ams"
   # Each LibreOffice conversion needs a few hundred MB and the machine has 1 GB, so convert
   # one document at a time (extra requests wait, then get 503 + Retry-After).
   PDF_MAX_CONCURRENT = "1"
+  # The web app's origin (Cloudflare Pages): invite links are built as <this>/join/<code>.
+  # Public, not a secret. Keep it equal to the Pages URL that is in CORS_ORIGINS.
+  APP_BASE_URL = "https://lineup-kfi.pages.dev"
 
 [http_service]
   internal_port = 8000

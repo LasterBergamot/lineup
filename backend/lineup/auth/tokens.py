@@ -13,6 +13,7 @@ import asyncio
 import logging
 import os
 import time
+import unicodedata
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -32,6 +33,7 @@ JWKS_TTL_SECONDS = 600
 MIN_REFETCH_INTERVAL_SECONDS = 30
 FETCH_TIMEOUT_SECONDS = 5
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1"})
+MAX_DISPLAY_NAME_LENGTH = 100
 
 
 class TokenError(Exception):
@@ -217,3 +219,31 @@ async def verify_token(token: str, config: AuthConfig, cache: JwksCache) -> UUID
         return UUID(str(claims["sub"]))
     except ValueError as exc:
         raise TokenError("bad_subject") from exc
+
+
+def display_name_from_token(token: str) -> str | None:
+    """The signed-in user's display name (Google's `full_name`/`name`), or `None`.
+
+    Supabase copies it into the access token's `user_metadata` claim. Call this only with a token
+    that `verify_token` already accepted: the claims are read *without* checking the signature
+    again. The value is user-controlled text, so control characters are dropped and it is capped
+    at `MAX_DISPLAY_NAME_LENGTH`; a missing, odd or blank name is `None`. It is personal data:
+    never log it.
+    """
+    try:
+        claims = jwt.decode(token, options={"verify_signature": False})
+    except jwt.PyJWTError:
+        return None
+    metadata = claims.get("user_metadata")
+    if not isinstance(metadata, dict):
+        return None
+    for field in ("full_name", "name"):
+        value = metadata.get(field)
+        if isinstance(value, str):
+            cleaned = "".join(
+                ch for ch in value if unicodedata.category(ch) not in {"Cc", "Cs"}
+            )
+            cleaned = cleaned.strip()[:MAX_DISPLAY_NAME_LENGTH].strip()
+            if cleaned:
+                return cleaned
+    return None
