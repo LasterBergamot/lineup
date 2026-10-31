@@ -21,3 +21,18 @@ export function cleanText(max: number, field: NonNullable<ErrorParams["field"]>)
       errorKey("validation.unsupportedCharacters", { field }),
     );
 }
+
+/**
+ * Optional text: like {@link cleanText}, but a blank value is allowed (the form sends it as
+ * "not provided"). It still has to fit the length cap and be free of control characters.
+ */
+export function optionalCleanText(max: number, field: NonNullable<ErrorParams["field"]>) {
+  return z
+    .string()
+    .trim()
+    .max(max, errorKey("validation.tooLong", { field, max }))
+    .refine(
+      (value) => !UNSAFE_CHARACTERS.test(value),
+      errorKey("validation.unsupportedCharacters", { field }),
+    );
+}

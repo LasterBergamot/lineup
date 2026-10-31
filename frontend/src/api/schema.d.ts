@@ -555,14 +555,16 @@ export interface components {
          * LineupRequest
          * @description Everything needed to fill one lineup sheet (no database involved).
          *
-         *     Text fields are trimmed, must not be empty and have a maximum length. `players` holds 1 to 15
+         *     Text fields are trimmed, must not be empty and have a maximum length. Only the coach is
+         *     required among the staff: `doctor`, `assistant_coach`, `team_leader` and `ball_thrower` may be
+         *     omitted or blank (the sheet prints them empty), the same as for saved lineups. `players` holds 1 to 15
          *     entries with unique cap numbers (1-15) and unique NSSZ numbers.
          */
         LineupRequest: {
             /** Assistant Coach */
-            assistant_coach: string;
+            assistant_coach?: string | null;
             /** Ball Thrower */
-            ball_thrower: string;
+            ball_thrower?: string | null;
             /**
              * Cap
              * @enum {string}
@@ -575,13 +577,13 @@ export interface components {
             /** Division */
             division: string;
             /** Doctor */
-            doctor: string;
+            doctor?: string | null;
             /** Match */
             match: string;
             /** Players */
             players: components["schemas"]["PlayerRequest"][];
             /** Team Leader */
-            team_leader: string;
+            team_leader?: string | null;
             /** Team Name */
             team_name: string;
         };

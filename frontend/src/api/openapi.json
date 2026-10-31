@@ -159,19 +159,33 @@
         "type": "object"
       },
       "LineupRequest": {
-        "description": "Everything needed to fill one lineup sheet (no database involved).\n\nText fields are trimmed, must not be empty and have a maximum length. `players` holds 1 to 15\nentries with unique cap numbers (1-15) and unique NSSZ numbers.",
+        "description": "Everything needed to fill one lineup sheet (no database involved).\n\nText fields are trimmed, must not be empty and have a maximum length. Only the coach is\nrequired among the staff: `doctor`, `assistant_coach`, `team_leader` and `ball_thrower` may be\nomitted or blank (the sheet prints them empty), the same as for saved lineups. `players` holds 1 to 15\nentries with unique cap numbers (1-15) and unique NSSZ numbers.",
         "properties": {
           "assistant_coach": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Assistant Coach",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Coach"
           },
           "ball_thrower": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Ball Thrower",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ball Thrower"
           },
           "cap": {
             "enum": [
@@ -200,10 +214,17 @@
             "type": "string"
           },
           "doctor": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Doctor",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctor"
           },
           "match": {
             "maxLength": 200,
@@ -221,10 +242,17 @@
             "type": "array"
           },
           "team_leader": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Team Leader",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Leader"
           },
           "team_name": {
             "maxLength": 120,
@@ -240,10 +268,6 @@
           "cap",
           "date",
           "coach",
-          "doctor",
-          "assistant_coach",
-          "team_leader",
-          "ball_thrower",
           "players"
         ],
         "title": "LineupRequest",
