@@ -8,12 +8,15 @@ export const MAX_PLAYERS = 15;
 
 const CAP_NUMBER_ERROR = errorKey("validation.capNumber");
 
+/** A cap number: a whole number from 1 to 15. Shared by the one-off form and the creator. */
+export const capNumberSchema = z
+  .number({ error: CAP_NUMBER_ERROR })
+  .int(CAP_NUMBER_ERROR)
+  .min(1, CAP_NUMBER_ERROR)
+  .max(MAX_PLAYERS, CAP_NUMBER_ERROR);
+
 const playerSchema = z.object({
-  cap_number: z
-    .number({ error: CAP_NUMBER_ERROR })
-    .int(CAP_NUMBER_ERROR)
-    .min(1, CAP_NUMBER_ERROR)
-    .max(MAX_PLAYERS, CAP_NUMBER_ERROR),
+  cap_number: capNumberSchema,
   name: text(200, "fields.name"),
   nssz_number: text(50, "fields.nsszNumber"),
 });
