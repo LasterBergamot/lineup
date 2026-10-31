@@ -167,8 +167,11 @@ those players would be orphaned. The full ERD is in [[Current State: Backend]].
 ## 7. Run it
 
 Prerequisites: Python 3.13+, `uv`, `task`, Docker with Compose (see the README for links).
+`task doctor` checks them for you. For a first setup, follow [[Setup]]: it is the same list
+with the result to expect at each step.
 
 ```bash
+task doctor         # are the tools installed and new enough?
 task install        # create backend/.venv and install dependencies
 task test           # run the tests (must report 100% coverage)
 task lint           # ruff

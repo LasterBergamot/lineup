@@ -33,7 +33,7 @@ Recurring workflows are packaged as project skills in `.claude/skills/`. Claude 
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
 | `supabase-smoke` | haiku | run the live create/generate/delete smoke test against the dev Supabase project after model or engine changes |
 | `update-documentation` | sonnet | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
-| `setup-project` | haiku (high effort) | set up a fresh clone: explicit steps, each with an expected result |
+| `setup-project` | haiku (high effort) | set up a fresh clone by following `documentation/Setup.md` |
 
 Skills that touch GitHub, git or the database still ask before every state-changing command. `.claude/settings.json` is the shared project config: it lets `task lint`/`task test` run without a prompt and blocks Claude from reading `.env` files (at the root and in `backend/`). Personal overrides go in the git-ignored `.claude/settings.local.json`.
 
@@ -88,7 +88,11 @@ Optional, quality-of-life tools:
 
 ## Installation
 
+The full step-by-step setup, with the expected result of each step, is in
+[`documentation/Setup.md`](documentation/Setup.md) (wiki: *Setup*). The short version:
+
 ```bash
+task doctor    # check the tools above and their versions
 task install
 ```
 
@@ -273,6 +277,7 @@ POST /lineups/saved
 | Task            | Description                                                     |
 |-----------------|-----------------------------------------------------------------|
 | `task install`  | Install dependencies via `uv sync`                              |
+| `task doctor`   | Check the required tools and their minimum versions (`scripts/doctor.sh`) |
 | `task run`      | Run the CLI application                                         |
 | `task serve`    | Start the API server locally (DOCX only; loads `backend/.env`; creates tables on startup unless `ENV=production`) |
 | `task db:status` | Show whether `backend/.env` currently selects SQLite or the Supabase pooler |
