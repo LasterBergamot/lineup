@@ -214,5 +214,6 @@ Third-party actions used in `.github/workflows/`.
 | `astral-sh/setup-uv` | [GitHub](https://github.com/astral-sh/setup-uv) |
 | `github/codeql-action` | [GitHub](https://github.com/github/codeql-action) |
 | `pnpm/action-setup` | [GitHub](https://github.com/pnpm/action-setup) |
+| `superfly/flyctl-actions` | [GitHub](https://github.com/superfly/flyctl-actions) |
 
 <!-- END GENERATED: dependencies -->

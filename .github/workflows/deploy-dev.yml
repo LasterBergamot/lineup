@@ -1,0 +1,101 @@
+name: Deploy dev
+
+# Continuous deployment of the dev API (#8): on every push to `develop` that touches the backend,
+# apply the Alembic migrations, release the image to Fly.io, then wait until the app answers
+# `/health?db=1`. The frontend is not deployed here: Cloudflare Pages builds `develop` itself
+# through its Git integration (documentation/Pages-Setup.md).
+#
+# The push only happens after a merged PR, and branch protection already required the CI checks
+# on that PR. Setup of the two secrets below: documentation/Fly-Setup.md, "Continuous deployment".
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-dev.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time, and never cancel one halfway: a cancelled run could stop between the
+# migration and the release. A newer push simply waits for the running deploy to finish.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate, deploy, check health
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Must match `app` in backend/fly.toml (tests/test_deploy_workflow.py checks it).
+      FLY_APP: lineup-dev-lb
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+        working-directory: backend
+
+      # Migrations run before the release, so a broken migration stops the deploy and the old
+      # code keeps running on the old schema. The reverse risk is a good migration followed by a
+      # failed release (old code on the new schema): keep migrations backwards compatible
+      # (add columns/tables first, drop them in a later deploy).
+      - name: Apply Alembic migrations
+        env:
+          # The table-owner URL through the Supabase *session* pooler (port 5432), in the same
+          # `postgresql+asyncpg://…?ssl=require` form as backend/.env.migrate. Never the app's
+          # `lineup_app` DATABASE_URL: that role cannot run DDL. Read only through `env:`, so
+          # GitHub masks it in the log.
+          MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+        run: |
+          if [ -z "$MIGRATE_DATABASE_URL" ]; then
+            echo "::error::The MIGRATE_DATABASE_URL Actions secret is not set (documentation/Fly-Setup.md)."
+            exit 1
+          fi
+          uv run alembic upgrade head
+        working-directory: backend
+
+      # Pinned to a commit SHA (the tag is v1.5): a moved tag cannot change what runs with our token.
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@fc53c09e1bc3be6f54706524e3b82c4f462f77be
+
+      # --ha=false: Fly otherwise adds a second machine, and the in-memory rate limiter is only
+      # correct with exactly one. flyctl waits for the machine's /health check; if it never
+      # passes, Fly keeps the previous release running and this step fails.
+      - name: Deploy to Fly.io
+        env:
+          # An app-scoped deploy token: `fly tokens create deploy -a lineup-dev-lb`.
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::The FLY_API_TOKEN Actions secret is not set (documentation/Fly-Setup.md)."
+            exit 1
+          fi
+          flyctl deploy --ha=false
+        working-directory: backend
+
+      # The Fly check is liveness only. This one also asks the database, and it tolerates a cold
+      # start: the machine may be stopped, and the Supabase pooler can be slow to answer.
+      - name: Wait for /health?db=1
+        run: |
+          url="https://${FLY_APP}.fly.dev/health?db=1"
+          for attempt in $(seq 1 18); do
+            if curl --silent --show-error --fail --max-time 30 "$url"; then
+              echo
+              echo "Healthy after $attempt attempt(s)."
+              exit 0
+            fi
+            echo "Attempt $attempt of 18 failed, retrying in 10 s."
+            sleep 10
+          done
+          echo "::error::$url never became healthy. Fly keeps serving the previous release only if the new one failed its own check: look at 'fly status' and 'fly logs'."
+          exit 1

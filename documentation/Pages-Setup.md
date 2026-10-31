@@ -92,8 +92,9 @@ flowchart LR
    at least 15 minutes, generate a PDF: it has to finish within 120 s (the first PDF shows the
    "generating" notice).
 
-Automatic deploys from `develop` are the Git integration's job for now; CD (#8) later runs the
-migrations and the Fly deploy first and then publishes the frontend.
+Automatic deploys from `develop` are the Git integration's job. The API's CD workflow (#8, *Fly Setup*,
+"Continuous deployment") deploys the backend separately and does not touch Pages, so the frontend
+needs no Cloudflare token in GitHub.
 
 ## Pull request previews
 

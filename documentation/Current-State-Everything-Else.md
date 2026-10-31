@@ -113,8 +113,11 @@ git-ignored.
   region `ams` (EU, next to the Supabase project in `eu-west-1`), scale to zero, 1 GB of memory
   for LibreOffice and a `GET /health` check. It holds no secrets: `DATABASE_URL`, `SUPABASE_URL`
   and `CORS_ORIGINS` are set with `fly secrets set`. A test (`tests/test_fly_config.py`) fails on
-  a non-EU region or a secret-looking key. The one-off setup is in [[Fly Setup]]; automatic
-  deploys from `develop` (#8) are not built yet.
+  a non-EU region or a secret-looking key. The one-off setup is in [[Fly Setup]]. A push to
+  `develop` that changes `backend/` deploys automatically (`.github/workflows/deploy-dev.yml`, #8):
+  Alembic `upgrade head`, `flyctl deploy --ha=false`, then a retrying `/health?db=1` check. It needs
+  the `FLY_API_TOKEN` and `MIGRATE_DATABASE_URL` Actions secrets (see *Continuous deployment* in
+  [[Fly Setup]]) and is guarded by `tests/test_deploy_workflow.py`.
 - **Hosting (dev frontend):** Cloudflare Pages serves `frontend/` (build `pnpm build`, output
   `dist`, production branch `develop`) and builds a static preview per PR. Only public `VITE_*`
   values are set there; the baseline security headers live in `frontend/public/_headers`. Its

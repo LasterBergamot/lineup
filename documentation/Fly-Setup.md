@@ -95,8 +95,57 @@ Commands run from `backend/` (the Docker build context, like `task build`).
 8. **Decide how to pay before the trial ends** and check the bill now and then; Fly has no billing
    alerts (see *Trial and billing* below).
 
-Later, CD (#8) runs the migrations and `fly deploy --ha=false` on every push to `develop`; this page then
-only covers creating the app.
+After this one-off setup, deploys are automatic (see *Continuous deployment* below).
+
+## Continuous deployment
+
+`.github/workflows/deploy-dev.yml` (#8) deploys the API on every push to `develop` that changes
+something under `backend/` (and can be started by hand from the Actions tab: *Deploy dev* → Run
+workflow). In order, it:
+
+1. applies the Alembic migrations (`alembic upgrade head`) to the dev Supabase project,
+2. runs `flyctl deploy --ha=false` from `backend/`; if the new machine never passes Fly's `/health`
+   check, Fly keeps the previous release and the job fails,
+3. polls `GET /health?db=1` for up to three minutes (18 tries, 10 s apart), because the first answer
+   after a deploy can be slow, and fails the job if the app never reports a working database.
+
+```mermaid
+flowchart LR
+    M[Merge into develop] --> A[Alembic upgrade head]
+    A --> D["flyctl deploy --ha=false"]
+    D --> H["Poll /health?db=1"]
+    M -.->|"own Git integration"| P[Cloudflare Pages build]
+```
+
+The frontend is **not** part of this workflow: Cloudflare Pages already builds and publishes
+`develop` through its Git integration (*Pages Setup*), so a second deploy path would only add a
+Cloudflare token to keep safe. The two deploys are independent and can finish in either order.
+
+Because the migration runs before the release, a broken migration stops the deploy with the old
+code still running. The opposite case (a good migration, then a failed release) leaves the old
+code on the new schema, so write migrations that old code can live with: add columns and tables
+in one deploy and drop the old ones in a later one.
+
+Pushes that only change docs or the frontend do not trigger it, and runs never overlap or get
+cancelled (`concurrency`): a second push waits for the first to finish.
+
+### One-off setup for CD
+
+Two GitHub Actions secrets (repository → Settings → Secrets and variables → Actions → *New
+repository secret*). Never paste their values into chat or issues.
+
+| Secret | Value |
+|---|---|
+| `FLY_API_TOKEN` | An app-scoped deploy token. Create it with `fly tokens create deploy -a lineup-dev-lb` and paste the whole output (starting `FlyV1`). It can deploy this one app and nothing else. |
+| `MIGRATE_DATABASE_URL` | The table-owner URL through the Supabase **session pooler** (port 5432), the same value as in your local `backend/.env.migrate`: `postgresql+asyncpg://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?ssl=require`. The direct host is IPv6-only and GitHub's runners are IPv4, so use the pooler. Not the app's `lineup_app` URL, which cannot change the schema. |
+
+To rotate one: create a new token or password, update the secret, then revoke the old one
+(`fly tokens list`, `fly tokens revoke <id>`; for the database, change the `postgres` password in
+the Supabase dashboard and update `backend/.env.migrate` and the secret together). The run fails
+with an error message that names the secret if one of them is missing.
+
+After setting the secrets, run *Deploy dev* by hand once and read the log. GitHub masks the token
+and the URL in it, and the workflow reads them only through `env:`, so no command line contains them.
 
 ## Trial and billing
 

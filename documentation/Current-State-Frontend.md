@@ -237,7 +237,7 @@ ecosystem). Details are in [[Current State: Everything Else]].
 
 ## Not built yet
 
-Roster screens, joining a team by invite link, team switching, saved-lineup previews, automatic deploys
-from `develop` (#8) and committed browser (Playwright) tests. The sign-in code is covered by unit tests
+Roster screens, joining a team by invite link, team switching, saved-lineup previews and committed
+browser (Playwright) tests. The sign-in code is covered by unit tests
 and was checked in a real browser against a local stand-in for Supabase Auth, but a real Google
 sign-in only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].
