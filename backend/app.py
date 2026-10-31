@@ -25,6 +25,7 @@ from lineup.security.body_limit import BodySizeLimitMiddleware
 from lineup.security.config import read_docs_enabled, validate_production_config
 from lineup.security.headers import SecurityHeadersMiddleware
 from lineup.teams.router import router as teams_router
+from lineup.version import APP_VERSION
 
 # Error monitoring only, no performance tracing/APM (traces_sample_rate=0.0) — sized for the
 # Sentry free "Developer" tier. SENTRY_DSN unset (local dev, CI, tests) => init is skipped
@@ -71,7 +72,7 @@ docs_enabled = read_docs_enabled(os.getenv("DOCS_ENABLED"), os.getenv("ENV"))
 app = FastAPI(
     title="Lineup API",
     description="Generates water polo lineup documents.",
-    version="0.1.0",
+    version=APP_VERSION,
     lifespan=lifespan,
     docs_url="/docs" if docs_enabled else None,
     redoc_url="/redoc" if docs_enabled else None,

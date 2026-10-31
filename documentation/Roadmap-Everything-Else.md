@@ -34,21 +34,35 @@ flowchart LR
     H[hotfix branch] -->|PR| M
     M -->|merge back| D
     D -.->|"CD (planned, #8; app config done, #13)"| DEV[dev: Fly.io + Cloudflare Pages + dev Supabase]
-    M -.->|"version tag (deferred, #17)"| REL[vX.Y.Z tag]
+    D -.->|"release workflow (#17)"| REL[vX.Y.Z tag + GitHub Release]
 ```
 
 - `develop` is the default branch: every PR targets it, Dependabot targets it, and the wiki is
   published from it. Once CD exists, each merge deploys to dev.
 - `main` only moves on a release (a `develop` → `main` PR) or a hotfix. Releases will later
   create the `vX.Y.Z` tag; there is no prod deploy.
-- **Versions (planned, #17):** one repo-wide SemVer tag `vX.Y.Z` covers backend and frontend, because the
-  frontend's API client is generated from the backend's spec and the two move together. A manually triggered
-  `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub
-  Release with notes from the merged PRs. (`python-semantic-release` was dropped: it reads Conventional Commits,
-  and our commits are `#N - subject`.) Pre-1.0 tags are cut from `develop` when a feature set lands on dev;
-  `v1.0.0` and later come from `main`. Container images are tagged `lineup:<version>`, so an older version can be
-  deployed. Going back is easy for code but not for the database: Alembic migrations only go forward in
-  practice, so a rollback across a schema change needs expand/contract migrations.
+- **Versions and releases (#17):** one repo-wide SemVer tag `vX.Y.Z` covers backend and frontend, because the
+  frontend's API client is generated from the backend's spec and the two move together. The version lives in
+  `backend/pyproject.toml` (the API reads it from there for its OpenAPI `info.version`) and `frontend/package.json`;
+  `tests/test_versioning.py` fails when they differ. (`python-semantic-release` was dropped: it reads Conventional
+  Commits, and our commits are `#N - subject`.)
+  - **Cutting a release:** (1) `task release:bump -- minor` (or `patch`, `major`, an explicit `X.Y.Z`) edits both
+    files and regenerates the API client; (2) commit it in a normal PR into `develop`; (3) after the merge, run the
+    **Release** workflow from the Actions tab on `develop` (`gh workflow run release.yml --ref develop`). It checks that
+    the two versions match and the tag is new, then creates the `vX.Y.Z` tag and a GitHub Release whose notes are
+    generated from the merged PRs plus a "Database migrations" list (the Alembic revisions added since the previous
+    tag). Pre-1.0 releases are marked as pre-releases; `1.0.0` and later must be released from `main`.
+  - Why the bump is a PR: `develop` and `main` only accept commits that passed the required checks, so a workflow
+    cannot commit the bump itself without a stored admin token. Creating the release through the API creates the tag
+    server-side, so the workflow pushes nothing.
+  - **Going back to an older version:** code is easy, the database is not. Check the tag out (or run the **Deploy
+    dev** workflow with "Use workflow from" set to the tag) to redeploy it; the frontend is a Cloudflare Pages
+    deployment that can be re-promoted. Alembic only goes forward in practice: the deploy step runs
+    `alembic upgrade head` from the old code, which stops with "Can't locate revision" when the database is already
+    at a newer revision. So a rollback across a schema change needs expand/contract migrations (add first, drop a
+    release later) or an explicit downgrade. The release notes list the migrations of each release for this reason.
+    Images are not tagged `lineup:<version>`: Fly builds from source on every deploy, so the git tag is the version
+    handle.
 - **Supabase keep-alive (#156, `keepalive.yml`; needs the `KEEPALIVE_DATABASE_URL` Actions secret):** the free
   tier pauses a project after about a week without activity, and Supabase Auth with it. A GitHub Actions cron
   runs on Mondays and Thursdays (so one failed run isn't enough to let it pause) and sends `SELECT 1` through
