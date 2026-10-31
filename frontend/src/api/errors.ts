@@ -95,6 +95,10 @@ export function describeError(error: unknown, t: TFunction = i18n.t): string {
   switch (error.status) {
     case 0:
       return t("errors.network");
+    case 403:
+      return t("errors.forbidden");
+    case 404:
+      return t("errors.notFound");
     case 422:
       return t("errors.rejected");
     case 502:

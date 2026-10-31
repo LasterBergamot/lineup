@@ -8,7 +8,9 @@ import { RequireAuth } from "@/auth/require-auth";
 import { BackendStatusProvider } from "@/backend-status/provider";
 import { AppShell } from "@/components/app-shell";
 import { i18n } from "@/i18n";
+import { JoinPage } from "@/pages/join-page";
 import { LineupPage } from "@/pages/lineup-page";
+import { MembersPage } from "@/pages/members-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { RosterPage } from "@/pages/roster-page";
 import { SavedPage } from "@/pages/saved-page";
@@ -19,11 +21,13 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="sign-in" element={<SignInPage />} />
+      <Route path="join/:code" element={<JoinPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route index element={<LineupPage />} />
           <Route path="roster" element={<RosterPage />} />
           <Route path="saved" element={<SavedPage />} />
+          <Route path="members" element={<MembersPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

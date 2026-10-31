@@ -6,14 +6,16 @@
   },
   "common": {
     "loading": "Loading",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "cancel": "Cancel"
   },
   "nav": {
     "sidebar": "Sidebar",
     "bottom": "Bottom",
     "lineup": "Lineup",
     "roster": "Roster",
-    "saved": "Saved"
+    "saved": "Saved",
+    "team": "Team"
   },
   "theme": {
     "switchToLight": "Switch to light theme",
@@ -49,7 +51,9 @@
     "busy": "The server is busy or starting up. Please try again in a moment.",
     "timeout": "The server took too long to respond. Please try again.",
     "server": "Something went wrong on our side. Please try again.",
-    "serverRejectedFields": "The server rejected some of the details. Please check the highlighted fields."
+    "serverRejectedFields": "The server rejected some of the details. Please check the highlighted fields.",
+    "forbidden": "You don't have permission to do that.",
+    "notFound": "That no longer exists. Refresh the page and try again."
   },
   "validation": {
     "required": "{{field}} is required",
@@ -60,7 +64,8 @@
     "minPlayers": "Add at least one player",
     "maxPlayers": "A lineup has at most {{max, number}} players",
     "uniqueCapNumber": "Cap numbers must be unique",
-    "uniqueNssz": "NSSZ numbers must be unique"
+    "uniqueNssz": "NSSZ numbers must be unique",
+    "inviteLink": "That doesn't look like an invite link"
   },
   "fields": {
     "match": "Match",
@@ -106,7 +111,8 @@
       "createTitle": "Create a team",
       "createDescription": "A team is your club's shared workspace: its roster and saved lineups. You become its owner.",
       "joinTitle": "Join with an invite link",
-      "joinDescription": "Coming soon: open the link your team owner sent you, or paste it here."
+      "joinDescription": "Open the link your team owner sent you, or paste it here.",
+      "joinSubmit": "Continue"
     },
     "form": {
       "teamNamePlaceholder": "e.g. SZVTK",
@@ -130,5 +136,56 @@
       "title": "Saved lineups",
       "description": "Browse, preview and re-generate the lineups you saved."
     }
+  },
+  "members": {
+    "title": "Team",
+    "description": "Everyone in {{team}} sees and edits the same roster and saved lineups.",
+    "listTitle": "Members",
+    "you": "You",
+    "member": "Member {{number, number}}",
+    "joined": "Joined {{date}}",
+    "leave": "Leave team",
+    "leaveConfirm": "Yes, leave",
+    "remove": "Remove",
+    "removeConfirm": "Yes, remove",
+    "removeLabel": "Remove member {{number, number}}",
+    "makeOwner": "Make owner",
+    "makeOwnerConfirm": "Yes, make owner",
+    "makeOwnerLabel": "Make member {{number, number}} the owner",
+    "lastOwner": "You are the only owner. Make someone else the owner before you leave."
+  },
+  "invites": {
+    "title": "Invite people",
+    "description": "Anyone who opens the link and signs in with Google joins as a member and sees your roster. Send it only to people who should.",
+    "expiry": "Link valid for",
+    "hours2": "2 hours",
+    "hours24": "24 hours",
+    "hours72": "3 days",
+    "create": "Create invite link",
+    "created": "Your invite link",
+    "shownOnce": "Copy it now: it is shown only here, only once. It stops working on {{date}}.",
+    "copy": "Copy link",
+    "copied": "Link copied",
+    "copyFailed": "Couldn't copy. Select the link and copy it by hand.",
+    "share": "Share",
+    "shareTitle": "Join {{team}} on Lineup",
+    "activeTitle": "Active links",
+    "none": "No active invite links.",
+    "item": "Created {{created}}, expires {{expires}}",
+    "revoke": "Revoke",
+    "revokeConfirm": "Yes, revoke"
+  },
+  "join": {
+    "title": "Join {{team}}?",
+    "invitedBy": "{{name}} invited you to this team.",
+    "invitedByUnknown": "You've been invited to this team.",
+    "expires": "This link works until {{date}}.",
+    "signIn": "Sign in with Google to join",
+    "accept": "Join team",
+    "unknownTitle": "We don't recognise this link",
+    "unknownBody": "Check that you copied the whole link, or ask the team owner to send it again.",
+    "goneTitle": "This invite link no longer works",
+    "goneBody": "It has expired or was revoked. Ask the team owner for a new link.",
+    "home": "Go to the app"
   }
 }

@@ -160,10 +160,10 @@ describe("coming back from Google", () => {
 describe("onboarding", () => {
   beforeEach(() => listTeams.mockResolvedValue([]));
 
-  it("offers to create a team, with the invite-link path visible but disabled", async () => {
+  it("offers to create a team or to join with an invite link", async () => {
     renderApp("/", fakeSession());
     expect(await screen.findByRole("heading", { name: "Welcome to Lineup" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Invite link")).toBeDisabled();
+    expect(screen.getByLabelText("Invite link")).toBeEnabled();
     expect(screen.queryByRole("heading", { name: "Lineup" })).not.toBeInTheDocument();
   });
 

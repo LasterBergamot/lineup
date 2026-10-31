@@ -6,14 +6,16 @@
   },
   "common": {
     "loading": "Betöltés",
-    "tryAgain": "Próbálja újra"
+    "tryAgain": "Próbálja újra",
+    "cancel": "Mégse"
   },
   "nav": {
     "sidebar": "Oldalsáv",
     "bottom": "Alsó sáv",
     "lineup": "Rajtlista",
     "roster": "Keret",
-    "saved": "Mentett"
+    "saved": "Mentett",
+    "team": "Csapat"
   },
   "theme": {
     "switchToLight": "Váltás világos témára",
@@ -49,7 +51,9 @@
     "busy": "A szerver foglalt vagy éppen indul. Kérjük, próbálja újra egy pillanat múlva.",
     "timeout": "A szerver túl sokáig válaszolt. Kérjük, próbálja újra.",
     "server": "Hiba történt a szerver oldalán. Kérjük, próbálja újra.",
-    "serverRejectedFields": "A szerver elutasította a megadott adatok egy részét. Kérjük, ellenőrizze a kiemelt mezőket."
+    "serverRejectedFields": "A szerver elutasította a megadott adatok egy részét. Kérjük, ellenőrizze a kiemelt mezőket.",
+    "forbidden": "Ehhez nincs jogosultsága.",
+    "notFound": "Ez már nem létezik. Frissítse az oldalt, és próbálja újra."
   },
   "validation": {
     "required": "{{field}} megadása kötelező",
@@ -60,7 +64,8 @@
     "minPlayers": "Adjon hozzá legalább egy játékost",
     "maxPlayers": "Egy rajtlistán legfeljebb {{max, number}} játékos szerepelhet",
     "uniqueCapNumber": "A sapkaszámoknak különbözniük kell",
-    "uniqueNssz": "Az NSSZ számoknak különbözniük kell"
+    "uniqueNssz": "Az NSSZ számoknak különbözniük kell",
+    "inviteLink": "Ez nem tűnik meghívó hivatkozásnak"
   },
   "fields": {
     "match": "Mérkőzés",
@@ -106,7 +111,8 @@
       "createTitle": "Csapat létrehozása",
       "createDescription": "A csapat az Ön klubjának közös munkaterülete: a kerete és a mentett rajtlistái. Ön lesz a tulajdonosa.",
       "joinTitle": "Csatlakozás meghívó hivatkozással",
-      "joinDescription": "Hamarosan: nyissa meg a csapat tulajdonosától kapott hivatkozást, vagy illessze be ide."
+      "joinDescription": "Nyissa meg a csapat tulajdonosától kapott hivatkozást, vagy illessze be ide.",
+      "joinSubmit": "Tovább"
     },
     "form": {
       "teamNamePlaceholder": "pl. SZVTK",
@@ -130,5 +136,56 @@
       "title": "Mentett rajtlisták",
       "description": "Böngészze, tekintse meg és generálja újra a mentett rajtlistákat."
     }
+  },
+  "members": {
+    "title": "Csapat",
+    "description": "A(z) {{team}} minden tagja ugyanazt a keretet és ugyanazokat a mentett rajtlistákat látja és szerkeszti.",
+    "listTitle": "Tagok",
+    "you": "Ön",
+    "member": "{{number, number}}. tag",
+    "joined": "Csatlakozott: {{date}}",
+    "leave": "Kilépés a csapatból",
+    "leaveConfirm": "Igen, kilépek",
+    "remove": "Eltávolítás",
+    "removeConfirm": "Igen, eltávolítom",
+    "removeLabel": "{{number, number}}. tag eltávolítása",
+    "makeOwner": "Tulajdonossá tétel",
+    "makeOwnerConfirm": "Igen, legyen tulajdonos",
+    "makeOwnerLabel": "{{number, number}}. tag tulajdonossá tétele",
+    "lastOwner": "Ön az egyetlen tulajdonos. Kilépés előtt tegyen tulajdonossá valaki mást."
+  },
+  "invites": {
+    "title": "Meghívás",
+    "description": "Aki megnyitja a hivatkozást és belép Google-lal, taggá válik, és látja a keretet. Csak olyannak küldje el, akinek ezt szánja.",
+    "expiry": "A hivatkozás érvényes",
+    "hours2": "2 óráig",
+    "hours24": "24 óráig",
+    "hours72": "3 napig",
+    "create": "Meghívó hivatkozás létrehozása",
+    "created": "A meghívó hivatkozás",
+    "shownOnce": "Másolja ki most: csak itt és csak egyszer látható. Ekkor szűnik meg érvényessége: {{date}}.",
+    "copy": "Hivatkozás másolása",
+    "copied": "A hivatkozás kimásolva",
+    "copyFailed": "A másolás nem sikerült. Jelölje ki a hivatkozást, és másolja kézzel.",
+    "share": "Megosztás",
+    "shareTitle": "Csatlakozzon a(z) {{team}} csapathoz a Lineupban",
+    "activeTitle": "Érvényes hivatkozások",
+    "none": "Nincs érvényes meghívó hivatkozás.",
+    "item": "Létrehozva: {{created}}, lejár: {{expires}}",
+    "revoke": "Visszavonás",
+    "revokeConfirm": "Igen, visszavonom"
+  },
+  "join": {
+    "title": "Csatlakozik a(z) {{team}} csapathoz?",
+    "invitedBy": "{{name}} meghívta Önt ebbe a csapatba.",
+    "invitedByUnknown": "Meghívták Önt ebbe a csapatba.",
+    "expires": "A hivatkozás eddig érvényes: {{date}}.",
+    "signIn": "Belépés Google-lal a csatlakozáshoz",
+    "accept": "Csatlakozás a csapathoz",
+    "unknownTitle": "Ezt a hivatkozást nem ismerjük",
+    "unknownBody": "Ellenőrizze, hogy a teljes hivatkozást másolta-e ki, vagy kérje meg a csapat tulajdonosát, hogy küldje el újra.",
+    "goneTitle": "Ez a meghívó hivatkozás már nem érvényes",
+    "goneBody": "Lejárt, vagy visszavonták. Kérjen új hivatkozást a csapat tulajdonosától.",
+    "home": "Tovább az alkalmazásba"
   }
 }
