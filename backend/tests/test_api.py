@@ -4,6 +4,7 @@ import subprocess
 import pytest
 from unittest.mock import patch
 
+from lineup.api.file_response import download_filename
 from lineup.document.pdf_converter import ConverterBusyError
 
 FAKE_PDF = b"%PDF-1.4 fake"
@@ -39,7 +40,9 @@ def test_create_lineup_filename_contains_team_and_date(client, valid_payload):
     response = client.post("/lineups", json=valid_payload)
     content_disposition = response.headers["content-disposition"]
     assert valid_payload["team_name"] in content_disposition
-    assert valid_payload["date"] in content_disposition
+    assert "2024-12-21" in content_disposition
+    assert ". " not in content_disposition
+    assert ".." not in content_disposition
 
 
 def test_create_lineup_invalid_cap(client, valid_payload):
@@ -164,7 +167,9 @@ def test_create_lineup_docx_filename_contains_team_and_date(client, valid_payloa
     response = client.post("/lineups?format=docx", json=valid_payload)
     content_disposition = response.headers["content-disposition"]
     assert valid_payload["team_name"] in content_disposition
-    assert valid_payload["date"] in content_disposition
+    assert "2024-12-21" in content_disposition
+    assert ". " not in content_disposition
+    assert ".." not in content_disposition
     assert content_disposition.endswith(".docx")
 
 
@@ -218,7 +223,19 @@ def test_create_lineup_non_latin1_team_name_returns_utf8_filename(
     response = client.post("/lineups", json=payload)
     assert response.status_code == 200
     content_disposition = response.headers["content-disposition"]
-    assert 'filename="rajtlista_Szoreg _U__' in content_disposition
-    assert "filename*=UTF-8''rajtlista_Sz%C5%91reg%20%22%C5%B0%22%3B_" in (
+    assert 'filename="rajtlista_Szoreg__U__' in content_disposition
+    assert "filename*=UTF-8''rajtlista_Sz%C5%91reg_%22%C5%B0%22%3B_" in (
         content_disposition
     )
+
+
+@pytest.mark.parametrize(
+    ("team", "date", "expected"),
+    [
+        ("SZVTK", "2024. 12. 21.", "rajtlista_SZVTK_2024-12-21.pdf"),
+        ("  Szőreg  VSE ", "2024.12.21", "rajtlista_Szőreg_VSE_2024-12-21.pdf"),
+        ("F.T.C.", "21 Dec 2024.", "rajtlista_F.T.C_21-Dec-2024.pdf"),
+    ],
+)
+def test_download_filename_has_no_spaces_or_double_dot(team, date, expected):
+    assert download_filename(team, date, "pdf") == expected

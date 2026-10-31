@@ -53,6 +53,19 @@ def content_disposition(filename: str) -> str:
     return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
 
 
+def download_filename(team_name: str, date: str, extension: str) -> str:
+    """Build ``rajtlista_<team>_<date>.<extension>`` as a tidy, single-dotted file name.
+
+    The date is free text as printed on the sheet (``2024. 12. 21.``), so used as-is it left
+    spaces and a ``..`` before the extension. Whitespace in the team name becomes ``_`` and the
+    date's dots and spaces collapse into ``-`` (``2024-12-21``). Only the name is changed: the
+    printed document keeps the date exactly as typed.
+    """
+    team = re.sub(r"\s+", "_", team_name.strip()).rstrip(".")
+    day = re.sub(r"[\s.]+", "-", date).strip("-")
+    return f"rajtlista_{team}_{day}.{extension}"
+
+
 def _render(dto: WaterPoloLineupDTO, file_format: FileFormat) -> bytes:
     creator = WaterPoloLineupCreator()
     if file_format == FileFormat.PDF:
@@ -88,7 +101,7 @@ async def build_file_response(
         media_type = PDF_MEDIA_TYPE
     else:
         media_type = DOCX_MEDIA_TYPE
-    filename = f"rajtlista_{dto.team_name}_{dto.date}.{file_format.value}"
+    filename = download_filename(dto.team_name, dto.date, file_format.value)
     return Response(
         content=content,
         media_type=media_type,
