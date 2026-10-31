@@ -41,7 +41,7 @@ updates:
           - "minor"
           - "patch"
 
-  # Base image (python:3.13-slim, pinned by digest) and the uv image in
+  # Base image (python:3.14-slim, pinned by digest) and the uv image in
   # backend/Dockerfile.
   - package-ecosystem: "docker"
     directory: "/backend"
@@ -50,3 +50,9 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    ignore:
+      # Python 3.15 cannot build the image yet: lxml, pydantic-core, httptools, markupsafe,
+      # pyyaml and uvloop have no 3.15 wheels (PR #138 failed on it). Remove this entry once
+      # `uv sync --frozen --no-dev --no-build --python 3.15` works in backend/.
+      - dependency-name: "python"
+        versions: [">= 3.15"]
