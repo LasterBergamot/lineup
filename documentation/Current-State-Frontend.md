@@ -3,7 +3,7 @@
 The web app lives in `frontend/`. The tooling, the theme, the app shell, the generated API client
 and the cold-start handling are in place, and so are **Google sign-in** (through Supabase Auth)
 and the first-run **team onboarding**. Behind the sign-in sits the **lineup creator** on `/`
-(Lineup, with the one-off form as "Quick sheet"), the **Team** page (members and invite links), and the **Roster** page (players, team settings, opponent directory search); the Saved area of the navigation is still a "coming soon" page. The screens arrive phase by phase (see [[Roadmap: Frontend]]
+(Lineup, with the one-off form as "Quick sheet"), the **Team** page (members and invite links), the **Roster** page (players, team settings, opponent directory search) and the **Saved** page (saved lineups with PDF preview, download, clone and delete). The screens arrive phase by phase (see [[Roadmap: Frontend]]
 and `PLAN.md`). The backend it talks to is described in [[Current State: Backend]].
 
 ## How it is built
@@ -268,6 +268,29 @@ names only (never rosters or lineups), waits 300 ms after typing, and keeps the 
 screen while the next ones load. Names, NSSZ numbers and search terms live in component state and
 the in-memory query cache only: nothing goes to browser storage, the address bar or a log.
 
+### Saved lineups
+
+The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest first: match
+name, date, division, cap colour and opponent. Every member sees and manages the same list. Each row
+has:
+
+- **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
+  a side panel on a desktop and a full-screen sheet on a phone. It loads on a tap of the button, or
+  when the mouse rests on a row for 300 ms (passing over the list does not start a PDF for every row,
+  because each one runs LibreOffice and counts against the generate rate limit). A saved lineup is a
+  frozen snapshot that never changes, so each preview is kept in the in-memory query cache while the
+  page is open and opening it again costs nothing. The file is never given a URL or stored. After 5 s
+  the usual "the first PDF after a break takes longer" note appears.
+- **PDF / DOCX**: downloads the file again.
+- **Clone to new match**: opens the Lineup page with only the lineup's id in the router's state
+  (`cloneFromId`); the page fetches the saved lineup itself and pre-fills a new one from it. The
+  browser keeps router state in the tab's history, so only an id travels there, never names or
+  NSSZ numbers (and nothing goes into the address bar).
+- **Delete**: asks for a second click, then deletes it for the whole team.
+
+If another member deleted a lineup in the meantime, the server answers 404: the page says so and
+reloads the list.
+
 ### Privacy by construction
 
 The font (Google Sans Flex) is self-hosted through Fontsource and nothing is loaded from a third
@@ -297,7 +320,7 @@ ecosystem). Details are in [[Current State: Everything Else]].
 
 ## Not built yet
 
-Team switching (a user in several teams always sees the first by name), saved-lineup previews and committed
+Team switching (a user in several teams always sees the first by name) and committed
 browser (Playwright) tests. The sign-in code is covered by unit tests
 and was checked in a real browser against a local stand-in for Supabase Auth, but a real Google
 sign-in only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].

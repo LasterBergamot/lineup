@@ -63,10 +63,12 @@ there:
   sheet on a phone) through the stateless `POST /lineups`, and **Save** through `POST /lineups/saved`. The
   old one-off form stays as "Quick sheet".
 - **Roster management** — **built** (#197): players CRUD, team settings (owners), opponent directory search. The opponent combobox of the lineup creator reuses `GET /teams/pool`.
-- **Saved lineups list / "Clone to New Match"** — lists `/lineups/saved`, and on clone,
-  matches each player's `source_player_id` against the current roster: still-present
-  players get pre-selected, deleted ones fall back to the frozen snapshot name/NSSZ as free
-  text with a "no longer on roster" hint.
+- **Saved lineups list / "Clone to New Match"** — the list is **built** (#204): `/lineups/saved`
+  newest first, PDF preview (hover intent or tap, cached in memory), PDF/DOCX download, delete,
+  and "Clone to new match", which opens the Lineup page with only the lineup id in the router state
+  (`cloneFromId`); the Lineup page fetches the lineup. The creator side of the clone (#203) matches each player's `source_player_id`
+  against the current roster: still-present players get pre-selected, deleted ones fall back to
+  the frozen snapshot name/NSSZ as free text with a "no longer on roster" hint.
 - **Team switching** — the Team page and the join flow (#189) work on "the current team", which is
   the first team by name. A user who joins a second team does not see it until switching exists.
 
