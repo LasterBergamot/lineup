@@ -121,6 +121,13 @@
       "submit": "Create team"
     }
   },
+  "teamSettings": {
+    "title": "Team settings",
+    "description": "Rename the team or change whether other teams can find it. Only the owner sees this.",
+    "listInDirectoryHint": "Other teams can then pick you as an opponent. Only the name is shown, never your roster or lineups.",
+    "submit": "Save changes",
+    "saved": "Saved."
+  },
   "pages": {
     "notFound": {
       "title": "Page not found",
@@ -130,7 +137,7 @@
     "comingSoon": "Coming soon",
     "roster": {
       "title": "Roster",
-      "description": "Manage your team and its players once sign-in is available."
+      "description": "The players of {{team}}. Everyone in the team sees and edits the same roster."
     },
     "saved": {
       "title": "Saved lineups",
@@ -153,6 +160,22 @@
     "makeOwnerConfirm": "Yes, make owner",
     "makeOwnerLabel": "Make member {{number, number}} the owner",
     "lastOwner": "You are the only owner. Make someone else the owner before you leave."
+  },
+  "players": {
+    "title": "Players",
+    "description": "Everyone in the team can add, edit and delete players. Only a name and an NSSZ number are stored for each.",
+    "addTitle": "Add a player",
+    "add": "Add player",
+    "empty": "No players yet. Add the first one above.",
+    "listLabel": "Players of {{team}}",
+    "nssz": "NSSZ number: {{number}}",
+    "edit": "Edit",
+    "editLabel": "Edit {{name}}",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteConfirm": "Yes, delete",
+    "deleteLabel": "Delete {{name}}",
+    "deleteHint": "Deleting a player does not change lineups you have already saved: they keep their own copy of the name and NSSZ number."
   },
   "invites": {
     "title": "Invite people",
@@ -187,5 +210,14 @@
     "goneTitle": "This invite link no longer works",
     "goneBody": "It has expired or was revoked. Ask the team owner for a new link.",
     "home": "Go to the app"
+  },
+  "directory": {
+    "title": "Opponent directory",
+    "hint": "Only the names of teams that chose to be listed appear here. You can still type any other opponent's name when you make a lineup.",
+    "search": "Search teams",
+    "results": "Listed teams",
+    "empty": "No teams are listed yet.",
+    "noMatch": "No teams found.",
+    "more": "Showing the first {{count}} teams. Type a name to narrow the list."
   }
 }

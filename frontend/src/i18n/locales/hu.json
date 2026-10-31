@@ -80,7 +80,7 @@
     "ballThrower": "Labdabedobó",
     "capNo": "Sapkaszám",
     "name": "Név",
-    "nsszNumber": "NSSZ szám",
+    "nsszNumber": "NSSZ-szám",
     "inviteLink": "Meghívó hivatkozás"
   },
   "lineup": {
@@ -121,6 +121,13 @@
       "submit": "Csapat létrehozása"
     }
   },
+  "teamSettings": {
+    "title": "Csapat beállításai",
+    "description": "Nevezze át a csapatot, vagy döntse el, hogy más csapatok megtalálhatják-e. Ezt csak a tulajdonos látja.",
+    "listInDirectoryHint": "Így más csapatok kiválaszthatják Önt ellenfélként. Csak a név látszik, a keret és a rajtlisták soha.",
+    "submit": "Módosítások mentése",
+    "saved": "Mentve."
+  },
   "pages": {
     "notFound": {
       "title": "Az oldal nem található",
@@ -130,7 +137,7 @@
     "comingSoon": "Hamarosan",
     "roster": {
       "title": "Keret",
-      "description": "Kezelje csapatát és játékosait, amint elérhető a bejelentkezés."
+      "description": "A(z) {{team}} játékosai. A csapat minden tagja ugyanazt a keretet látja és szerkesztheti."
     },
     "saved": {
       "title": "Mentett rajtlisták",
@@ -153,6 +160,22 @@
     "makeOwnerConfirm": "Igen, legyen tulajdonos",
     "makeOwnerLabel": "{{number, number}}. tag tulajdonossá tétele",
     "lastOwner": "Ön az egyetlen tulajdonos. Kilépés előtt tegyen tulajdonossá valaki mást."
+  },
+  "players": {
+    "title": "Játékosok",
+    "description": "A csapat minden tagja hozzáadhat, szerkeszthet és törölhet játékosokat. Minden játékosról csak a nevét és az NSSZ-számát tároljuk.",
+    "addTitle": "Játékos hozzáadása",
+    "add": "Hozzáadás",
+    "empty": "Még nincs játékos. Adja hozzá az elsőt fent.",
+    "listLabel": "A(z) {{team}} játékosai",
+    "nssz": "NSSZ-szám: {{number}}",
+    "edit": "Szerkesztés",
+    "editLabel": "{{name}} szerkesztése",
+    "save": "Mentés",
+    "delete": "Törlés",
+    "deleteConfirm": "Igen, törlöm",
+    "deleteLabel": "{{name}} törlése",
+    "deleteHint": "Egy játékos törlése nem változtatja meg a már mentett rajtlistákat: azok megőrzik a név és az NSSZ-szám saját másolatát."
   },
   "invites": {
     "title": "Meghívás",
@@ -187,5 +210,14 @@
     "goneTitle": "Ez a meghívó hivatkozás már nem érvényes",
     "goneBody": "Lejárt, vagy visszavonták. Kérjen új hivatkozást a csapat tulajdonosától.",
     "home": "Tovább az alkalmazásba"
+  },
+  "directory": {
+    "title": "Ellenfél-névjegyzék",
+    "hint": "Itt csak azoknak a csapatoknak a neve jelenik meg, amelyek kérték, hogy szerepeljenek a névjegyzékben. Bármely más ellenfél nevét továbbra is beírhatja a rajtlista készítésekor.",
+    "search": "Keresés a csapatok között",
+    "results": "Listázott csapatok",
+    "empty": "Még egy csapat sem szerepel a névjegyzékben.",
+    "noMatch": "Nincs ilyen csapat.",
+    "more": "Az első {{count}} csapat látható. Írjon be egy nevet a szűkítéshez."
   }
 }

@@ -3,7 +3,7 @@
 The web app lives in `frontend/`. The tooling, the theme, the app shell, the generated API client
 and the cold-start handling are in place, and so are **Google sign-in** (through Supabase Auth)
 and the first-run **team onboarding**. Behind the sign-in sits the **one-off lineup form** on `/`
-(Lineup); the other two areas of the navigation (Roster, Saved) are still "coming soon" pages. The screens arrive phase by phase (see [[Roadmap: Frontend]]
+(Lineup), the **Team** page (members and invite links), and the **Roster** page (players, team settings, opponent directory search); the Saved area of the navigation is still a "coming soon" page. The screens arrive phase by phase (see [[Roadmap: Frontend]]
 and `PLAN.md`). The backend it talks to is described in [[Current State: Backend]].
 
 ## How it is built
@@ -229,6 +229,19 @@ since #96 the endpoint it calls requires the token too (rate limited: a `429` co
   drafts, `autocomplete="off"` on the form, nothing logged. (A test asserts that storage stays empty.)
   The error and validation texts follow the UI language (see *Language*).
 
+### The roster
+
+The **Roster** page (`/roster`) is three cards for the current team (#197). **Players** lists the
+team's players and lets any member add one (name and NSSZ number, nothing else), edit one in
+place or delete one (a second click confirms). The whole team shares the roster, so no role is
+needed. Deleting a player does not change lineups that were already saved: they keep the name and
+NSSZ number as they were when saved, and a hint under the list says so. **Team settings**, shown to
+owners only, renames the team and switches "list the team's name in the opponent directory" on or
+off. **Opponent directory** is a search box over the teams that chose to be listed; it shows team
+names only (never rosters or lineups), waits 300 ms after typing, and keeps the last results on
+screen while the next ones load. Names, NSSZ numbers and search terms live in component state and
+the in-memory query cache only: nothing goes to browser storage, the address bar or a log.
+
 ### Privacy by construction
 
 The font (Google Sans Flex) is self-hosted through Fontsource and nothing is loaded from a third
@@ -258,7 +271,7 @@ ecosystem). Details are in [[Current State: Everything Else]].
 
 ## Not built yet
 
-Roster screens, team switching (a user in several teams always sees the first by name), saved-lineup previews and committed
+Team switching (a user in several teams always sees the first by name), saved-lineup previews and committed
 browser (Playwright) tests. The sign-in code is covered by unit tests
 and was checked in a real browser against a local stand-in for Supabase Auth, but a real Google
 sign-in only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].
