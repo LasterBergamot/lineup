@@ -34,11 +34,11 @@ describe("signed out", () => {
   it("offers the language switch before signing in", async () => {
     renderApp("/sign-in", null);
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Magyar" }));
+    await userEvent.click(screen.getByRole("button", { name: "HU – Magyar" }));
     expect(screen.getByRole("heading", { name: "Bejelentkezés" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Folytatás Google-lal" })).toBeInTheDocument();
     expect(localStorage.getItem("lineup-lang")).toBe("hu");
-    await userEvent.click(screen.getByRole("button", { name: "English" }));
+    await userEvent.click(screen.getByRole("button", { name: "EN – English" }));
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 

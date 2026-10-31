@@ -186,6 +186,16 @@ tasks:
     desc: Type-check and build the production bundle into frontend/dist
     cmd: pnpm build
 
+  fe:e2e:
+    dir: frontend
+    desc: Browser tests (Playwright, Chromium, phone and desktop size, axe checks); the network is mocked. Set LINEUP_CHROMIUM=/usr/bin/chromium to use an installed browser
+    cmd: pnpm e2e {{.CLI_ARGS}}
+
+  fe:e2e:install:
+    dir: frontend
+    desc: Download the Chromium that Playwright drives (not needed when LINEUP_CHROMIUM points at one)
+    cmd: pnpm exec playwright install chromium
+
   fe:check:
     desc: Everything the frontend CI job runs (lint, tests with coverage, build with type check, API client freshness)
     cmds:

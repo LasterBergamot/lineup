@@ -204,7 +204,7 @@ Four GitHub Actions workflows (`.github/workflows/`):
   workflows after 60 days without repo activity, and a disabled workflow doesn't fail, so after a long break
   check the Actions tab and re-enable it.
 
-`ci.yml` has four jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
+`ci.yml` has five jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
 Prettier, the type check, the Vitest suite with a coverage report (it fails below 100 %, set in `frontend/vite.config.ts`) and the production build, then `task fe:api:check`, which
 regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
 and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
@@ -214,7 +214,7 @@ on `develop` and `main`. **Lint & test** runs ruff, the tests at 100% coverage, 
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
 (`tests/test_postgres_migrations.py`), then `alembic check` with type comparison and a
-`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests.
+`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests. **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
 
 `ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
 `documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the

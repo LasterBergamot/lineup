@@ -6,7 +6,17 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage", "public", "src/api/schema.d.ts"] },
+  {
+    ignores: [
+      "dist",
+      "node_modules",
+      "coverage",
+      "public",
+      "src/api/schema.d.ts",
+      "playwright-report",
+      "test-results",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -40,5 +50,15 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Playwright fixtures are functions that call `use(...)`, which is not a React hook.
+    files: ["e2e/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off" },
+  },
+  {
+    // Node scripts (run by hand, e.g. `pnpm icons`).
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
   },
 );

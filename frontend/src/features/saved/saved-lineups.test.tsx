@@ -258,7 +258,7 @@ describe("SavedLineups", () => {
   it("opens the creator with only the id of the lineup to clone, no names", async () => {
     renderList();
     await userEvent.click(
-      await screen.findByRole("button", { name: "Clone SZVTK - Opponent 2 to a new match" }),
+      await screen.findByRole("button", { name: "Clone to new match: SZVTK - Opponent 2" }),
     );
     expect(screen.getByText('creator with {"cloneFromId":"l-2"}')).toBeInTheDocument();
   });

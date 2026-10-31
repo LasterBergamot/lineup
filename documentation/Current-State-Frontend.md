@@ -41,6 +41,31 @@ from one list (`src/components/nav-items.ts`). The dark theme is a `dark` class 
 before first paint by `public/theme-init.js` (a separate file instead of an inline script, so a
 strict Content-Security-Policy stays possible) and remembered in localStorage.
 
+### Phones, installing and browser tests
+
+- **Touch**: on a touch screen (`pointer-coarse:`) buttons and text fields are 44 px tall, on a
+  mouse 32-40 px. Text fields are 16 px below the `md` breakpoint, because iOS Safari zooms the
+  page in when a smaller field is focused. The player row of the lineup creator stacks (cap number
+  and remove button, then the roster picker, name and NSSZ number each full width) below the
+  container's `2xl` width, so the picker's text is never cut off.
+- **Safe areas**: `index.html` has `viewport-fit=cover`; the top bar, the bottom navigation and the
+  full-screen preview sheet add `env(safe-area-inset-*)` padding, so nothing hides under a notch
+  or the home bar when the app runs from the home screen.
+- **Installable**: `public/manifest.webmanifest` (standalone, the Polaris teal, 192/512 px and a
+  maskable icon) and an `apple-touch-icon` make "Add to home screen" work. The PNGs are rendered
+  from the favicon mark by `pnpm icons` (`scripts/make-icons.mjs`) and committed. There is
+  deliberately **no service worker**: no personal data is cached for offline use. A strict CSP
+  (#97) will need `manifest-src 'self'`.
+- **Browser tests** (`task fe:e2e`, `frontend/e2e/*.e2e.ts`, Playwright, #159): the production
+  build is served by `vite preview` and driven in Chromium as a `phone` (360x740, touch) and a
+  `desktop` (1280x800) project. `e2e/fixtures.ts` answers every call to the API and to the fake
+  Supabase host inside the browser (a session is placed in localStorage), so the tests need no
+  backend, database or Google account and use made-up data only. They check, per screen and in
+  the light and dark theme, that the page does not scroll sideways and has no serious or critical
+  axe violation (including WCAG 2.5.3 label-in-name), in English and Hungarian, plus the sign-in page, onboarding, the creator's preview and the Saved page's
+  highlighted row. A test fails when the app calls an API route the fixture does not know.
+  Locally, `LINEUP_CHROMIUM=/usr/bin/chromium task fe:e2e`; CI installs Playwright's Chromium.
+
 ### Language (Hungarian / English)
 
 The UI is Hungarian by default and English is selectable (#155).
@@ -316,11 +341,10 @@ Supabase redirect list, so sign-in does not work there. Setup steps: [[Pages Set
 
 A `Frontend` job in `ci.yml` runs lint + format check, type check, unit tests, the build and the
 API-client freshness check on every PR; Dependabot watches `frontend/package.json` (`npm`
-ecosystem). Details are in [[Current State: Everything Else]].
+ecosystem). A separate, report-only `Frontend browser tests` job runs `task fe:e2e`.
+Details are in [[Current State: Everything Else]].
 
 ## Not built yet
 
-Team switching (a user in several teams always sees the first by name) and committed
-browser (Playwright) tests. The sign-in code is covered by unit tests
-and was checked in a real browser against a local stand-in for Supabase Auth, but a real Google
-sign-in only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].
+Team switching (a user in several teams always sees the first by name). The browser tests
+mock the network, so they never exercise a real Google sign-in; that only works once the one-off console setup in [[Auth Setup]] is done. See [[Roadmap: Frontend]].

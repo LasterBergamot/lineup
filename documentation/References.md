@@ -47,7 +47,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | Lucide | Icons | [lucide.dev](https://lucide.dev/) |
 | pdf.js | In-page PDF previews (planned) | [mozilla.github.io/pdf.js](https://mozilla.github.io/pdf.js/) |
 | Vitest, Testing Library | Unit and component tests (`@vitest/coverage-v8` adds the coverage report and the 100 % gate) | [vitest.dev](https://vitest.dev/) · [testing-library.com](https://testing-library.com/docs/react-testing-library/intro/) |
-| Playwright | Browser tests (planned) | [playwright.dev](https://playwright.dev/) |
+| Playwright, axe-core | Browser tests at phone and desktop size, with accessibility checks (`task fe:e2e`) | [playwright.dev](https://playwright.dev/) · [dequeuniversity.com/rules/axe](https://dequeuniversity.com/rules/axe/) |
 
 ## Developer tooling
 
@@ -146,9 +146,11 @@ Direct dependencies from `frontend/package.json`.
 
 | Package | Group | Link |
 |---|---|---|
+| `@axe-core/playwright` | dev | [npm](https://www.npmjs.com/package/@axe-core/playwright) |
 | `@eslint/js` | dev | [npm](https://www.npmjs.com/package/@eslint/js) |
 | `@fontsource-variable/google-sans-flex` | runtime | [npm](https://www.npmjs.com/package/@fontsource-variable/google-sans-flex) |
 | `@hookform/resolvers` | runtime | [npm](https://www.npmjs.com/package/@hookform/resolvers) |
+| `@playwright/test` | dev | [npm](https://www.npmjs.com/package/@playwright/test) |
 | `@radix-ui/react-slot` | runtime | [npm](https://www.npmjs.com/package/@radix-ui/react-slot) |
 | `@supabase/supabase-js` | runtime | [npm](https://www.npmjs.com/package/@supabase/supabase-js) |
 | `@tailwindcss/vite` | dev | [npm](https://www.npmjs.com/package/@tailwindcss/vite) |
@@ -214,6 +216,7 @@ Third-party actions used in `.github/workflows/`.
 |---|---|
 | `actions/checkout` | [GitHub](https://github.com/actions/checkout) |
 | `actions/setup-node` | [GitHub](https://github.com/actions/setup-node) |
+| `actions/upload-artifact` | [GitHub](https://github.com/actions/upload-artifact) |
 | `aquasecurity/trivy-action` | [GitHub](https://github.com/aquasecurity/trivy-action) |
 | `arduino/setup-task` | [GitHub](https://github.com/arduino/setup-task) |
 | `astral-sh/setup-uv` | [GitHub](https://github.com/astral-sh/setup-uv) |

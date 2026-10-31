@@ -1,8 +1,8 @@
 {
   "language": {
     "label": "Language",
-    "hu": "Magyar",
-    "en": "English"
+    "hu": "HU – Magyar",
+    "en": "EN – English"
   },
   "common": {
     "loading": "Loading",
@@ -158,7 +158,7 @@
     "removeLabel": "Remove member {{number, number}}",
     "makeOwner": "Make owner",
     "makeOwnerConfirm": "Yes, make owner",
-    "makeOwnerLabel": "Make member {{number, number}} the owner",
+    "makeOwnerLabel": "Make owner: member {{number, number}}",
     "lastOwner": "You are the only owner. Make someone else the owner before you leave."
   },
   "players": {
@@ -259,7 +259,7 @@
       "docxOf": "Download {{match}} as DOCX"
     },
     "clone": "Clone to new match",
-    "cloneOf": "Clone {{match}} to a new match",
+    "cloneOf": "Clone to new match: {{match}}",
     "delete": "Delete",
     "deleteConfirm": "Delete lineup",
     "deleteOf": "Delete {{match}}",

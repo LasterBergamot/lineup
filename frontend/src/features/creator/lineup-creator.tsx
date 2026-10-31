@@ -273,7 +273,10 @@ export function LineupCreator({
                       />
                     )}
                   </Field>
-                  <Field label={t("creator.rosterPlayer")}>
+                  <Field
+                    label={t("creator.rosterPlayer")}
+                    className="col-span-3 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
+                  >
                     {(props) => (
                       <Select
                         {...props}
@@ -298,7 +301,7 @@ export function LineupCreator({
                   <Field
                     label={t("fields.name")}
                     error={rowErrors?.name?.message}
-                    className="col-span-2 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
+                    className="col-span-3 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
                   >
                     {(props) => (
                       <Input
@@ -311,7 +314,7 @@ export function LineupCreator({
                   <Field
                     label={t("fields.nsszNumber")}
                     error={rowErrors?.nssz_number?.message}
-                    className="col-span-2 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
+                    className="col-span-3 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
                   >
                     {(props) => (
                       <Input
@@ -325,7 +328,7 @@ export function LineupCreator({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="mt-[1.625rem]"
+                    className="col-start-3 row-start-1 mt-[1.625rem] self-start @2xl:col-start-auto @2xl:row-start-auto"
                     aria-label={t("lineup.removePlayer", { number: index + 1 })}
                     onClick={() => remove(index)}
                     disabled={fields.length === 1}
