@@ -5,6 +5,10 @@
 .env
 .env.*
 *.db
+*.sqlite
+
+# `task run` output: a filled-in lineup (personal data)
+resources/modified_rajtlista.docx
 
 # VCS, tooling, caches (the build context is backend/, so repo-root dirs like .github never reach it)
 .git

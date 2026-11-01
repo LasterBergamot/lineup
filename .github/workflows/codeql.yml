@@ -1,0 +1,48 @@
+name: CodeQL
+
+# Static analysis of our own code (Python backend, TypeScript frontend) for injection, unsafe
+# deserialization, path handling and similar bugs. It complements ruff's flake8-bandit `S` rules
+# and the Trivy image scan in ci.yml; results appear in Security -> Code scanning (#98).
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  schedule:
+    # Weekly, so a new query pack also reports on code nobody has touched.
+    - cron: "17 4 * * 2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Dependabot's token is read-only, so it cannot upload results to code scanning.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4
+        with:
+          languages: ${{ matrix.language }}
+          # Both languages are interpreted: no build step to trace.
+          build-mode: none
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4
+        with:
+          category: "/language:${{ matrix.language }}"
