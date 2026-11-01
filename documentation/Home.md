@@ -27,6 +27,8 @@ saved roster instead of a one-off request payload.
   secrets, deploying and troubleshooting
 - [[Pages Setup]] — how the web app is hosted on Cloudflare Pages, creating the dev site, build
   variables, the allow-lists to update, and why PR previews cannot sign in
+- [[Supabase Admin Guide]] — fixing or removing dev data by hand in Supabase Studio: finding a user or
+  team, what each delete cascades to, revoking an invitation, backing up first and what never to do
 - [[Privacy and Security]] — who is controller and processor, the personal-data inventory (field →
   table → purpose → basis → retention), sub-processors and regions, backups, what is not built yet
   and the checklist before inviting anyone. The next four pages are built from it:
