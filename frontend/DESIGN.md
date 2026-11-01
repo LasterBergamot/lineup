@@ -77,7 +77,7 @@ rounded:
 The visual language of the web app. The tokens live in `src/index.css` (light in `:root`, dark in
 `.dark`) and are exposed to Tailwind through `@theme inline`; components use the semantic tokens
 (`bg-primary`, `text-muted-foreground`) and never raw hex. It replaces the earlier "Polaris" theme.
-The decisions and the port plan are in `PLAN-ui-redesign.md` and `PLAN.md` (D14). A private visual
+The decision is D14 in `PLAN.md`. A private visual
 reference, the *Lineup Design System* artifact, shows every component in light and dark.
 
 ## Colors

@@ -339,7 +339,7 @@ lineup/
 ├── .github/                         # CI (ci.yml, codeql.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
-├── PLAN.md  PLAN-ui-redesign.md     # Working plans: the dev preview; porting the new UI design system into frontend/ (delete when done)
+├── PLAN.md                          # Working plan: the dev preview
 ├── CLAUDE.md  README.md             # Assistant router (detail in .claude/rules + .claude/context); this file
 ├── frontend/                        # React + TypeScript + Vite web app (pnpm)
 │   ├── DESIGN.md                    # Design system spec (tokens, shapes, wordmark)
