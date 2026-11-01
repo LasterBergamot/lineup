@@ -128,7 +128,8 @@ creator (desktop and phone), saved lineups, roster and team, in light and dark.
 
 | Date | Item | PR |
 |------|------|----|
-| 2026-11-01 | Plan written | this PR |
+| 2026-11-01 | Plan written | #237 |
+| 2026-11-01 | PR 1: visual foundation (tokens, wordmark, favicon, selected row, banners, docs), issue #238 | #240 |
 
 ---
 
