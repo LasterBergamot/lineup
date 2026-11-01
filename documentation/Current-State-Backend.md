@@ -261,9 +261,11 @@ erDiagram
 freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` →
 `players.id` (`ondelete="SET NULL"`). Rendering a lineup relies **only** on the frozen
 fields — no joins to live tables — so editing or deleting master data never breaks history.
-`Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"` at the DB level, but team
-deletion is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never
-fires in practice.
+`Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"`. Team deletion
+checks first, so the caller gets a clear 409 ("it still has N player(s)"), but the database is the real
+guard: a player added between the check and the delete makes `RESTRICT` refuse, and the repository
+turns that `IntegrityError` into the same 409. `Team.players` is `passive_deletes="all"` so the ORM
+never tries to null the players' `team_id` itself.
 
 **Teams, members and invitations**: `team_members` says who belongs to a team (composite primary
 key `(team_id, user_id)`, role `owner` or `member`, enforced by a `CHECK` so adding `admin` later is a
@@ -288,9 +290,11 @@ saved lineup into the team it was made for, or else its creator's oldest team. T
 because the dev project was the single database holding pre-auth rows; it is not a pattern for data that
 matters.
 
-**Async loading gotcha**: `Team.players` and `SavedLineup.player_snapshots` are
-`relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships
-synchronously (raises `MissingGreenlet`), so eager `selectin` loading is required.
+**Async loading gotcha**: async SQLAlchemy can't lazy-load relationships synchronously (raises
+`MissingGreenlet`), so a relationship is either eager or forbidden. `SavedLineup.player_snapshots` is
+`lazy="selectin"` (every lineup response needs it). `Team.players` is `lazy="raise"`: nothing reads a
+roster through the team, so listing teams loads no players; use an explicit `selectinload(Team.players)`
+if a query ever needs it.
 
 **SQLite foreign keys**: SQLite ignores `ondelete` clauses entirely unless
 `PRAGMA foreign_keys=ON` is set per-connection — `enable_sqlite_foreign_keys(engine)` in

@@ -238,8 +238,18 @@ async def recent_opponents(
 async def delete_team(
     session: AsyncSession,
     team: Team,
-) -> None:
-    """Delete the team and commit; its memberships and invitations go with it. The caller must
-    have checked that no players or saved lineups remain."""
+) -> bool:
+    """Delete the team and commit; its memberships and invitations go with it.
+
+    Returns `False` (after rolling back) when the database's `ON DELETE RESTRICT` refuses
+    because a player or saved lineup still points at the team. The service checks first, so this
+    only happens when one was added in between: the database, not the check, is what prevents
+    orphans.
+    """
     await session.delete(team)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        return False
+    return True

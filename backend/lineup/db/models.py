@@ -41,7 +41,9 @@ class Team(Base):
     lineups. `created_by` (the Supabase user id of the creator, who is also its first `owner`
     member) is for auditing only and grants nothing; ownership can move (`team_members.role`).
     A team that still has roster players or saved lineups cannot be deleted (both foreign keys
-    are `ON DELETE RESTRICT`; the service reports it as 409 before the database ever has to).
+    are `ON DELETE RESTRICT`). The service reports it as 409 after a friendly pre-check, and
+    the database is the real guard: if a player is added between the check and the delete,
+    `RESTRICT` refuses and the service turns that into the same 409.
 
     """
 
@@ -54,9 +56,13 @@ class Team(Base):
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
-    # RESTRICT (players.team_id): a team with roster players can't be deleted
+    # `passive_deletes="all"`: deleting a team must not make SQLAlchemy load the players and
+    # null their `team_id`. The database's `ON DELETE RESTRICT` has to see the delete and refuse
+    # it, even when a player was added after the service's own check. `lazy="raise"` because
+    # nothing needs the roster through the team; use an explicit `selectinload(Team.players)`
+    # where a query does.
     players: Mapped[list["Player"]] = relationship(
-        "Player", back_populates="team", lazy="selectin"
+        "Player", back_populates="team", lazy="raise", passive_deletes="all"
     )
 
 
