@@ -101,7 +101,10 @@ git-ignored.
   reach the image. `backend/.dockerignore` matters for **security**, not just size: the
   Dockerfile does `COPY . .`, so anything not excluded ends up in an image layer. It excludes
   `.env`/`.env.*` (the Supabase credentials in `backend/.env` sit *inside* the context) and
-  `*.db` (local SQLite data), plus tests, `*.md`, caches and `.git`. Check it whenever a new
+  `*.db`/`*.sqlite` (local SQLite data) and `resources/modified_rajtlista.docx` (the output of
+  `task run`, a filled-in lineup, i.e. personal data), plus tests, `*.md`, caches and `.git`. The
+  root `.gitignore` covers the same files so they can't be committed either
+  (`backend/tests/test_repo_hygiene.py` guards both lists). Check it whenever a new
   secret or local-state file appears in `backend/`. The image ships without tests, which is why the
   e2e suite runs from the host against the running container rather than inside the image.
 - The container starts `uvicorn` straight from the virtualenv's `bin` directory (which is on `PATH`):
@@ -257,6 +260,16 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
   executable path) ignored the same way — its `subprocess.run([...])` call uses a literal
   executable name and an argv list with no `shell=True` and no user-controlled input, so
   neither warning reflects a real risk there.
+- **CodeQL** (`.github/workflows/codeql.yml`, #98): static analysis of the Python and
+  TypeScript code with GitHub's default query suite, on every PR into `develop`/`main`, every
+  push to them and weekly (Tuesday). Both languages are interpreted, so no build is traced
+  (`build-mode: none`). Dependabot PRs are skipped, because Dependabot's token is read-only and
+  cannot upload results. Results land in Security → Code scanning next to Trivy's. The repo uses
+  this *advanced* workflow, so GitHub's "default setup" for code scanning must stay off (the two
+  conflict).
+- **Security policy**: `SECURITY.md` tells people to report privately through GitHub's
+  *private vulnerability reporting* (a repository setting the owner turns on under
+  Settings → Code security; the file alone does not enable it).
 - **Container image scanning**: `aquasecurity/trivy-action` scans the built `lineup:latest`
   image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). One scan
   produces the SARIF file; the job summary's findings table is rendered from it, so the two never
@@ -327,7 +340,7 @@ full model ID. If a skill seems to run an older model, check the
 `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` environment variables on your machine: they
 override what the aliases resolve to. Every skill that writes to GitHub, git or
 Supabase asks before each state-changing command. The shared `.claude/settings.json` lets
-`task lint`/`task test` run without prompting and denies reading `.env*` (at the root and in `backend/`), so credentials
+`task lint`/`task test` run without prompting and denies reading `.env*` (at the root, in `backend/` and in `frontend/`), so credentials
 never enter the conversation.
 
 **Issue conventions** (the values `new-issue` reads from `.claude/context/issues.md`):

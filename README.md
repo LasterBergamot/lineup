@@ -65,7 +65,8 @@ If you're editing the workflow YAML files themselves, `yamllint` and `actionlint
 
 - **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies (minor and patch updates grouped per ecosystem, majors separate); security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
 - **Secret scanning:** GitHub secret scanning + push protection are enabled at the repo level (no code/config in this repo).
-- **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`.
+- **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`, and CodeQL (`.github/workflows/codeql.yml`) analyses the Python and TypeScript code on every PR into `develop`/`main`, on every push to them and weekly; findings are in the Security tab.
+- **Reporting a vulnerability:** see [`SECURITY.md`](SECURITY.md) (GitHub private vulnerability reporting, not a public issue).
 - **Container scanning:** Trivy scans the built image in CI (report-only, see above).
 - **Error monitoring:** [Sentry](https://sentry.io) (free Developer tier) — set the `SENTRY_DSN` environment variable in the deployment environment to enable it; errors only, no performance tracing. Unset locally, in CI, and in tests, so nothing is ever sent by default.
 - **Logging:** deferred until a real deployment target is chosen — see the "Logging (future)" section of the Roadmap: Everything Else wiki page.
@@ -334,7 +335,8 @@ lineup/
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key, moves it to port 8001 and drops `backend/.env`
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
 ├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), db_env.py and db_query.py (`task db:*`), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
-├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
+├── SECURITY.md                      # Security policy: how to report a vulnerability privately
+├── .github/                         # CI (ci.yml, codeql.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
 ├── PLAN.md  CLAUDE.md  README.md    # Working plan; assistant router (detail in .claude/rules + .claude/context); this file
