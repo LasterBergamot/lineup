@@ -192,12 +192,18 @@ Four GitHub Actions workflows (`.github/workflows/`):
   is read-only (`contents: read`) and passes labels through `env:` rather than interpolating
   them into the script. **Why a check at all:** docs drifted whenever updating them depended
   on someone remembering; a failing check makes "did you update the docs?" part of review.
-- **`wiki-sync.yml`** — on push to `develop` touching `documentation/**`: mirrors this folder
-  into the GitHub wiki (with an explicit filename-rename map, since wiki filenames preserve
-  colons but `documentation/`'s filenames don't, for filesystem portability). The map is
-  explicit, so a page missing from it would silently never be published: the workflow now
-  fails when a `documentation/*.md` file is not in the map, and `tests/test_docs_tooling.py`
-  checks the same thing on every PR.
+- **`wiki-sync.yml`** — on push to `develop` touching `documentation/**` (or the workflow or
+  `scripts/sync_wiki.py` themselves), and by hand (`workflow_dispatch`, `develop` only): runs
+  `scripts/sync_wiki.py`, which mirrors this folder into the GitHub wiki. A wiki page is named
+  after the file's first `# Title` with hyphens for spaces (`# Current State: Backend` becomes
+  `Current-State:-Backend.md`, which is what `[[Current State: Backend]]` links to; wiki filenames
+  keep colons, `documentation/`'s don't, for filesystem portability), and `Home.md` stays `Home`.
+  So **a new page needs no workflow edit**: give it a title and link it from `Home.md`. The mirror
+  is exact: a wiki page whose source file was removed or renamed is deleted (files starting with
+  `_`, the wiki's own sidebar/footer, are kept), and the script fails on a page with no title or
+  two pages with the same title. Runs queue (`concurrency`) so two quick pushes can't race on the
+  wiki's `git push`. `tests/test_docs_tooling.py` runs the same naming code on every PR and checks
+  that every page is linked from `Home.md`; the workflow itself only runs on `develop`.
 - **`release.yml`** — by hand (#17): checks that `backend/pyproject.toml` and `frontend/package.json` carry the same
   untagged `MAJOR.MINOR.PATCH` version, then creates the `vX.Y.Z` tag and a GitHub Release (pre-release below 1.0)
   with generated notes and the Alembic migrations added since the last tag. It needs only `contents: write`, no

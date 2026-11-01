@@ -41,9 +41,9 @@ spaces become hyphens), and the sync workflow's rename map accounts for this.
 - Architecture / API / data model → `Current-State-Backend.md` (or `-Frontend.md`). Dev
   workflow, container, conventions → `Current-State-Everything-Else.md`. Plans →
   `Roadmap-*.md`; when one is done, move it to the matching `Current-State-*` page.
-- A new file in `documentation/` must be added to `PAGE_MAP` in
-  `.github/workflows/wiki-sync.yml` (a test and the workflow fail otherwise) and linked from
-  `Home.md`.
+- A new file in `documentation/` needs a `# Title` heading (the wiki page is named after it,
+  `scripts/sync_wiki.py`) and a `[[Title]]` link from `Home.md` (a test fails otherwise). There
+  is no page map to edit. Removing or renaming a file removes the old wiki page on the next sync.
 - Newcomer Guide: update it when the architecture, request flow, tooling, commands or the
   contribution workflow change. Keep it written for a junior developer.
 - References: run `task docs:references` whenever a dependency, `Dockerfile` or workflow

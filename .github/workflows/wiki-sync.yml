@@ -3,62 +3,45 @@ name: Wiki Sync
 on:
   push:
     branches: [develop]
+    # The workflow and its script are inputs too: changing how pages are mirrored must re-mirror.
     paths:
       - "documentation/**"
+      - "scripts/sync_wiki.py"
+      - ".github/workflows/wiki-sync.yml"
+  # For a manual re-sync, for example after someone edited the wiki in the browser.
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+# Two quick pushes would race on the wiki's `git push`; queue them instead (the second run then
+# copies the newest documentation/ anyway). Never cancel a run that is half-way through a push.
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
 jobs:
   sync:
     name: Mirror documentation/ into the wiki
+    # A manual run from another branch would publish that branch's unreviewed pages.
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main repo
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Checkout wiki
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # The wiki page for each file is named after its `# Title` (scripts/sync_wiki.py), so a
+      # new page needs no edit here. The script fails on a page without a title or two pages
+      # with the same one, and deletes wiki pages whose source file is gone.
       - name: Mirror documentation/ into the wiki checkout
-        run: |
-          declare -A PAGE_MAP=(
-            ["Home.md"]="Home.md"
-            ["Newcomer-Guide.md"]="Newcomer-Guide.md"
-            ["References.md"]="References.md"
-            ["Auth-Setup.md"]="Auth-Setup.md"
-            ["Fly-Setup.md"]="Fly-Setup.md"
-            ["Pages-Setup.md"]="Pages-Setup.md"
-            ["Supabase-Admin-Guide.md"]="Supabase-Admin-Guide.md"
-            ["Setup.md"]="Setup.md"
-            ["Privacy-and-Security.md"]="Privacy-and-Security.md"
-            ["Privacy-Notice.md"]="Privacy-Notice.md"
-            ["Terms-and-Processor-Agreement.md"]="Terms-and-Processor-Agreement.md"
-            ["Compliance-Records.md"]="Compliance-Records.md"
-            ["Breach-Runbook.md"]="Breach-Runbook.md"
-            ["Current-State-Backend.md"]="Current-State:-Backend.md"
-            ["Current-State-Everything-Else.md"]="Current-State:-Everything-Else.md"
-            ["Current-State-Frontend.md"]="Current-State:-Frontend.md"
-            ["Roadmap-Backend.md"]="Roadmap:-Backend.md"
-            ["Roadmap-Everything-Else.md"]="Roadmap:-Everything-Else.md"
-            ["Roadmap-Frontend.md"]="Roadmap:-Frontend.md"
-          )
-          # A page missing from PAGE_MAP would silently never be
-          # published, so fail instead.
-          for file in documentation/*.md; do
-            name="$(basename "$file")"
-            if [[ -z "${PAGE_MAP[$name]:-}" ]]; then
-              echo "::error::documentation/${name} is missing from PAGE_MAP"
-              exit 1
-            fi
-          done
-          for src in "${!PAGE_MAP[@]}"; do
-            cp "documentation/${src}" "wiki/${PAGE_MAP[$src]}"
-          done
+        run: python3 scripts/sync_wiki.py documentation wiki
 
       - name: Commit and push if changed
         working-directory: wiki
