@@ -89,6 +89,10 @@ class TeamMember(Base):
     `user_id` is a Supabase user id. It is deliberately not a foreign key: `auth.users` lives in
     another schema that SQLite (local and tests) doesn't have. Rows disappear with their team
     (`ON DELETE CASCADE`). The composite primary key means a user can be in a team only once.
+    `display_name` is the member's name copied from their own verified token (when they create
+    or join the team, and refreshed whenever they list their teams), so teammates can tell
+    who is who without any user lookup. It is personal data: it lives and dies with this row,
+    and is `NULL` until the member's token has carried a name.
 
     """
 
@@ -111,6 +115,7 @@ class TeamMember(Base):
     joined_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
     )
+    display_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
 class TeamInvitation(Base):

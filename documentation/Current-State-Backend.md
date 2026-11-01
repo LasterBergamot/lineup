@@ -217,6 +217,7 @@ erDiagram
         uuid user_id PK "Supabase user id, no FK"
         string role "owner | member"
         datetime joined_at
+        string display_name "nullable, copied from the member's own token"
     }
     TEAM_INVITATIONS {
         uuid id PK
@@ -578,8 +579,13 @@ It is personal data that lives and dies with the invitation row. **Retention:** 
 week (so a late guest still sees "expired", not "unknown"), then are deleted whenever an owner creates
 or lists links.
 
-**Members.** `GET /teams/{id}/members` lists user ids, roles and join dates to any member (no names or
-e-mail addresses exist to show). `DELETE /teams/{id}/members/{member_id}` lets an owner remove anyone and
+**Members.** `GET /teams/{id}/members` lists user ids, roles, join dates and display names to any member
+(no e-mail addresses exist to show). `team_members.display_name` is the same token snapshot as the
+inviter's name, but kept current: it is set when the member creates a team or accepts a link, and
+`GET /teams` (which the app calls on every start) rewrites it on all of the caller's own memberships
+when their token carries a different name. That is how members who joined before the column existed
+(migration `a9e3c7d51f28`, #245) get a name with no re-invite: it appears the next time they open the
+app, and shows as `null` until then. A token without a name never erases a stored one. `DELETE /teams/{id}/members/{member_id}` lets an owner remove anyone and
 any member remove themselves (leave); a team must keep an owner, so the last owner gets `409` and has to
 `POST /teams/{id}/transfer-ownership` first, which makes another member the owner and demotes the caller.
 Removing a member never touches the roster or lineups: they belong to the team.

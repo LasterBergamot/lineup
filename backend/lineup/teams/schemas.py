@@ -83,12 +83,16 @@ class PaginatedTeams(BaseModel):
 
 
 class MemberResponse(BaseModel):
-    """One member of a team. Only ids and roles: the API stores no names or e-mail addresses for
-    members. `is_you` marks the caller's own row so a client can show "(you)" and a Leave button."""
+    """One member of a team: id, role, join date and, when known, their name. `display_name` is
+    the Google name the member's own token carried the last time they used the app; it is `null`
+    for someone who has not opened the app since names were introduced, so show a fallback
+    such as "Member 2". No e-mail addresses are stored. `is_you` marks the caller's own row so a
+    client can show "(you)" and a Leave button."""
 
     user_id: uuid.UUID
     role: str
     joined_at: datetime
+    display_name: str | None
     is_you: bool
 
 

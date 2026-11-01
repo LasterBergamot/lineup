@@ -149,6 +149,7 @@
     "description": "Everyone in {{team}} sees and edits the same roster and saved lineups.",
     "listTitle": "Members",
     "you": "You",
+    "youNamed": "{{name}} (you)",
     "member": "Member {{number, number}}",
     "joined": "Joined {{date}}",
     "leave": "Leave team",
@@ -156,9 +157,11 @@
     "remove": "Remove",
     "removeConfirm": "Yes, remove",
     "removeLabel": "Remove member {{number, number}}",
+    "removeNamedLabel": "Remove {{name}}",
     "makeOwner": "Make owner",
     "makeOwnerConfirm": "Yes, make owner",
     "makeOwnerLabel": "Make owner: member {{number, number}}",
+    "makeOwnerNamedLabel": "Make owner: {{name}}",
     "lastOwner": "You are the only owner. Make someone else the owner before you leave."
   },
   "players": {

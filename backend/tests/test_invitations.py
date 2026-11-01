@@ -283,6 +283,23 @@ class TestRevoke:
         assert (await async_client.delete(url)).status_code == 403
 
 
+class TestAcceptRecordsTheName:
+    async def test_the_new_member_is_listed_by_name(
+        self, async_client: AsyncClient, current_user: CurrentUser
+    ):
+        team = await ensure_team(async_client)
+        link = await _create(async_client, team["id"])
+        owner = current_user.id
+        current_user.id = uuid.uuid4()
+        app.dependency_overrides[get_current_display_name] = lambda: "Kiss Béla"
+        assert (
+            await async_client.post(f"/invitations/{link['code']}/accept")
+        ).status_code == 200
+        current_user.id = owner
+        rows = (await async_client.get(f"/teams/{team['id']}/members")).json()
+        assert [r["display_name"] for r in rows] == [None, "Kiss Béla"]
+
+
 class TestPreview:
     async def test_needs_no_sign_in_and_reveals_little(self, async_client: AsyncClient):
         app.dependency_overrides[get_current_display_name] = lambda: "Török András"

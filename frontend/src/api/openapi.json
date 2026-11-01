@@ -274,8 +274,19 @@
         "type": "object"
       },
       "MemberResponse": {
-        "description": "One member of a team. Only ids and roles: the API stores no names or e-mail addresses for\nmembers. `is_you` marks the caller's own row so a client can show \"(you)\" and a Leave button.",
+        "description": "One member of a team: id, role, join date and, when known, their name. `display_name` is\nthe Google name the member's own token carried the last time they used the app; it is `null`\nfor someone who has not opened the app since names were introduced, so show a fallback\nsuch as \"Member 2\". No e-mail addresses are stored. `is_you` marks the caller's own row so a\nclient can show \"(you)\" and a Leave button.",
         "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "is_you": {
             "title": "Is You",
             "type": "boolean"
@@ -299,6 +310,7 @@
           "user_id",
           "role",
           "joined_at",
+          "display_name",
           "is_you"
         ],
         "title": "MemberResponse",
@@ -1249,7 +1261,7 @@
     },
     "/invitations/{code}/accept": {
       "post": {
-        "description": "Join the team behind the link (sign-in required). Returns the team with your role.\nSafe to repeat: if you are already a member nothing changes (and an owner stays an owner).\n404 for an unknown code, 410 when the link expired or was revoked.",
+        "description": "Join the team behind the link (sign-in required). Returns the team with your role.\nSafe to repeat: if you are already a member nothing changes (and an owner stays an owner).\nYour name from the sign-in token is saved on the new membership. 404 for an unknown code,\n410 when the link expired or was revoked.",
         "operationId": "accept_invitation_invitations__code__accept_post",
         "parameters": [
           {
@@ -1938,7 +1950,7 @@
     },
     "/teams": {
       "get": {
-        "description": "List the teams you belong to, ordered by name, each with your `role`. Paginated: `limit`\nis 1-200 (default 20) and `offset` starts at 0; the response carries `total` so clients\ncan page.",
+        "description": "List the teams you belong to, ordered by name, each with your `role`. Paginated: `limit`\nis 1-200 (default 20) and `offset` starts at 0; the response carries `total` so clients\ncan page. As a side effect your current name (from your sign-in token) is saved on your\nmemberships, so teammates see it on the Members page.",
         "operationId": "list_teams_teams_get",
         "parameters": [
           {
@@ -2446,7 +2458,7 @@
     },
     "/teams/{team_id}/members": {
       "get": {
-        "description": "Who is in this team: user id, role and join date, oldest first (`is_you` marks your own\nrow). No names or e-mail addresses are stored. 404 unless you are a member.",
+        "description": "Who is in this team: user id, role, join date and display name, oldest first (`is_you`\nmarks your own row). `display_name` is `null` until that member has opened the app with a\nname on their account. No e-mail addresses are stored. 404 unless you are a member.",
         "operationId": "list_members_teams__team_id__members_get",
         "parameters": [
           {

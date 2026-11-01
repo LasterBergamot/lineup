@@ -70,6 +70,25 @@ describe("members list", () => {
     for (const id of [ME, ANN, BEN]) expect(document.body.textContent).not.toContain(id);
   });
 
+  it("shows names where the API has them and falls back to Member N where it has not", async () => {
+    const [me, ...others] = membersList({ id: ANN, name: "Kiss Anna" }, { id: BEN, name: null });
+    mocks.listMembers.mockResolvedValue([{ ...me!, display_name: "Török András" }, ...others]);
+    renderApp("/members", fakeSession());
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringContaining("Török András (you)"),
+      expect.stringContaining("Kiss Anna"),
+      expect.stringContaining("Member 2"),
+    ]);
+    expect(document.body.textContent).not.toContain("Member 1");
+    expect(screen.getByRole("button", { name: "Remove Kiss Anna" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Make owner: Kiss Anna" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove member 2" })).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "HU – Magyar" })[0]!);
+    expect(await screen.findByText("Török András (Ön)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Eltávolítás: Kiss Anna" })).toBeInTheDocument();
+  });
+
   it("is reachable from the navigation", async () => {
     renderApp("/", fakeSession());
     await userEvent.click(

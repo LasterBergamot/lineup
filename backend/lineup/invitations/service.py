@@ -117,9 +117,13 @@ async def preview_invitation(session: AsyncSession, code: str) -> InvitationPrev
 
 
 async def accept_invitation(
-    session: AsyncSession, code: str, user_id: uuid.UUID
+    session: AsyncSession,
+    code: str,
+    user_id: uuid.UUID,
+    display_name: str | None = None,
 ) -> tuple[Team, str]:
-    """Join the team behind `code` and return it with the caller's role.
+    """Join the team behind `code` and return it with the caller's role; the new membership
+    records `display_name` so teammates can tell who joined.
 
     Idempotent: someone who is already a member keeps their role (an owner is never demoted by
     opening a member link). 404/410 as for the preview.
@@ -132,7 +136,11 @@ async def accept_invitation(
     if membership is not None:
         return team, membership.role
     await team_repository.add_member(
-        session, team_id=team_id, user_id=user_id, role=invitation.role
+        session,
+        team_id=team_id,
+        user_id=user_id,
+        role=invitation.role,
+        display_name=display_name,
     )
     # Re-read instead of trusting the insert: a double click can lose the race (the other
     # request already inserted the row, and the failed insert rolled this session back), and

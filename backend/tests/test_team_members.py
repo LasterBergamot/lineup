@@ -9,6 +9,8 @@ import uuid
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import app
+from lineup.auth.dependencies import get_current_display_name
 from tests.conftest import CurrentUser
 from tests.helpers import create_player, ensure_team, join_team
 
@@ -41,7 +43,14 @@ class TestListMembers:
             (str(owner), "owner", True),
             (str(member), "member", False),
         ]
-        assert set(rows[0]) == {"user_id", "role", "joined_at", "is_you"}
+        assert set(rows[0]) == {
+            "user_id",
+            "role",
+            "joined_at",
+            "display_name",
+            "is_you",
+        }
+        assert [r["display_name"] for r in rows] == [None, None]
 
     async def test_a_plain_member_may_list_too(
         self,
@@ -66,6 +75,74 @@ class TestListMembers:
         ).status_code == 404
         unknown = await async_client.get(f"/teams/{uuid.uuid4()}/members")
         assert unknown.status_code == 404
+
+
+def _sign_in_as(name: str | None) -> None:
+    """Make the caller's token carry `name` (the real token check is in test_auth_dependencies)."""
+    app.dependency_overrides[get_current_display_name] = lambda: name
+
+
+async def _names(client: AsyncClient, team_id: str) -> list[str | None]:
+    rows = (await client.get(f"/teams/{team_id}/members")).json()
+    return [r["display_name"] for r in rows]
+
+
+class TestMemberNames:
+    async def test_the_creator_is_listed_by_name(self, async_client: AsyncClient):
+        _sign_in_as("Török András")
+        team = await ensure_team(async_client)
+        assert await _names(async_client, team["id"]) == ["Török András"]
+
+    async def test_listing_teams_fills_in_a_member_who_joined_before_names(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        current_user: CurrentUser,
+    ):
+        team, _owner, member = await _team_with_member(
+            async_client, db_session, current_user
+        )
+        assert await _names(async_client, team["id"]) == [None, None]
+        current_user.id = member
+        _sign_in_as("Kiss Béla")
+        await async_client.get("/teams")
+        current_user.id = _owner
+        assert await _names(async_client, team["id"]) == [None, "Kiss Béla"]
+
+    async def test_it_fills_every_team_of_the_caller_and_nobody_else(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        current_user: CurrentUser,
+    ):
+        first, _owner, member = await _team_with_member(
+            async_client, db_session, current_user
+        )
+        second = await ensure_team(async_client, "Second")
+        await join_team(db_session, second["id"], member)
+        current_user.id = member
+        _sign_in_as("Kiss Béla")
+        await async_client.get("/teams")
+        current_user.id = _owner
+        assert await _names(async_client, first["id"]) == [None, "Kiss Béla"]
+        assert await _names(async_client, second["id"]) == [None, "Kiss Béla"]
+
+    async def test_a_changed_name_catches_up(self, async_client: AsyncClient):
+        _sign_in_as("Old Name")
+        team = await ensure_team(async_client)
+        _sign_in_as("New Name")
+        await async_client.get("/teams")
+        await async_client.get("/teams")  # nothing left to write the second time
+        assert await _names(async_client, team["id"]) == ["New Name"]
+
+    async def test_a_token_without_a_name_keeps_the_stored_one(
+        self, async_client: AsyncClient
+    ):
+        _sign_in_as("Török András")
+        team = await ensure_team(async_client)
+        _sign_in_as(None)
+        await async_client.get("/teams")
+        assert await _names(async_client, team["id"]) == ["Török András"]
 
 
 class TestRemoveMember:

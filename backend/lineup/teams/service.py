@@ -25,10 +25,15 @@ async def create_team(
     name: str,
     created_by: uuid.UUID,
     is_public: bool,
+    display_name: str | None = None,
 ) -> TeamWithRole:
-    """Create a team; its creator becomes its `owner`."""
+    """Create a team; its creator becomes its `owner`, listed under `display_name`."""
     team = await repository.create_team(
-        session, name=name, created_by=created_by, is_public=is_public
+        session,
+        name=name,
+        created_by=created_by,
+        is_public=is_public,
+        display_name=display_name,
     )
     return team, TeamRole.OWNER.value
 
@@ -63,8 +68,19 @@ async def list_teams(
     user_id: uuid.UUID,
     limit: int,
     offset: int,
+    display_name: str | None = None,
 ) -> tuple[list[TeamWithRole], int]:
-    """One page of the caller's teams (with their role) and the total count."""
+    """One page of the caller's teams (with their role) and the total count.
+
+    Also records the caller's current `display_name` on all their memberships (see
+    `repository.refresh_display_name`). The client lists teams every time it starts, so this is
+    what fills in members who joined before names were stored, with no re-invite. A token
+    without a name leaves the stored one alone.
+    """
+    if display_name:
+        await repository.refresh_display_name(
+            session, user_id=user_id, display_name=display_name
+        )
     return await repository.list_teams(
         session, user_id=user_id, limit=limit, offset=offset
     )
@@ -163,6 +179,7 @@ async def list_members(
             user_id=m.user_id,
             role=m.role,
             joined_at=m.joined_at,
+            display_name=m.display_name,
             is_you=m.user_id == user_id,
         )
         for m in members
