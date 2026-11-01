@@ -367,10 +367,12 @@ Supabase by accident.
 
 **Switching databases**: `task db:postgres` and `task db:sqlite` flip `backend/.env` between the two
 (uncomment/comment the real pooler `DATABASE_URL`, add/remove `ENV=production`), and
-`task db:status` reports the active one. Restart `task serve` / run `task up` to apply.
+`task db:status` reports the active one and its `ENV`, with a warning when they disagree. Restart `task serve` / run `task up` to apply.
 Switching back to SQLite involves no code or data migration — the two databases are simply
 independent. `db:postgres` refuses to run unless `backend/.env` already holds a filled-in pooler URL
-(port 6543, no `<placeholders>`).
+(port 6543, no `<placeholders>`). The three tasks share `scripts/db_env.py`, which understands `#DATABASE_URL=` with or without a space, quoted or unquoted values and any port when switching back to SQLite.
+
+`task db:query -- "select ..."` (`scripts/db_query.py`) is the read-only way to look at the database from a terminal: it runs the statement in `BEGIN READ ONLY ... ROLLBACK` with a 30 s timeout, as the app role by default (RLS applies) or as the owner with `--owner`. It hands the URL to `psql` as `PG*` environment variables, so the password is neither printed nor visible in the process list. It needs `psql` on the `PATH`. Changing data still goes through Alembic or the [[Supabase Admin Guide]].
 
 ### Changing the schema later (Alembic)
 
