@@ -112,7 +112,7 @@ If the script itself could not run (for example the API never started), nothing 
   (no URLs or secrets). Typical causes:
   - `DuplicatePreparedStatementError`: the pooler connect args in `backend/lineup/db/engine.py`
   - "can't subtract offset-naive and offset-aware datetimes" / `DataError` on timestamps:
-    the model datetime defaults
+    the model datetime defaults / `UtcDateTime` (`backend/lineup/db/types.py`)
   - missing column/table: the dev schema isn't at head
   - `401` everywhere: the API was started without `SUPABASE_URL=http://127.0.0.1:54399`, or `smoke_auth.py` isn't running
   - a `503 Authentication unavailable`: the fake key server isn't reachable on that port

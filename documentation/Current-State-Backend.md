@@ -338,10 +338,18 @@ Why the Postgres URL looks the way it does:
 - **`NullPool`** — for Postgres URLs `make_engine_kwargs()` disables SQLAlchemy's own
   connection pool, because the Supabase pooler already pools and stacking a second pool on
   top causes stale/duplicated connections.
-- **Naive UTC timestamps** — the `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so
-  the model defaults produce naive UTC datetimes (`_utcnow()` in `lineup/db/models.py`).
-  SQLite silently drops time zones, so an aware datetime worked there; asyncpg rejects it.
-  Moving to `timestamptz` columns would be a possible future improvement (needs a migration).
+- **Timestamps are `timestamptz`, always aware UTC** (migration `f2c8a5d7e931`, #65). Every
+  timestamp column uses `UtcDateTime` (`lineup/db/types.py`): it accepts only timezone-aware values
+  (a naive one raises, instead of silently guessing a zone), stores UTC, and returns aware UTC on
+  both databases, because SQLite has no real timestamp type and hands back text without a zone.
+  `_utcnow()` in `lineup/db/models.py` is the one clock. The API therefore serialises
+  `2026-11-01T10:00:00Z`-style values; the frontend's `parseApiDate` accepts both forms. Before this
+  the columns were `TIMESTAMP WITHOUT TIME ZONE` holding naive UTC, which asyncpg forced on us.
+- **Server defaults** — `is_public`, both `role` columns and every `created_at` / `joined_at` also
+  have a database default (`true`, `'member'`, `now()`), so a row inserted by hand in Supabase Studio
+  does not fail on a NOT NULL column. The Python-side defaults stay for SQLite and for readability.
+  The migration applies both changes on Postgres only; a SQLite file migrated by Alembic keeps its
+  old column definitions (SQLite is for local runs, and `create_all` builds the new shape).
 - **`AUTO_CREATE_SCHEMA`** — opt-in (`1`/`true`/`yes`) for `Base.metadata.create_all` on startup, and
   honoured **only for SQLite** (`auto_create_schema_enabled()` in `lineup/db/connection_settings.py`).
   `task serve` and the default Compose setup set it; Fly, tests and a Postgres `DATABASE_URL` never

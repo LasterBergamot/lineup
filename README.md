@@ -385,7 +385,8 @@ lineup/
     │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
     │       ├── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
     │       ├── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
-    │       └── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
+    │       ├── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
+    │       └── f2c8a5d7e931_timestamptz_and_server_defaults.py  # Postgres: timestamptz columns + server defaults
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
@@ -404,7 +405,9 @@ lineup/
     │   │   └── water_polo_lineup_dto.py      # Data model and builders
     │   ├── db/
     │   │   ├── base.py                  # DeclarativeBase
-    │   │   ├── engine.py                # DB engine (SQLite/Postgres aware), get_session() dependency
+    │   │   ├── engine.py                # DB engine (SQLite foreign keys), get_session() dependency
+    │   │   ├── connection_settings.py   # URL-only settings: pooler-safe engine kwargs, AUTO_CREATE_SCHEMA rule (Alembic imports it)
+    │   │   ├── types.py                 # UtcDateTime: timestamptz that is always aware UTC
     │   │   ├── app_role.py              # `task db:create-app-role`: lineup_app password + .env rewrite
     │   │   ├── urls.py                  # to_asyncpg_url(): plain postgresql:// -> postgresql+asyncpg://
     │   │   └── models.py                # Team, Player, SavedLineup, LineupPlayerSnapshot
@@ -452,7 +455,8 @@ lineup/
     │   ├── test_smoke_live.py           # scripts/smoke_live.py run against the real app: steps, failure, cleanup, sweep
     │   ├── test_input_hardening.py      # Control chars/blanks, unknown team_id, source-or-text, duplicate NSSZ, ordering
     │   ├── test_docs_tooling.py         # scripts/ (References generator, docs gate), wiki PAGE_MAP, Claude context guards
-    │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate, Postgres pool settings)
+    │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate)
+    │   ├── test_connection_settings.py  # pooler-safe engine kwargs, AUTO_CREATE_SCHEMA rule
     │   ├── test_db_models.py            # ORM model unit tests
     │   ├── test_teams.py                # Teams API + repository tests
     │   ├── test_players.py              # Players API + repository tests

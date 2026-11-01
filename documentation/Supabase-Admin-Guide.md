@@ -121,11 +121,11 @@ you have saved it.
 ### Revoke an invitation (prefer this to deleting)
 
 Revoking keeps the row, so it can be undone, and the app already treats a revoked link as "gone"
-(HTTP 410). The `*_at` columns are `timestamp without time zone` holding UTC:
+(HTTP 410). The `*_at` columns are `timestamptz`, so `now()` is right as it is:
 
 ```sql
 update team_invitations
-set revoked_at = now() at time zone 'utc'
+set revoked_at = now()
 where id = '<invitation id>'
 returning *;
 ```

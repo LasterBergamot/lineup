@@ -16,21 +16,23 @@ from sqlalchemy import (
     UUID,
     Boolean,
     CheckConstraint,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
+    func,
+    text,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lineup.db.base import Base
+from lineup.db.types import UtcDateTime
 
 
 def _utcnow() -> datetime:
-    # Columns are TIMESTAMP WITHOUT TIME ZONE, so store naive UTC. SQLite silently drops
-    # tzinfo, but asyncpg rejects an aware datetime for such a column.
-    return datetime.now(UTC).replace(tzinfo=None)
+    # Columns are `UtcDateTime` (timestamptz), which wants aware datetimes: see lineup/db/types.py.
+    return datetime.now(UTC)
 
 
 class Team(Base):
@@ -53,8 +55,12 @@ class Team(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     # Whether this team is visible to other users in the shared opponent pool
-    is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
     # `passive_deletes="all"`: deleting a team must not make SQLAlchemy load the players and
     # null their `team_id`. The database's `ON DELETE RESTRICT` has to see the delete and refuse
@@ -97,9 +103,14 @@ class TeamMember(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True)
     role: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=TeamRole.MEMBER.value
+        String(20),
+        nullable=False,
+        default=TeamRole.MEMBER.value,
+        server_default=text("'member'"),
     )
-    joined_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    joined_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
 
 class TeamInvitation(Base):
@@ -132,11 +143,16 @@ class TeamInvitation(Base):
     )
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     role: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=TeamRole.MEMBER.value
+        String(20),
+        nullable=False,
+        default=TeamRole.MEMBER.value,
+        server_default=text("'member'"),
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
 
 class Player(Base):
@@ -157,7 +173,9 @@ class Player(Base):
         UUID, ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
     team: Mapped["Team"] = relationship("Team", back_populates="players")
 
@@ -203,7 +221,9 @@ class SavedLineup(Base):
     team_leader: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ball_thrower: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
     # Optional soft references for reuse/cloning; nulled out if the source is
     # deleted so a saved lineup is never blocked on or broken by that deletion.
