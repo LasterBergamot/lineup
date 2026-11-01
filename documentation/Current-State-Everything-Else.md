@@ -28,7 +28,8 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task test-e2e` | build image, start a throw-away container (Compose project `lineup-e2e`, port 8001, no `backend/.env`), run real-conversion fidelity tests, tear it down with its volume |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
 | `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
-| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |
+| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite); `status` also warns when `ENV` doesn't match |
+| `task db:query -- "SQL"` | one read-only statement through `psql` (app role; `--owner` for the table owner); never prints the URL |
 | `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
