@@ -175,7 +175,13 @@ class SavedLineup(Base):
     """
 
     __tablename__ = "saved_lineups"
-    __table_args__ = (Index("ix_saved_lineups_team_id", "team_id"),)
+    # The two `source_*` columns are indexed because Postgres does not index foreign keys by
+    # itself: without these, deleting a team scans this whole table to apply `SET NULL`.
+    __table_args__ = (
+        Index("ix_saved_lineups_team_id", "team_id"),
+        Index("ix_saved_lineups_source_team_id", "source_team_id"),
+        Index("ix_saved_lineups_source_opponent_id", "source_opponent_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     team_id: Mapped[uuid.UUID] = mapped_column(
@@ -225,6 +231,18 @@ class LineupPlayerSnapshot(Base):
     """
 
     __tablename__ = "lineup_player_snapshots"
+    __table_args__ = (
+        # A cap number can be used once per lineup. Pydantic checks it first for a friendly 422;
+        # this is the database's own guarantee. The index also serves lookups by lineup.
+        Index(
+            "ux_lineup_player_snapshots_lineup_cap",
+            "saved_lineup_id",
+            "cap_number",
+            unique=True,
+        ),
+        # Makes the `SET NULL` on player deletion an index lookup instead of a table scan.
+        Index("ix_lineup_player_snapshots_source_player_id", "source_player_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     saved_lineup_id: Mapped[uuid.UUID] = mapped_column(

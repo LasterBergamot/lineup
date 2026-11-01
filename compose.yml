@@ -1,14 +1,22 @@
 services:
   api:
     image: lineup
+    # Loopback only: the API has no network-level protection of its own, so it must not be
+    # reachable from the LAN. Put a reverse proxy in front if you ever need that.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    # Come back after a reboot or a crash, but stay down after `task down` / `docker compose stop`.
+    restart: unless-stopped
+    # The default SQLite file (/data/lineup.db, set in the Dockerfile) survives `task down` and
+    # image rebuilds. `docker compose down -v` deletes it.
+    volumes:
+      - lineup-data:/data
     # LibreOffice needs no privileges: drop every capability and forbid gaining new ones.
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
-    # Optional: backend/.env selects Postgres/Supabase etc. Without it the app defaults to in-container SQLite.
+    # Optional: backend/.env selects Postgres/Supabase etc. Without it the app uses the in-container SQLite on the volume.
     env_file:
       - path: backend/.env
         required: false
@@ -16,3 +24,7 @@ services:
     # tables. Ignored for Postgres (see AUTO_CREATE_SCHEMA in backend/.env.example).
     environment:
       AUTO_CREATE_SCHEMA: "1"
+
+
+volumes:
+  lineup-data:

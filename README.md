@@ -63,7 +63,7 @@ If you're editing the workflow YAML files themselves, `yamllint` and `actionlint
 
 ### Security tooling
 
-- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies; security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
+- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies (minor and patch updates grouped per ecosystem, majors separate); security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
 - **Secret scanning:** GitHub secret scanning + push protection are enabled at the repo level (no code/config in this repo).
 - **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`.
 - **Container scanning:** Trivy scans the built image in CI (report-only, see above).
@@ -141,7 +141,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` (in the container: `…:////data/lineup.db`, on a Compose volume) | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name. It also makes startup **fail closed**: the app refuses to start unless `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` (or `verify-full`, preferred) and `SUPABASE_URL` is set, and it turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin: team invite links are built as `<APP_BASE_URL>/join/<code>`. `fly.toml` sets it to the Cloudflare Pages URL |
@@ -301,7 +301,7 @@ POST /lineups/saved
 | `task build`    | Build the container image                                       |
 | `task rebuild`  | Force a fresh container image build (no cache)                  |
 | `task up`       | Start the API in a container (detached)                         |
-| `task down`     | Stop the container                                              |
+| `task down`     | Stop the container (its SQLite data stays on the `lineup-data` volume; `docker compose down -v` deletes it) |
 | `task migrate`  | Apply Alembic migrations (`upgrade head`)                        |
 | `task migrate-new -- -m "description"` | Autogenerate a new Alembic migration          |
 | `task migrate-down` | Roll back one migration step                                 |
@@ -333,7 +333,7 @@ lineup/
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
 ├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
-├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
+├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
 ├── PLAN.md  CLAUDE.md  README.md    # Working plan; assistant router (detail in .claude/rules + .claude/context); this file
@@ -383,7 +383,8 @@ lineup/
     │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
     │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
     │       ├── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
-    │       └── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       ├── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       └── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
