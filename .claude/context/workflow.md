@@ -12,9 +12,10 @@ task test-e2e   # build image, make a throw-away JWT key, start a separate Compo
 task lint       # ruff check
 task format     # ruff format
 task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup for SQLite via AUTO_CREATE_SCHEMA=1)
-task db:status  # show whether backend/.env selects SQLite or the Supabase pooler
+task db:status  # show whether backend/.env selects SQLite or the Supabase pooler and its ENV; warns on a mismatch (scripts/db_env.py)
 task db:postgres  # switch backend/.env to the Supabase pooler (DATABASE_URL + ENV=production)
-task db:sqlite  # switch backend/.env back to local SQLite (comments the pooler URL out, keeps it)
+task db:sqlite  # switch backend/.env back to local SQLite (comments every Postgres URL out, keeps it)
+task db:query -- "select 1"  # one read-only statement via psql as the app role (--owner: backend/.env.migrate); the URL is never printed (scripts/db_query.py)
 task run        # run main.py (CLI demo, writes resources/modified_rajtlista.docx)
 task build      # build container image (lineup)
 task rebuild    # force fresh build with --no-cache

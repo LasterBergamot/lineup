@@ -156,7 +156,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 
 `task up` (Docker Compose, via `env_file: backend/.env` in `compose.yml`) and `task serve` both load `backend/.env` automatically; it lives in `backend/` beside `backend/.env.example` so it is kept out of the image by `backend/.dockerignore`. `task migrate` and `task migrate-new` deliberately do **not**: they target local SQLite unless you pass `DATABASE_URL` for that one run, so a migration never hits Supabase by accident.
 
-**Switching databases:** `task db:postgres` / `task db:sqlite` flip `backend/.env` between the Supabase pooler and local SQLite (it uncomments or comments the pooler `DATABASE_URL` and adds or removes `ENV=production`), and `task db:status` shows which one is active. Restart `task serve` or run `task up` afterwards to apply the change. `db:postgres` needs a filled-in pooler URL (port 6543) already in `backend/.env`; it never invents one.
+**Switching databases:** `task db:postgres` / `task db:sqlite` flip `backend/.env` between the Supabase pooler and local SQLite (it uncomments or comments the pooler `DATABASE_URL` and adds or removes `ENV=production`), and `task db:status` shows which one is active and the `ENV` it runs with, warning when the two disagree (a Postgres URL without `ENV=production` skips the fail-closed startup checks). The logic lives in `scripts/db_env.py`. Restart `task serve` or run `task up` afterwards to apply the change. `db:postgres` needs a filled-in pooler URL (port 6543) already in `backend/.env`; it never invents one.
 
 ### Using the Supabase dev database
 
@@ -167,7 +167,7 @@ The dev environment can run against a hosted Postgres on [Supabase](https://supa
 3. Run `task db:create-app-role`: it gives `lineup_app` a generated password and rewrites the pooler `DATABASE_URL` in `backend/.env` to that role (nothing is printed). The API then connects as `lineup_app`, not as the table-owning `postgres` role. It generates a **new** password on every run, so it asks you to type `yes` first (`task db:create-app-role -- --yes` skips the question for scripts); a second run invalidates the old password, and the deployed API's Fly secret `DATABASE_URL` and the `KEEPALIVE_DATABASE_URL` Actions secret then have to be updated (`documentation/Fly-Setup.md`).
 4. Start the app (`task up` or `task serve`; both read `backend/.env`).
 
-**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes: the task only comments the pooler URL out, it never deletes it, and `task db:postgres` uncomments it again.
+**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes: the task only comments Postgres URLs out (whatever their port), it never deletes them, and `task db:postgres` uncomments it again.
 
 **If the credentials are lost:** the database password can be reset at any time in the Supabase dashboard (Project Settings → Database → *Reset database password*) without losing data; update your `backend/.env`. API keys and the JWT secret are always viewable and rotatable in Project Settings. The only unrecoverable situation is losing access to the Supabase account itself, so keep the account recovery e-mail and 2FA backup codes safe and consider adding a second owner to the organization.
 
@@ -291,7 +291,8 @@ POST /lineups/saved
 | `task doctor`   | Check the required tools and their minimum versions (`scripts/doctor.sh`) |
 | `task run`      | Run the CLI application                                         |
 | `task serve`    | Start the API server locally (DOCX only; loads `backend/.env`; creates the SQLite tables on startup via `AUTO_CREATE_SCHEMA=1`) |
-| `task db:status` | Show whether `backend/.env` currently selects SQLite or the Supabase pooler |
+| `task db:status` | Show whether `backend/.env` selects SQLite or the Supabase pooler, and warn if `ENV` doesn't match |
+| `task db:query -- "SQL"` | Run one read-only statement with `psql` as the app role (`--owner` uses `backend/.env.migrate`); needs the PostgreSQL client tools; the URL is never printed |
 | `task db:postgres` | Switch `backend/.env` to the Supabase pooler (`DATABASE_URL` + `ENV=production`) |
 | `task db:sqlite` | Switch `backend/.env` back to local SQLite                             |
 | `task test`     | Run tests with coverage (100%)                                  |
@@ -332,7 +333,7 @@ lineup/
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key, moves it to port 8001 and drops `backend/.env`
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
-├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
+├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), db_env.py and db_query.py (`task db:*`), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
@@ -445,6 +446,8 @@ lineup/
     │   ├── test_app_role.py             # lineup.db.app_role (password + .env rewrite, fake engine)
     │   ├── test_postgres_migrations.py  # RLS / roles / grants on a real Postgres (skipped without POSTGRES_TEST_URL)
     │   ├── test_migrations.py           # Data migrations on a throw-away SQLite file
+    │   ├── test_db_env.py               # scripts/db_env.py (task db:status / db:sqlite / db:postgres on temp .env files)
+    │   ├── test_db_query.py             # scripts/db_query.py (task db:query: libpq variables, read-only wrapper, no URL leaks)
     │   ├── test_smoke_auth.py           # scripts/smoke_auth.py tokens are accepted by the real verifier
     │   ├── test_smoke_live.py           # scripts/smoke_live.py run against the real app: steps, failure, cleanup, sweep
     │   ├── test_input_hardening.py      # Control chars/blanks, unknown team_id, source-or-text, duplicate NSSZ, ordering
