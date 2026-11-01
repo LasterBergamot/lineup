@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { ApiError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { LineupCreator } from "@/features/creator/lineup-creator";
 import { emptyValues } from "@/features/creator/resolve";
 import { SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
@@ -79,13 +80,15 @@ function renderCreator(
   render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider client={fakeAuthClient(fakeSession()).client}>
-        <MemoryRouter>
-          <SignedIn
-            team={team}
-            roster={props.roster ?? [ANN, BEN]}
-            initialValues={props.initialValues}
-          />
-        </MemoryRouter>
+        <ToastProvider>
+          <MemoryRouter>
+            <SignedIn
+              team={team}
+              roster={props.roster ?? [ANN, BEN]}
+              initialValues={props.initialValues}
+            />
+          </MemoryRouter>
+        </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>,
   );
@@ -120,7 +123,7 @@ describe("LineupCreator form", () => {
     renderCreator({ roster: [] });
     expect(await screen.findByText(/The roster is empty/)).toBeInTheDocument();
     expect(within(slot(1)).getByLabelText("Cap no.")).toHaveValue(1);
-    expect(screen.getByLabelText("Cap colour")).toHaveValue("Fehér");
+    expect(screen.getByRole("radio", { name: "White" })).toBeChecked();
     expect(screen.getByRole("button", { name: "Remove player 1" })).toBeDisabled();
   });
 
@@ -208,17 +211,23 @@ describe("LineupCreator save", () => {
     await user.type(within(slot(2)).getByLabelText("Name"), "Kiss Ádám");
     await user.type(within(slot(2)).getByLabelText("NSSZ number"), "MVLSZ9");
     await user.type(screen.getByLabelText("Doctor (optional)"), "Dr. Kis");
+    await user.click(screen.getByRole("radio", { name: "Blue" }));
+    expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "White" })).not.toBeChecked();
 
     await user.click(screen.getByRole("button", { name: "Save lineup" }));
 
     expect(await screen.findByText(/Saved\. You can download it now\./)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("region", { name: "Notifications" })).getByText("Lineup saved"),
+    ).toBeInTheDocument();
     expect(mocks.createSavedLineup).toHaveBeenCalledOnce();
     expect(mocks.createSavedLineup.mock.calls[0]![0]).toMatchObject({
       team_id: TEAM_ID,
       source_team_id: TEAM_ID,
       source_opponent_id: "opp-1",
       division: "OB I.",
-      cap: "Fehér",
+      cap: "Kék",
       coach: "Kovács Béla",
       doctor: "Dr. Kis",
       players: [
@@ -298,6 +307,7 @@ describe("LineupCreator save", () => {
           { loc: ["body", "opponent_name"], msg: "String should have at most 120 characters" },
           { loc: ["body", "players", 0, "source_player_id"], msg: "Value error, twice" },
           { loc: ["body", "players"], msg: "Value error, Cap numbers must be unique" },
+          { loc: ["body", "cap"], msg: "Input should be 'Fehér' or 'Kék'" },
         ],
       }),
     );
@@ -311,6 +321,7 @@ describe("LineupCreator save", () => {
     ).toBeInTheDocument();
     expect(within(slot(1)).getByText("twice")).toBeInTheDocument();
     expect(screen.getByText("Cap numbers must be unique")).toBeInTheDocument();
+    expect(screen.getByText("Input should be 'Fehér' or 'Kék'")).toBeInTheDocument();
     expect(screen.getByText(/server rejected some of the details/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Opponent")).toHaveAttribute("aria-invalid", "true");
   });

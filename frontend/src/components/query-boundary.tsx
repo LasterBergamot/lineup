@@ -36,7 +36,10 @@ export function QueryBoundary<T>({
   }
   if (query.isError || query.data === undefined) {
     return (
-      <div role="alert" className="flex flex-col items-start gap-3 border bg-card p-4 text-sm">
+      <div
+        role="alert"
+        className="flex flex-col items-start gap-3 rounded-lg border bg-card p-4 text-sm"
+      >
         <p>{describeError(query.error, t)}</p>
         <Button size="sm" variant="outline" onClick={() => void query.refetch()}>
           {t("common.tryAgain")}

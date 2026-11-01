@@ -8,8 +8,10 @@ import { QueryBoundary } from "@/components/query-boundary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
-import { Input, Select } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
 import {
   createInvitation,
   DEFAULT_EXPIRY,
@@ -43,14 +45,13 @@ export function InvitePanel({ team }: { team: Team }) {
   const key = invitationsKey(userId, team.id);
   const [hours, setHours] = useState<ExpiryHours>(DEFAULT_EXPIRY);
   const [created, setCreated] = useState<InvitationCreated | null>(null);
-  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+  const toast = useToast();
 
   const active = useQuery({ queryKey: key, queryFn: () => listInvitations(team.id) });
   const create = useMutation({
     mutationFn: () => createInvitation(team.id, hours),
     onSuccess: (invitation) => {
       setCreated(invitation);
-      setCopy("idle");
       void queryClient.invalidateQueries({ queryKey: key });
     },
   });
@@ -65,9 +66,9 @@ export function InvitePanel({ team }: { team: Team }) {
   async function copyLink(link: InvitationCreated) {
     try {
       await navigator.clipboard.writeText(link.url);
-      setCopy("copied");
+      toast("success", t("invites.copied"));
     } catch {
-      setCopy("failed");
+      toast("error", t("invites.copyFailed"));
     }
   }
 
@@ -93,21 +94,20 @@ export function InvitePanel({ team }: { team: Team }) {
             create.mutate();
           }}
         >
-          <Field label={t("invites.expiry")} className="w-full sm:w-56">
-            {(props) => (
-              <Select
-                {...props}
-                value={hours}
-                onChange={(event) => setHours(Number(event.target.value) as ExpiryHours)}
-              >
-                {EXPIRY_CHOICES.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {t(EXPIRY_LABELS[choice])}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">{t("invites.expiry")}</span>
+            <Tabs
+              kind="radio"
+              id="invite-expiry"
+              label={t("invites.expiry")}
+              value={String(hours) as `${ExpiryHours}`}
+              onChange={(choice) => setHours(Number(choice) as ExpiryHours)}
+              options={EXPIRY_CHOICES.map((choice) => ({
+                value: String(choice) as `${ExpiryHours}`,
+                label: t(EXPIRY_LABELS[choice]),
+              }))}
+            />
+          </div>
           <Button type="submit" loading={create.isPending}>
             {t("invites.create")}
           </Button>
@@ -119,7 +119,7 @@ export function InvitePanel({ team }: { team: Team }) {
         )}
 
         {created && (
-          <div className="flex flex-col gap-3 border bg-muted p-4">
+          <div className="flex flex-col gap-3 rounded-lg border bg-muted p-4">
             <Field label={t("invites.created")}>
               {(props) => (
                 <Input
@@ -142,14 +142,6 @@ export function InvitePanel({ team }: { team: Team }) {
                   {t("invites.share")}
                 </Button>
               )}
-              {copy !== "idle" && (
-                <p
-                  role="status"
-                  className={copy === "failed" ? "text-sm text-destructive" : "text-sm"}
-                >
-                  {t(copy === "copied" ? "invites.copied" : "invites.copyFailed")}
-                </p>
-              )}
             </div>
           </div>
         )}
@@ -163,7 +155,7 @@ export function InvitePanel({ team }: { team: Team }) {
               links.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("invites.none")}</p>
               ) : (
-                <ul className="flex flex-col divide-y border">
+                <ul className="flex flex-col divide-y overflow-hidden rounded-lg border">
                   {links.map((link) => (
                     <li
                       key={link.id}

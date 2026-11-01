@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { ApiError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
+import { ToastProvider } from "@/components/ui/toast";
 import type { Player } from "@/features/players/api";
 import type { Team } from "@/features/teams/api";
 import { TeamsContext } from "@/features/teams/context";
@@ -70,9 +71,11 @@ function renderPage(state?: unknown, current: Team | null = team) {
   render(
     <QueryClientProvider client={testQueryClient()}>
       <AuthProvider client={fakeAuthClient(fakeSession()).client}>
-        <MemoryRouter initialEntries={[{ pathname: "/", state }]}>
-          <SignedIn current={current ?? undefined} />
-        </MemoryRouter>
+        <ToastProvider>
+          <MemoryRouter initialEntries={[{ pathname: "/", state }]}>
+            <SignedIn current={current ?? undefined} />
+          </MemoryRouter>
+        </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>,
   );
@@ -93,21 +96,22 @@ describe("LineupPage", () => {
     expect(mocks.listPlayers).toHaveBeenCalledWith("t-1");
     expect(screen.getByRole("heading", { name: "Lineup" })).toBeInTheDocument();
     expect(screen.getByText(/Build the lineup for SZVTK/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "From the roster" })).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByRole("tab", { name: "From the roster" })).toHaveAttribute(
+      "aria-selected",
       "true",
     );
+    expect(screen.getByRole("tabpanel", { name: "From the roster" })).toBeInTheDocument();
   });
 
   it("switches to the quick sheet and back", async () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText(/creator:/);
-    await user.click(screen.getByRole("button", { name: "Quick sheet (not saved)" }));
+    await user.click(screen.getByRole("tab", { name: "Quick sheet (not saved)" }));
     expect(screen.getByText("quick sheet form")).toBeInTheDocument();
     expect(screen.queryByText(/creator:/)).not.toBeInTheDocument();
     expect(screen.getByText(/Nothing is saved/)).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "From the roster" }));
+    await user.click(screen.getByRole("tab", { name: "From the roster" }));
     expect(await screen.findByText(/creator:/)).toBeInTheDocument();
   });
 

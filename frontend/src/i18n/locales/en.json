@@ -239,7 +239,8 @@
     "save": "Save lineup",
     "preview": "Preview",
     "saved": "Saved. You can download it now.",
-    "seeSaved": "See saved lineups"
+    "seeSaved": "See saved lineups",
+    "savedToast": "Lineup saved"
   },
   "opponent": {
     "directory": "Listed team",
@@ -263,6 +264,11 @@
     "delete": "Delete",
     "deleteConfirm": "Delete lineup",
     "deleteOf": "Delete {{match}}",
-    "gone": "This lineup no longer exists; another member may have deleted it. The list has been refreshed."
+    "gone": "This lineup no longer exists; another member may have deleted it. The list has been refreshed.",
+    "previewBadge": "Preview"
+  },
+  "toast": {
+    "region": "Notifications",
+    "dismiss": "Dismiss"
   }
 }

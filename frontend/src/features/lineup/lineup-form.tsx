@@ -213,7 +213,10 @@ export function LineupForm() {
 
       <div className="flex flex-col gap-3">
         {generate.isError && (
-          <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+          >
             {rejectedByServer ? t("errors.serverRejectedFields") : describeError(generate.error, t)}
           </p>
         )}

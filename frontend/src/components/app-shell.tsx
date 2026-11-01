@@ -32,9 +32,9 @@ export function AppShell() {
               end={to === "/"}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 px-3 py-2 text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground",
                   isActive &&
-                    "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary",
+                    "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )
               }
             >
@@ -44,7 +44,7 @@ export function AppShell() {
           ))}
         </nav>
         <div className="flex flex-col gap-2 border-t p-3">
-          <TeamLabel className="min-w-0 px-3" />
+          <TeamLabel avatar className="min-w-0 px-3" />
           <LanguageSwitch className="px-1" />
           <SignOutButton />
           <ThemeToggle />
@@ -81,12 +81,23 @@ export function AppShell() {
             className={({ isActive }) =>
               cn(
                 "flex flex-col items-center gap-1 py-2 text-xs font-medium text-muted-foreground",
-                isActive && "text-primary",
+                isActive && "text-sidebar-accent-foreground",
               )
             }
           >
-            <Icon className="size-5" />
-            {t(labelKey)}
+            {({ isActive }) => (
+              <>
+                <span
+                  className={cn(
+                    "flex h-7 w-14 items-center justify-center rounded-pill transition-colors",
+                    isActive && "bg-sidebar-accent",
+                  )}
+                >
+                  <Icon className="size-5" />
+                </span>
+                {t(labelKey)}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>

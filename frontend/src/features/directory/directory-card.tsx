@@ -77,7 +77,7 @@ export function DirectoryCard() {
                 <ul
                   aria-label={t("directory.results")}
                   aria-busy={pool.isPlaceholderData}
-                  className="flex flex-col divide-y border"
+                  className="flex flex-col divide-y overflow-hidden rounded-lg border"
                 >
                   {teams.map((team) => (
                     <li key={team.id} className="px-3 py-2 text-sm">

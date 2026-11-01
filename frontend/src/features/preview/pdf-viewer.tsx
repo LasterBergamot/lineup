@@ -61,7 +61,10 @@ export function PdfViewer({ file }: { file: Blob }) {
         </div>
       )}
       {state === "error" && (
-        <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+        >
           {t("preview.unreadable")}
         </p>
       )}

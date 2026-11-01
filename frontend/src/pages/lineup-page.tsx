@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { useAuth } from "@/auth/context";
 import { QueryBoundary } from "@/components/query-boundary";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs } from "@/components/ui/tabs";
 import { LineupCreator } from "@/features/creator/lineup-creator";
 import { getSavedLineup } from "@/features/creator/api";
 import { valuesFromSaved } from "@/features/creator/resolve";
@@ -48,48 +48,45 @@ export function LineupPage() {
           {t(quick ? "lineup.description" : "creator.description", { team: current.name })}
         </p>
       </div>
-      <div className="flex gap-2" role="group" aria-label={t("creator.modes")}>
-        <Button
-          type="button"
-          size="sm"
-          variant={quick ? "outline" : "default"}
-          aria-pressed={!quick}
-          onClick={() => setQuick(false)}
-        >
-          {t("creator.modeCreator")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={quick ? "default" : "outline"}
-          aria-pressed={quick}
-          onClick={() => setQuick(true)}
-        >
-          {t("creator.modeQuick")}
-        </Button>
+      <Tabs
+        id="lineup-mode"
+        label={t("creator.modes")}
+        value={quick ? "quick" : "creator"}
+        onChange={(mode) => setQuick(mode === "quick")}
+        options={[
+          { value: "creator", label: t("creator.modeCreator") },
+          { value: "quick", label: t("creator.modeQuick") },
+        ]}
+      />
+      <div
+        role="tabpanel"
+        id="lineup-mode-panel"
+        aria-labelledby={quick ? "lineup-mode-quick" : "lineup-mode-creator"}
+        className="flex flex-col gap-6"
+      >
+        {quick ? (
+          <LineupForm />
+        ) : (
+          <QueryBoundary query={roster} skeleton={<CreatorSkeleton />}>
+            {(players) =>
+              cloneId === undefined ? (
+                <LineupCreator key="new" team={current} roster={players} />
+              ) : (
+                <QueryBoundary query={clone} skeleton={<CreatorSkeleton />}>
+                  {(saved) => (
+                    <LineupCreator
+                      key={saved.id}
+                      team={current}
+                      roster={players}
+                      initialValues={valuesFromSaved(saved, players)}
+                    />
+                  )}
+                </QueryBoundary>
+              )
+            }
+          </QueryBoundary>
+        )}
       </div>
-      {quick ? (
-        <LineupForm />
-      ) : (
-        <QueryBoundary query={roster} skeleton={<CreatorSkeleton />}>
-          {(players) =>
-            cloneId === undefined ? (
-              <LineupCreator key="new" team={current} roster={players} />
-            ) : (
-              <QueryBoundary query={clone} skeleton={<CreatorSkeleton />}>
-                {(saved) => (
-                  <LineupCreator
-                    key={saved.id}
-                    team={current}
-                    roster={players}
-                    initialValues={valuesFromSaved(saved, players)}
-                  />
-                )}
-              </QueryBoundary>
-            )
-          }
-        </QueryBoundary>
-      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/auth/provider";
 import { RequireAuth } from "@/auth/require-auth";
 import { BackendStatusProvider } from "@/backend-status/provider";
 import { AppShell } from "@/components/app-shell";
+import { ToastProvider } from "@/components/ui/toast";
 import { i18n } from "@/i18n";
 import { JoinPage } from "@/pages/join-page";
 import { LineupPage } from "@/pages/lineup-page";
@@ -39,8 +40,8 @@ export function AppRoutes() {
  * Root component. Order matters: the i18n provider is outermost so every string, even the
  * backend banner, is translated; the backend status check starts first thing on load (waking
  * a sleeping API while the shell already renders), the query client supplies retries to every
- * data region, auth sits inside the query client (it empties the cache on sign-out) and the
- * router inside all three so every page can use them.
+ * data region, auth sits inside the query client (it empties the cache on sign-out), the toast
+ * stack inside auth and the router inside all of them so every page can use them.
  */
 export function App() {
   const [queryClient] = useState(createQueryClient);
@@ -49,9 +50,11 @@ export function App() {
       <BackendStatusProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
+            <ToastProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ToastProvider>
           </AuthProvider>
         </QueryClientProvider>
       </BackendStatusProvider>

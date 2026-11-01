@@ -6,6 +6,7 @@ import { ApiError, describeError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { ConfirmButton } from "@/components/confirm-button";
 import { QueryBoundary } from "@/components/query-boundary";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { saveFile } from "@/features/lineup/download";
@@ -111,13 +112,13 @@ export function SavedLineups({ team }: { team: Team }) {
     >
       {(rows) =>
         rows.length === 0 ? (
-          <p className="border bg-card p-4 text-sm text-muted-foreground">
+          <p className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
             {t("savedLineups.empty")}
           </p>
         ) : (
           <ul
             aria-label={t("savedLineups.listLabel", { team: team.name })}
-            className="flex flex-col divide-y border bg-card"
+            className="flex flex-col divide-y overflow-hidden rounded-lg border bg-card"
           >
             {rows.map((lineup) => (
               <li
@@ -131,8 +132,16 @@ export function SavedLineups({ team }: { team: Team }) {
                 onMouseLeave={() => clearTimeout(hoverTimer.current)}
               >
                 <div className="flex flex-col gap-1">
-                  <p className={cn("font-medium", selected?.id === lineup.id && "font-semibold")}>
+                  <p
+                    className={cn(
+                      "flex flex-wrap items-center gap-2 font-medium",
+                      selected?.id === lineup.id && "font-semibold",
+                    )}
+                  >
                     {lineup.match_name}
+                    {selected?.id === lineup.id && (
+                      <Badge variant="primary">{t("savedLineups.previewBadge")}</Badge>
+                    )}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {t("savedLineups.details", {
@@ -195,7 +204,10 @@ export function SavedLineups({ team }: { team: Team }) {
   return (
     <div className="flex flex-col gap-4">
       {failure && (
-        <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+        >
           {isGone(failure) ? t("savedLineups.gone") : describeError(failure, t)}
         </p>
       )}
@@ -212,7 +224,10 @@ export function SavedLineups({ team }: { team: Team }) {
             onClose={() => setSelected(null)}
           >
             {preview.isError ? (
-              <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
+              <p
+                role="alert"
+                className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+              >
                 {isGone(preview.error) ? t("savedLineups.gone") : describeError(preview.error, t)}
               </p>
             ) : preview.data ? (

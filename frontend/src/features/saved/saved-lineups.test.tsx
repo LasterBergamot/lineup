@@ -127,6 +127,9 @@ describe("SavedLineups", () => {
     expect(mocks.generateSavedLineup).toHaveBeenCalledWith("l-2", "pdf");
     const row = await rowOf("SZVTK - Opponent 2");
     expect(row).toHaveAttribute("aria-current", "true");
+    // The row's Preview button, plus the "Preview" badge on the selected row only.
+    expect(within(row).getAllByText("Preview")).toHaveLength(2);
+    expect(within(await rowOf("SZVTK - Opponent 1")).getAllByText("Preview")).toHaveLength(1);
     expect(await rowOf("SZVTK - Opponent 1")).not.toHaveAttribute("aria-current");
     await userEvent.click(within(panel).getByRole("button", { name: "Close the preview" }));
     expect(row).not.toHaveAttribute("aria-current");

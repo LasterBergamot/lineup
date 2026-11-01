@@ -45,6 +45,25 @@ describe("AppShell", () => {
     expect(within(nav).getByRole("link", { name: "Lineup" })).not.toHaveAttribute("aria-current");
   });
 
+  it("shows the team with an initials avatar in the sidebar only", async () => {
+    listTeams.mockResolvedValue(teamsPage("Szent  Vízilabda Klub").items);
+    renderApp("/", fakeSession());
+    await screen.findAllByText("Szent Vízilabda Klub");
+    const sidebar = screen.getByRole("complementary");
+    const initials = within(sidebar).getByText("SV");
+    expect(initials).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getAllByText("SV")).toHaveLength(1);
+  });
+
+  it("marks the active bottom-bar item with a soft pill", async () => {
+    await renderAt("/roster");
+    const bottom = screen.getByRole("navigation", { name: "Bottom" });
+    const pill = (name: string) =>
+      within(bottom).getByRole("link", { name }).querySelector("span")!;
+    expect(pill("Roster")).toHaveClass("bg-sidebar-accent");
+    expect(pill("Saved")).not.toHaveClass("bg-sidebar-accent");
+  });
+
   it("navigates between pages", async () => {
     await renderAt("/");
     await userEvent.click(

@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
+import { ToastProvider } from "@/components/ui/toast";
 import { AppRoutes } from "@/app";
 import type { AuthClient } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
@@ -63,10 +64,12 @@ export function renderApp(path: string, session: Session | null, extra?: ReactNo
     <BackendStatusProvider probe={async () => "ok"}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider client={auth.client}>
-          <MemoryRouter initialEntries={[path]}>
-            <AppRoutes />
-            {extra}
-          </MemoryRouter>
+          <ToastProvider>
+            <MemoryRouter initialEntries={[path]}>
+              <AppRoutes />
+              {extra}
+            </MemoryRouter>
+          </ToastProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BackendStatusProvider>,

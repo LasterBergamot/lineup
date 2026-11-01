@@ -357,10 +357,10 @@ lineup/
 │       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
 │       ├── auth/                    # Google sign-in: config.ts (env check), supabase.ts (sign-in-only client), provider/context, require-auth, return-path, events
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
-│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, confirm-button (two-step confirm), ui/ (shadcn-style)
+│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, ui/ (Button, Card, Input, Badge, Tabs, Dialog, Toast, ...), confirm-button (two-step confirm), ui/ (shadcn-style)
 │       ├── features/lineup/         # One-off lineup form ("Quick sheet"): schema.ts (Zod), generate.ts, download.ts, lineup-form.tsx
 │       ├── features/creator/        # Lineup creator: schema.ts (Zod), resolve.ts (form values -> requests), api.ts, lineup-creator.tsx, opponent/ (combobox over directory + recent opponents)
-│       ├── features/preview/        # PDF preview: pdfjs.ts (lazy loader, bundled worker), pdf-viewer.tsx, preview-panel.tsx (side panel / full-screen sheet)
+│       ├── features/preview/        # PDF preview: pdfjs.ts (lazy loader, bundled worker), pdf-viewer.tsx, preview-panel.tsx (side panel / modal dialog on a phone)
 │       ├── features/teams/          # Teams of the signed-in user: api.ts (list/create/update), provider/context, team-gate, onboarding, create-team-form, team-settings-card (owners), role.ts
 │       ├── features/players/        # A team's roster: api.ts (list/create/update/delete), schema.ts (Zod), player-form, players-card
 │       ├── features/directory/      # Opponent directory search: api.ts (GET /teams/pool), directory-card (names only)
@@ -368,7 +368,7 @@ lineup/
 │       ├── features/invitations/    # Invite links: api.ts, code.ts (parse a pasted link), invite-panel (owner tools), invite-link-form (onboarding)
 │       ├── i18n/                    # react-i18next setup (index.ts), error-key.ts (translated form errors), locales/hu.json + en.json
 │       ├── pages/                   # One file per route
-│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, use-debounced-value.ts, clean-text.ts (shared Zod text rule), format-date.ts
+│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, use-debounced-value.ts, use-media-query.ts, clean-text.ts (shared Zod text rule), format-date.ts
 │       └── test/                    # setup.ts (Vitest + Testing Library), auth.tsx (fake auth client, renderApp)
 └── backend/                         # All Python; the working directory for Python commands
     ├── main.py                          # CLI entry point

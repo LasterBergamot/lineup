@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
 import { createSavedLineup } from "@/features/creator/api";
 import { recentOpponentsKey } from "@/features/creator/opponent/api";
 import { OpponentCombobox } from "@/features/creator/opponent/opponent-combobox";
@@ -68,6 +70,7 @@ export function LineupCreator({
   initialValues?: CreatorValues;
 }) {
   const { t } = useTranslation();
+  const toast = useToast();
   const queryClient = useQueryClient();
   const { userId } = useAuth();
   const [showPreview, setShowPreview] = useState(false);
@@ -87,6 +90,7 @@ export function LineupCreator({
   const { fields, append, remove } = useFieldArray({ control, name: "players" });
   const players = useWatch({ control, name: "players" });
   const opponent = useWatch({ control, name: "opponent" });
+  const cap = useWatch({ control, name: "cap" });
 
   function showServerErrors(error: unknown) {
     for (const { path, message } of fieldErrors(error)) {
@@ -107,6 +111,7 @@ export function LineupCreator({
     onSuccess: async (_saved, values) => {
       // Mark the form as unchanged, so "Saved" stays until the next edit.
       reset(values);
+      toast("success", t("creator.savedToast"));
       await queryClient.invalidateQueries({ queryKey: ["saved"] });
       await queryClient.invalidateQueries({ queryKey: recentOpponentsKey(userId, team.id) });
     },
@@ -187,17 +192,25 @@ export function LineupCreator({
                 <Input {...props} placeholder={EXAMPLES.division} {...register("division")} />
               )}
             </Field>
-            <Field label={t("fields.capColour")} error={errors.cap?.message}>
-              {(props) => (
-                <Select {...props} {...register("cap")}>
-                  {CAP_COLOURS.map((colour) => (
-                    <option key={colour} value={colour}>
-                      {t(`lineup.caps.${colour}`)}
-                    </option>
-                  ))}
-                </Select>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">{t("fields.capColour")}</span>
+              <Tabs
+                kind="radio"
+                id="cap-colour"
+                label={t("fields.capColour")}
+                value={cap}
+                onChange={(colour) => setValue("cap", colour, { shouldDirty: true })}
+                options={CAP_COLOURS.map((colour) => ({
+                  value: colour,
+                  label: t(`lineup.caps.${colour}`),
+                }))}
+              />
+              {errors.cap?.message && (
+                <p role="alert" className="text-sm text-destructive">
+                  {translateError(errors.cap.message, t)}
+                </p>
               )}
-            </Field>
+            </div>
             <Field label={t("fields.date")} error={errors.date?.message}>
               {(props) => <Input {...props} placeholder={EXAMPLES.date} {...register("date")} />}
             </Field>
@@ -343,12 +356,15 @@ export function LineupCreator({
 
         <div className="flex flex-col gap-3">
           {save.isError && (
-            <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+            >
               {saveRejected ? t("errors.serverRejectedFields") : describeError(save.error, t)}
             </p>
           )}
           {saved && (
-            <div role="status" className="flex flex-col gap-3 border p-3 text-sm">
+            <div role="status" className="flex flex-col gap-3 rounded-md border p-3 text-sm">
               <p>
                 {t("creator.saved")}{" "}
                 <Link to="/saved" className="underline">
@@ -409,7 +425,10 @@ export function LineupCreator({
             </div>
           )}
           {preview.isError && (
-            <p role="alert" className="border border-destructive p-3 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+            >
               {previewRejected ? t("errors.serverRejectedFields") : describeError(preview.error, t)}
             </p>
           )}
