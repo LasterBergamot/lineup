@@ -79,7 +79,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 
 | Service | Role | Link |
 |---|---|---|
-| Supabase | Postgres database and Auth (Google sign-in) | [supabase.com/docs](https://supabase.com/docs) · [signing keys](https://supabase.com/docs/guides/auth/signing-keys) · [API keys](https://supabase.com/docs/guides/api/api-keys) |
+| Supabase | Postgres database and Auth (Google sign-in) | [supabase.com/docs](https://supabase.com/docs) · [signing keys](https://supabase.com/docs/guides/auth/signing-keys) · [API keys](https://supabase.com/docs/guides/api/api-keys) · [Studio / SQL editor](https://supabase.com/docs/guides/database/overview) · [managing users](https://supabase.com/docs/guides/auth/managing-user-data) · [backups](https://supabase.com/docs/guides/platform/backups) · our own runbook: [[Supabase Admin Guide]] |
 | Fly.io | API hosting (dev app `lineup-dev-lb`, scale to zero) | [fly.io/docs](https://fly.io/docs/) · [fly.toml reference](https://fly.io/docs/reference/configuration/) · [legal / DPA](https://fly.io/legal) |
 | Cloudflare Pages | Frontend hosting (dev site) | [developers.cloudflare.com/pages](https://developers.cloudflare.com/pages/) · [`_headers`](https://developers.cloudflare.com/pages/configuration/headers/) · [SPA routing](https://developers.cloudflare.com/pages/configuration/serving-pages/#single-page-application-spa-rendering) · [DPA](https://www.cloudflare.com/cloudflare-customer-dpa/) |
 | Sentry | Error monitoring (errors only, opt-in via `SENTRY_DSN`) | [docs.sentry.io](https://docs.sentry.io/) · [sensitive data](https://docs.sentry.io/platforms/python/data-management/sensitive-data/) |

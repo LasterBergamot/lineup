@@ -331,7 +331,7 @@ lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
-├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md)
+├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
 ├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)

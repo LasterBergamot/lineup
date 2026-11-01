@@ -61,7 +61,7 @@ Three things in this picture surprise newcomers:
 | **Pydantic** | Describes the shape of data with classes and rejects anything that doesn't fit (HTTP 422) | Keeps bad input out of the business code | `*/schemas.py`, `lineup/api/models.py` |
 | **SQLAlchemy (async)** | An ORM: Python classes map to database tables | One codebase runs on SQLite and Postgres | `lineup/db/models.py` |
 | **Alembic** | Versioned database migrations ("change the schema the same way everywhere") | The hosted database can't be recreated on every start | `backend/alembic/` |
-| **SQLite / Postgres (Supabase)** | A single-file database for local use / a hosted database | Zero setup locally, real database online | `DATABASE_URL` in `backend/.env.example` |
+| **SQLite / Postgres (Supabase)** | A single-file database for local use / a hosted database | Zero setup locally, real database online | `DATABASE_URL` in `backend/.env.example`; fixing data by hand: [[Supabase Admin Guide]] |
 | **python-docx** | Reads and edits `.docx` files from Python | Fills the template | `lineup/document/document_manager.py` |
 | **LibreOffice (headless)** | An office suite run without a window | Converts DOCX to PDF with a layout that matches the original | `lineup/document/pdf_converter.py` |
 | **Docker + Compose** | Packages the app and LibreOffice (and the right fonts) into one image | Same PDF output on every machine | `backend/Dockerfile`, `compose.yml` |
