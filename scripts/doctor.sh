@@ -3,8 +3,11 @@
 #
 # Required tools fail the run; optional ones are only reported. Version floors match the
 # README's Prerequisites: Python 3.13+ (backend/pyproject.toml `requires-python`) and Docker
-# Compose 2.24+ (compose.yml uses `env_file` with `required: false`). Exit status: 0 when every
-# required tool is present and new enough, 1 otherwise.
+# Compose 2.24+ (compose.yml uses `env_file` with `required: false`). Node.js and pnpm are
+# required too: the `task fe:*` targets need them, and CI uses the current LTS (no floor here).
+# So is the GitHub CLI: issues, PRs, CI watching and the Dependabot triage all go through `gh`.
+# Exit status: 0 when every required tool is present and new
+# enough, 1 otherwise.
 set -uo pipefail
 
 failed=0
@@ -62,11 +65,11 @@ task_bin=$(command -v task || command -v go-task || echo task)
 check required task "" "$task_bin" --version
 check required docker "" docker --version
 check required "docker compose" 2.24 docker compose version
+check required node "" node --version
+check required pnpm "" pnpm --version
+check required gh "" gh --version
 
 echo "Optional:"
-check optional node "" node --version
-check optional pnpm "" pnpm --version
-check optional gh "" gh --version
 check optional yamllint "" yamllint --version
 check optional actionlint "" actionlint --version
 check optional lazydocker "" lazydocker --version

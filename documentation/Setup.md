@@ -28,15 +28,18 @@ task doctor
 ```
 
 `task doctor` runs `scripts/doctor.sh`. It checks the required tools and their minimum versions
-(Python 3.13+, uv, Task, Docker, Docker Compose 2.24+) and lists the optional ones (Node.js,
-pnpm, gh, yamllint, actionlint, lazydocker).
+(Python 3.13+, uv, Task, Docker, Docker Compose 2.24+, Node.js, pnpm, gh) and lists the optional
+ones (yamllint, actionlint, lazydocker).
 
 **Expected:** every required line starts with `ok`, and the last line is
 `All required tools are present.`
 
 **If not:** install what is marked `FAIL` from the README's *Prerequisites* section, then run it
-again. `skip` lines are optional tools; you only need Node.js and pnpm if you work on the web
-app in `frontend/`.
+again. `skip` lines are optional tools. Node.js and pnpm are required because the web app in
+`frontend/` and the `task fe:*` checks need them; pnpm's version is pinned by `packageManager`
+in `frontend/package.json`, so a newer pnpm switches to it by itself. `gh` is required because
+issues, pull requests and CI checks are all handled through it; run `gh auth login` once (an
+agent must not do that for you).
 
 If `task` itself is "command not found": Task is missing, or (on Arch Linux) it is installed as
 `go-task`. Then run `bash scripts/doctor.sh` directly, and add `alias task=go-task` to your shell
@@ -118,9 +121,9 @@ task test-e2e
 
 **Expected:** the tests pass, and `http://127.0.0.1:8000/health` still answers.
 
-## 8. Frontend (optional)
+## 8. Frontend
 
-Only if you work on the web app and step 1 showed Node.js and pnpm as `ok`:
+Step 1 showed Node.js and pnpm as `ok`, so the web app can be installed and checked:
 
 ```bash
 task fe:install
