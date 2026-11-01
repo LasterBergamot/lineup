@@ -110,8 +110,13 @@ git-ignored.
   always required before `task up`. It takes its settings from `env_file: backend/.env`
   (`required: false`, Compose >= 2.24) — Compose's own `.env` lookup only checks next to
   `compose.yml`, so it would no longer see `backend/.env` — and the container falls back to its
-  SQLite default when the file is absent. Full reset: `task down` → `docker rmi lineup` →
-  `docker image prune` → `task rebuild` → `task up`.
+  SQLite default when the file is absent. That default is `sqlite+aiosqlite:////data/lineup.db`
+  (set as `ENV DATABASE_URL` in the Dockerfile; `env_file` and Fly's secret override it), and
+  `/data` is the named volume `lineup-data`, so the data survives `task down`, `task rebuild`
+  and a reboot. The port is published on `127.0.0.1` only (the API must not be reachable from the
+  LAN) and the service has `restart: unless-stopped`; the image's own `HEALTHCHECK` on `/health` is
+  inherited. Full reset: `task down` → `docker compose down -v` (deletes the volume and with it the
+  local data) → `docker rmi lineup` → `docker image prune` → `task rebuild` → `task up`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
   `task build` + `task up`, not `task serve`.

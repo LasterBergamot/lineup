@@ -141,7 +141,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` (in the container: `…:////data/lineup.db`, on a Compose volume) | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name. It also makes startup **fail closed**: the app refuses to start unless `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` (or `verify-full`, preferred) and `SUPABASE_URL` is set, and it turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin: team invite links are built as `<APP_BASE_URL>/join/<code>`. `fly.toml` sets it to the Cloudflare Pages URL |
@@ -301,7 +301,7 @@ POST /lineups/saved
 | `task build`    | Build the container image                                       |
 | `task rebuild`  | Force a fresh container image build (no cache)                  |
 | `task up`       | Start the API in a container (detached)                         |
-| `task down`     | Stop the container                                              |
+| `task down`     | Stop the container (its SQLite data stays on the `lineup-data` volume; `docker compose down -v` deletes it) |
 | `task migrate`  | Apply Alembic migrations (`upgrade head`)                        |
 | `task migrate-new -- -m "description"` | Autogenerate a new Alembic migration          |
 | `task migrate-down` | Roll back one migration step                                 |
