@@ -63,7 +63,7 @@ If you're editing the workflow YAML files themselves, `yamllint` and `actionlint
 
 ### Security tooling
 
-- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies; security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
+- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies (minor and patch updates grouped per ecosystem, majors separate); security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
 - **Secret scanning:** GitHub secret scanning + push protection are enabled at the repo level (no code/config in this repo).
 - **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`.
 - **Container scanning:** Trivy scans the built image in CI (report-only, see above).
