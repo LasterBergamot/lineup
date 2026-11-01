@@ -1,8 +1,8 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,14 +16,15 @@ from lineup.db.models import (
     TeamRole,
     _utcnow,
 )
+from lineup.db.types import UtcDateTime
 
 
-def test_utcnow_is_naive_utc():
-    before = datetime.now(UTC).replace(tzinfo=None)
+def test_utcnow_is_aware_utc():
+    before = datetime.now(UTC)
     value = _utcnow()
-    after = datetime.now(UTC).replace(tzinfo=None)
+    after = datetime.now(UTC)
 
-    assert value.tzinfo is None
+    assert value.utcoffset() == timedelta(0)
     assert before <= value <= after
 
 
@@ -37,12 +38,78 @@ def test_utcnow_is_naive_utc():
         (TeamInvitation, "created_at"),
     ],
 )
-def test_timestamp_defaults_are_naive(model, column):
-    # Postgres (asyncpg) rejects an aware datetime for a TIMESTAMP WITHOUT TIME ZONE
-    # column; SQLite hides the problem by dropping tzinfo, so assert it directly.
-    default = model.__table__.c[column].default
+def test_timestamp_defaults_are_aware_and_have_a_server_default(model, column):
+    # The columns are timestamptz (`UtcDateTime`), which rejects a naive value, and a row
+    # inserted outside the app (Supabase Studio) must still get a timestamp.
+    col = model.__table__.c[column]
 
-    assert default.arg(None).tzinfo is None
+    assert col.default.arg(None).tzinfo is not None
+    assert col.server_default is not None
+
+
+@pytest.mark.parametrize(
+    ("model", "column"),
+    [
+        (Team, "is_public"),
+        (TeamMember, "role"),
+        (TeamInvitation, "role"),
+    ],
+)
+def test_flags_and_roles_have_server_defaults(model, column):
+    assert model.__table__.c[column].server_default is not None
+
+
+async def test_a_row_inserted_without_defaults_gets_them(db_session: AsyncSession):
+    # What a hand-written INSERT in Supabase Studio looks like: only the required columns.
+    team_id = uuid.uuid4()
+    await db_session.execute(
+        text("INSERT INTO teams (id, name, created_by) VALUES (:id, 'T', :by)"),
+        {"id": team_id.hex, "by": uuid.uuid4().hex},
+    )
+    await db_session.execute(
+        text("INSERT INTO team_members (team_id, user_id) VALUES (:id, :u)"),
+        {"id": team_id.hex, "u": uuid.uuid4().hex},
+    )
+    await db_session.commit()
+
+    team = (await db_session.execute(select(Team))).scalar_one()
+    member = (await db_session.execute(select(TeamMember))).scalar_one()
+    assert team.is_public is True
+    assert team.created_at.tzinfo is not None
+    assert member.role == "member"
+    assert member.joined_at.tzinfo is not None
+
+
+class TestUtcDateTime:
+    def test_aware_values_are_stored_as_utc(self):
+        plus_two = datetime(2026, 11, 1, 12, 0, tzinfo=timezone(timedelta(hours=2)))
+
+        stored = UtcDateTime().process_bind_param(plus_two, None)
+
+        assert stored == datetime(2026, 11, 1, 10, 0, tzinfo=UTC)
+        assert stored.utcoffset() == timedelta(0)
+
+    def test_a_naive_value_is_refused(self):
+        with pytest.raises(ValueError, match="timezone-aware"):
+            UtcDateTime().process_bind_param(datetime(2026, 11, 1, 12, 0), None)
+
+    def test_none_passes_through_both_ways(self):
+        assert UtcDateTime().process_bind_param(None, None) is None
+        assert UtcDateTime().process_result_value(None, None) is None
+
+    def test_a_value_without_a_zone_is_read_back_as_utc(self):
+        # SQLite drops the zone.
+        read = UtcDateTime().process_result_value(datetime(2026, 11, 1, 10, 0), None)
+
+        assert read == datetime(2026, 11, 1, 10, 0, tzinfo=UTC)
+
+    def test_an_aware_value_is_read_back_in_utc(self):
+        stored = datetime(2026, 11, 1, 12, 0, tzinfo=timezone(timedelta(hours=2)))
+
+        read = UtcDateTime().process_result_value(stored, None)
+
+        assert read.utcoffset() == timedelta(0)
+        assert read == stored
 
 
 async def _team(db_session: AsyncSession) -> Team:
