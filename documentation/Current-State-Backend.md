@@ -259,7 +259,10 @@ erDiagram
 `opponent_name`/`match_name` as plain text plus nullable soft FKs `source_team_id`/
 `source_opponent_id` → `teams.id` (`ondelete="SET NULL"`); each `LineupPlayerSnapshot`
 freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` →
-`players.id` (`ondelete="SET NULL"`). Rendering a lineup relies **only** on the frozen
+`players.id` (`ondelete="SET NULL"`). A cap number can appear once per lineup (a unique index on
+`(saved_lineup_id, cap_number)`: Pydantic gives the friendly 422, the database is the guarantee), and the
+three soft-reference columns are indexed, because Postgres does not index foreign keys by itself and
+each `SET NULL` would otherwise scan the table. Rendering a lineup relies **only** on the frozen
 fields — no joins to live tables — so editing or deleting master data never breaks history.
 `Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"`. Team deletion
 checks first, so the caller gets a clear 409 ("it still has N player(s)"), but the database is the real
