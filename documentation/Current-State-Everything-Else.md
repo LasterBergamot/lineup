@@ -233,7 +233,7 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
   ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`), the `docker` ecosystem (`backend/Dockerfile`: the
   digest-pinned base image and the `uv` image) the `npm` ecosystem (`directory: /frontend`, i.e. `frontend/package.json`/`frontend/pnpm-lock.yaml`, minor and patch updates grouped into one PR) and the `github-actions` ecosystem (the workflow
-  files). Security-alert PRs are governed separately by the repo's "Dependabot security
+  files). Every ecosystem groups its minor and patch updates into one PR; majors stay separate. Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
   repo level — no code/config here, just a setting.
