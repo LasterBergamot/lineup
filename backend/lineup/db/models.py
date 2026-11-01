@@ -16,21 +16,23 @@ from sqlalchemy import (
     UUID,
     Boolean,
     CheckConstraint,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
+    func,
+    text,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lineup.db.base import Base
+from lineup.db.types import UtcDateTime
 
 
 def _utcnow() -> datetime:
-    # Columns are TIMESTAMP WITHOUT TIME ZONE, so store naive UTC. SQLite silently drops
-    # tzinfo, but asyncpg rejects an aware datetime for such a column.
-    return datetime.now(UTC).replace(tzinfo=None)
+    # Columns are `UtcDateTime` (timestamptz), which wants aware datetimes: see lineup/db/types.py.
+    return datetime.now(UTC)
 
 
 class Team(Base):
@@ -41,7 +43,9 @@ class Team(Base):
     lineups. `created_by` (the Supabase user id of the creator, who is also its first `owner`
     member) is for auditing only and grants nothing; ownership can move (`team_members.role`).
     A team that still has roster players or saved lineups cannot be deleted (both foreign keys
-    are `ON DELETE RESTRICT`; the service reports it as 409 before the database ever has to).
+    are `ON DELETE RESTRICT`). The service reports it as 409 after a friendly pre-check, and
+    the database is the real guard: if a player is added between the check and the delete,
+    `RESTRICT` refuses and the service turns that into the same 409.
 
     """
 
@@ -51,12 +55,20 @@ class Team(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
     # Whether this team is visible to other users in the shared opponent pool
-    is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
-    # RESTRICT (players.team_id): a team with roster players can't be deleted
+    # `passive_deletes="all"`: deleting a team must not make SQLAlchemy load the players and
+    # null their `team_id`. The database's `ON DELETE RESTRICT` has to see the delete and refuse
+    # it, even when a player was added after the service's own check. `lazy="raise"` because
+    # nothing needs the roster through the team; use an explicit `selectinload(Team.players)`
+    # where a query does.
     players: Mapped[list["Player"]] = relationship(
-        "Player", back_populates="team", lazy="selectin"
+        "Player", back_populates="team", lazy="raise", passive_deletes="all"
     )
 
 
@@ -91,9 +103,14 @@ class TeamMember(Base):
     )
     user_id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True)
     role: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=TeamRole.MEMBER.value
+        String(20),
+        nullable=False,
+        default=TeamRole.MEMBER.value,
+        server_default=text("'member'"),
     )
-    joined_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    joined_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
 
 class TeamInvitation(Base):
@@ -126,11 +143,16 @@ class TeamInvitation(Base):
     )
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     role: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=TeamRole.MEMBER.value
+        String(20),
+        nullable=False,
+        default=TeamRole.MEMBER.value,
+        server_default=text("'member'"),
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    expires_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
 
 class Player(Base):
@@ -151,7 +173,9 @@ class Player(Base):
         UUID, ForeignKey("teams.id", ondelete="RESTRICT"), nullable=False
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
     team: Mapped["Team"] = relationship("Team", back_populates="players")
 
@@ -169,7 +193,13 @@ class SavedLineup(Base):
     """
 
     __tablename__ = "saved_lineups"
-    __table_args__ = (Index("ix_saved_lineups_team_id", "team_id"),)
+    # The two `source_*` columns are indexed because Postgres does not index foreign keys by
+    # itself: without these, deleting a team scans this whole table to apply `SET NULL`.
+    __table_args__ = (
+        Index("ix_saved_lineups_team_id", "team_id"),
+        Index("ix_saved_lineups_source_team_id", "source_team_id"),
+        Index("ix_saved_lineups_source_opponent_id", "source_opponent_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     team_id: Mapped[uuid.UUID] = mapped_column(
@@ -191,7 +221,9 @@ class SavedLineup(Base):
     team_leader: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ball_thrower: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
     # Optional soft references for reuse/cloning; nulled out if the source is
     # deleted so a saved lineup is never blocked on or broken by that deletion.
@@ -219,6 +251,18 @@ class LineupPlayerSnapshot(Base):
     """
 
     __tablename__ = "lineup_player_snapshots"
+    __table_args__ = (
+        # A cap number can be used once per lineup. Pydantic checks it first for a friendly 422;
+        # this is the database's own guarantee. The index also serves lookups by lineup.
+        Index(
+            "ux_lineup_player_snapshots_lineup_cap",
+            "saved_lineup_id",
+            "cap_number",
+            unique=True,
+        ),
+        # Makes the `SET NULL` on player deletion an index lookup instead of a table scan.
+        Index("ix_lineup_player_snapshots_source_player_id", "source_player_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     saved_lineup_id: Mapped[uuid.UUID] = mapped_column(

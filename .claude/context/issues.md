@@ -5,6 +5,15 @@ when they draft issues. The skill holds the procedure; this file holds the proje
 
 - **Repo:** `LasterBergamot/lineup` (`$REPO`; `$OWNER` = `LasterBergamot`, `$NAME` = `lineup`).
 
+## Issue forms
+
+`.github/ISSUE_TEMPLATE/` holds three forms (`bug.yml`, `feature.yml`, `chore.yml`) with the
+Problem / Evidence / Proposal / Acceptance sections plus Area and Priority dropdowns, and
+`config.yml` switches blank issues off. A form can only set fixed labels, so it applies the
+`type:*` label and leaves the `area:*`, `priority:*` and `plan:*` labels, the milestone, the
+board fields and the parent epic to the maintainer (the `new-issue` skill does all of that, so
+prefer it when Claude files the issue). Keep the section names in step with this file.
+
 ## Body extras
 
 - `## Privacy & security`: add it to feature and security issues that touch personal data,

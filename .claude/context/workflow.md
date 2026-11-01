@@ -8,13 +8,14 @@ Run the tasks from anywhere in the repo (`Taskfile.yml` sets the working directo
 task install    # uv sync — install dependencies
 task doctor     # check required tools + minimum versions (scripts/doctor.sh; the setup runbook is documentation/Setup.md)
 task test       # pytest with coverage (must pass at 100%; e2e tests excluded)
-task test-e2e   # build image, make a throw-away JWT key, start container (+ compose.e2e.yml JWKS sidecar), run real-conversion fidelity tests, tear down
+task test-e2e   # build image, make a throw-away JWT key, start a separate Compose project `lineup-e2e` (port 8001, no backend/.env, own volume; + compose.e2e.yml JWKS sidecar), run real-conversion fidelity tests, tear it down. A running `task up` is left alone
 task lint       # ruff check
 task format     # ruff format
-task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup unless ENV=production)
-task db:status  # show whether backend/.env selects SQLite or the Supabase pooler
+task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup for SQLite via AUTO_CREATE_SCHEMA=1)
+task db:status  # show whether backend/.env selects SQLite or the Supabase pooler and its ENV; warns on a mismatch (scripts/db_env.py)
 task db:postgres  # switch backend/.env to the Supabase pooler (DATABASE_URL + ENV=production)
-task db:sqlite  # switch backend/.env back to local SQLite (comments the pooler URL out, keeps it)
+task db:sqlite  # switch backend/.env back to local SQLite (comments every Postgres URL out, keeps it)
+task db:query -- "select 1"  # one read-only statement via psql as the app role (--owner: backend/.env.migrate); the URL is never printed (scripts/db_query.py)
 task run        # run main.py (CLI demo, writes resources/modified_rajtlista.docx)
 task build      # build container image (lineup)
 task rebuild    # force fresh build with --no-cache
@@ -45,7 +46,7 @@ task docs:check   # fail if that block is stale (CI runs it)
 
 ## Environment variables
 
-Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SUPABASE_URL`, `APP_BASE_URL`, `PDF_MAX_CONCURRENT`, `DOCS_ENABLED`, `MAX_BODY_BYTES`, `RATE_LIMIT_GENERATE_PER_USER`, `RATE_LIMIT_GENERATE_PER_IP`, `CLIENT_IP_HEADER`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; the frontend's public `VITE_*` settings, including `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, live in the separate `frontend/.env`, see `frontend/.env.example`) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
+Environment variables (`DATABASE_URL`, `ENV`, `AUTO_CREATE_SCHEMA`, `CORS_ORIGINS`, `SUPABASE_URL`, `APP_BASE_URL`, `PDF_MAX_CONCURRENT`, `DOCS_ENABLED`, `MAX_BODY_BYTES`, `RATE_LIMIT_GENERATE_PER_USER`, `RATE_LIMIT_GENERATE_PER_IP`, `CLIENT_IP_HEADER`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; the frontend's public `VITE_*` settings, including `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, live in the separate `frontend/.env`, see `frontend/.env.example`) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
 `ENV=production` also makes startup fail closed (`validate_production_config()`: needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off, so health checks and scripts must use `GET /health`, not `/docs`. On Fly.io `CLIENT_IP_HEADER=Fly-Client-IP` is already set in `backend/fly.toml`; `DATABASE_URL`, `SUPABASE_URL` and `CORS_ORIGINS` are Fly secrets (`fly secrets set`), never in `fly.toml`. Setup and deploy steps: `documentation/Fly-Setup.md`. The frontend origin (the Cloudflare Pages URL, `documentation/Pages-Setup.md`) has to be in `CORS_ORIGINS`, exact match.
 
@@ -54,6 +55,10 @@ Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SUPABASE_URL`, `A
 ## Scheduled workflows
 
 `.github/workflows/keepalive.yml` (#156) runs `SELECT 1` through the Supabase transaction pooler every Monday and Thursday (and on `workflow_dispatch`), so the free-tier dev project never reaches its inactivity pause. It needs the `KEEPALIVE_DATABASE_URL` Actions secret: the `lineup_app` pooler URL in plain libpq form, `postgresql://lineup_app.<ref>:<password>@<pooler-host>:6543/postgres?sslmode=require`. It is **not** the app's `DATABASE_URL`: `psql` rejects the `+asyncpg` driver suffix and asyncpg-only parameters such as `ssl=` and `prepared_statement_cache_size`. The workflow fails with an error if the secret is missing, and `psql`'s own message stays in the log when the ping fails. It uses no third-party actions. GitHub disables scheduled workflows after 60 days without repo activity and a disabled workflow doesn't fail, so after a long break check the Actions tab and re-enable it (`PLAN.md` §5.3). Once the API is deployed it should also call `/health?db=1`.
+
+## Writing workflows
+
+Every third-party action is pinned to a commit SHA with the tag as a comment (`uses: owner/name@<40 hex>  # v7`; look the SHA up with `gh api repos/<owner>/<name>/git/ref/tags/<tag>`, dereferencing an annotated tag, and never invent one). `ci.yml` has a read-only token by default (`permissions: contents: read`), cancels an older run of the same PR (`concurrency`) and installs with `uv sync --locked`. CI's `Workflow files` job runs `actionlint` and `yamllint --strict` (`.yamllint`); run them before pushing: `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12` and `uvx yamllint==1.38.0 --strict -c .yamllint .github`. `backend/tests/test_ci_workflow.py` guards the pins and the permissions.
 
 ## Versions and releases
 

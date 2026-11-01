@@ -59,13 +59,14 @@ Four GitHub Actions workflows run automatically on GitHub — no local setup or 
 - **`.github/workflows/release.yml`** — by hand only (#17): reads the version from `backend/pyproject.toml` and `frontend/package.json` (they must match), then creates the `vX.Y.Z` tag and a GitHub Release with generated notes and the list of new Alembic migrations. Bump the version first with `task release:bump` in a normal PR; see "Versions and releases" in [Roadmap-Everything-Else](documentation/Roadmap-Everything-Else.md).
 - **`.github/workflows/keepalive.yml`** — on Mondays and Thursdays (and by hand): a `SELECT 1` through the Supabase pooler (Actions secret `KEEPALIVE_DATABASE_URL`) so the free-tier dev project is never paused for inactivity. If you've been away for a long time, check the Actions tab: GitHub disables scheduled workflows after 60 days without repo activity.
 
-If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
+If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing; CI runs both on every PR (`Workflow files` job), and every third-party action must be pinned to a commit SHA (`# vX` comment; `backend/tests/test_ci_workflow.py` fails otherwise).
 
 ### Security tooling
 
-- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies; security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
+- **Dependency updates:** GitHub Dependabot (`.github/dependabot.yml`) opens weekly PRs for outdated Python (`uv`), Docker (base image and `uv` image, pinned by digest) and GitHub Actions dependencies (minor and patch updates grouped per ecosystem, majors separate); security-alert PRs are additionally governed by the repo's "Dependabot security updates" setting.
 - **Secret scanning:** GitHub secret scanning + push protection are enabled at the repo level (no code/config in this repo).
-- **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`.
+- **Static analysis:** `ruff`'s `S` rule category (flake8-bandit) runs as part of `task lint`, and CodeQL (`.github/workflows/codeql.yml`) analyses the Python and TypeScript code on every PR into `develop`/`main`, on every push to them and weekly; findings are in the Security tab.
+- **Reporting a vulnerability:** see [`SECURITY.md`](SECURITY.md) (GitHub private vulnerability reporting, not a public issue).
 - **Container scanning:** Trivy scans the built image in CI (report-only, see above).
 - **Error monitoring:** [Sentry](https://sentry.io) (free Developer tier) — set the `SENTRY_DSN` environment variable in the deployment environment to enable it; errors only, no performance tracing. Unset locally, in CI, and in tests, so nothing is ever sent by default.
 - **Logging:** deferred until a real deployment target is chosen — see the "Logging (future)" section of the Roadmap: Everything Else wiki page.
@@ -141,7 +142,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` (in the container: `…:////data/lineup.db`, on a Compose volume) | Database to use. SQLite locally, or a Supabase Postgres URL (see below) |
 | `ENV` | unset | Set to `production` to skip the automatic table creation on startup because Alembic owns the schema. Set it for **any** real Postgres (dev or prod), despite the name. It also makes startup **fail closed**: the app refuses to start unless `DATABASE_URL` is a `postgresql+asyncpg` URL with `ssl=require` (or `verify-full`, preferred) and `SUPABASE_URL` is set, and it turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API (e.g. `http://localhost:5173` for the Vite dev server). Unset = no CORS headers. `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin: team invite links are built as `<APP_BASE_URL>/join/<code>`. `fly.toml` sets it to the Cloudflare Pages URL |
@@ -156,18 +157,18 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 
 `task up` (Docker Compose, via `env_file: backend/.env` in `compose.yml`) and `task serve` both load `backend/.env` automatically; it lives in `backend/` beside `backend/.env.example` so it is kept out of the image by `backend/.dockerignore`. `task migrate` and `task migrate-new` deliberately do **not**: they target local SQLite unless you pass `DATABASE_URL` for that one run, so a migration never hits Supabase by accident.
 
-**Switching databases:** `task db:postgres` / `task db:sqlite` flip `backend/.env` between the Supabase pooler and local SQLite (it uncomments or comments the pooler `DATABASE_URL` and adds or removes `ENV=production`), and `task db:status` shows which one is active. Restart `task serve` or run `task up` afterwards to apply the change. `db:postgres` needs a filled-in pooler URL (port 6543) already in `backend/.env`; it never invents one.
+**Switching databases:** `task db:postgres` / `task db:sqlite` flip `backend/.env` between the Supabase pooler and local SQLite (it uncomments or comments the pooler `DATABASE_URL` and adds or removes `ENV=production`), and `task db:status` shows which one is active and the `ENV` it runs with, warning when the two disagree (a Postgres URL without `ENV=production` skips the fail-closed startup checks). The logic lives in `scripts/db_env.py`. Restart `task serve` or run `task up` afterwards to apply the change. `db:postgres` needs a filled-in pooler URL (port 6543) already in `backend/.env`; it never invents one.
 
 ### Using the Supabase dev database
 
 The dev environment can run against a hosted Postgres on [Supabase](https://supabase.com) (project `lineup-dev`). This only replaces the database; authentication is not wired up yet.
 
-1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `backend/.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `backend/.env.example`. `ENV=production` is the right value for the dev database too: it means "Alembic owns the schema", not "this is the prod deployment". The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 backend/.env` keeps other users on your machine from reading it.
+1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `backend/.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `backend/.env.example`. `ENV=production` is the right value for the dev database too: it means "fail closed and no API docs", not "this is the prod deployment". Tables are never created by the app on Postgres, only by `task migrate:supabase`. The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 backend/.env` keeps other users on your machine from reading it.
 2. Put the **owner's direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead) in a separate git-ignored file, `backend/.env.migrate`, as `MIGRATE_DATABASE_URL` (`chmod 600`). It is kept out of `.env` on purpose: Compose and `task serve` load `.env` into the API's environment, and the API must never hold the owner's password. Then run `task migrate:supabase`. This creates the tables **and** switches on Row Level Security with a least-privilege `lineup_app` role (see *Current State: Backend* on the wiki).
 3. Run `task db:create-app-role`: it gives `lineup_app` a generated password and rewrites the pooler `DATABASE_URL` in `backend/.env` to that role (nothing is printed). The API then connects as `lineup_app`, not as the table-owning `postgres` role. It generates a **new** password on every run, so it asks you to type `yes` first (`task db:create-app-role -- --yes` skips the question for scripts); a second run invalidates the old password, and the deployed API's Fly secret `DATABASE_URL` and the `KEEPALIVE_DATABASE_URL` Actions secret then have to be updated (`documentation/Fly-Setup.md`).
 4. Start the app (`task up` or `task serve`; both read `backend/.env`).
 
-**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes: the task only comments the pooler URL out, it never deletes it, and `task db:postgres` uncomments it again.
+**Switching back to local SQLite:** run `task db:sqlite` and restart (or comment out `DATABASE_URL` and remove `ENV` in `backend/.env` by hand). Nothing else changes: the task only comments Postgres URLs out (whatever their port), it never deletes them, and `task db:postgres` uncomments it again.
 
 **If the credentials are lost:** the database password can be reset at any time in the Supabase dashboard (Project Settings → Database → *Reset database password*) without losing data; update your `backend/.env`. API keys and the JWT secret are always viewable and rotatable in Project Settings. The only unrecoverable situation is losing access to the Supabase account itself, so keep the account recovery e-mail and 2FA backup codes safe and consider adding a second owner to the organization.
 
@@ -290,18 +291,19 @@ POST /lineups/saved
 | `task install`  | Install dependencies via `uv sync`                              |
 | `task doctor`   | Check the required tools and their minimum versions (`scripts/doctor.sh`) |
 | `task run`      | Run the CLI application                                         |
-| `task serve`    | Start the API server locally (DOCX only; loads `backend/.env`; creates tables on startup unless `ENV=production`) |
-| `task db:status` | Show whether `backend/.env` currently selects SQLite or the Supabase pooler |
+| `task serve`    | Start the API server locally (DOCX only; loads `backend/.env`; creates the SQLite tables on startup via `AUTO_CREATE_SCHEMA=1`) |
+| `task db:status` | Show whether `backend/.env` selects SQLite or the Supabase pooler, and warn if `ENV` doesn't match |
+| `task db:query -- "SQL"` | Run one read-only statement with `psql` as the app role (`--owner` uses `backend/.env.migrate`); needs the PostgreSQL client tools; the URL is never printed |
 | `task db:postgres` | Switch `backend/.env` to the Supabase pooler (`DATABASE_URL` + `ENV=production`) |
 | `task db:sqlite` | Switch `backend/.env` back to local SQLite                             |
 | `task test`     | Run tests with coverage (100%)                                  |
-| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; needs host port 8000 free) |
+| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; runs as its own Compose project `lineup-e2e` on host port 8001, so a running `task up` is left alone) |
 | `task lint`     | Lint the codebase with ruff                                     |
 | `task format`   | Format the codebase with ruff                                   |
 | `task build`    | Build the container image                                       |
 | `task rebuild`  | Force a fresh container image build (no cache)                  |
 | `task up`       | Start the API in a container (detached)                         |
-| `task down`     | Stop the container                                              |
+| `task down`     | Stop the container (its SQLite data stays on the `lineup-data` volume; `docker compose down -v` deletes it) |
 | `task migrate`  | Apply Alembic migrations (`upgrade head`)                        |
 | `task migrate-new -- -m "description"` | Autogenerate a new Alembic migration          |
 | `task migrate-down` | Roll back one migration step                                 |
@@ -330,10 +332,11 @@ POST /lineups/saved
 lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
-├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
+├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key, moves it to port 8001 and drops `backend/.env`
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
-├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), sync_wiki.py (documentation/ to wiki mirror), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
-├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, dependabot.yml
+├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), sync_wiki.py (documentation/ to wiki mirror), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), db_env.py and db_query.py (`task db:*`), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
+├── SECURITY.md                      # Security policy: how to report a vulnerability privately
+├── .github/                         # CI (ci.yml, codeql.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
 ├── PLAN.md  CLAUDE.md  README.md    # Working plan; assistant router (detail in .claude/rules + .claude/context); this file
@@ -383,7 +386,9 @@ lineup/
     │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
     │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
     │       ├── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
-    │       └── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       ├── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       ├── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
+    │       └── f2c8a5d7e931_timestamptz_and_server_defaults.py  # Postgres: timestamptz columns + server defaults
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
@@ -402,7 +407,9 @@ lineup/
     │   │   └── water_polo_lineup_dto.py      # Data model and builders
     │   ├── db/
     │   │   ├── base.py                  # DeclarativeBase
-    │   │   ├── engine.py                # DB engine (SQLite/Postgres aware), get_session() dependency
+    │   │   ├── engine.py                # DB engine (SQLite foreign keys), get_session() dependency
+    │   │   ├── connection_settings.py   # URL-only settings: pooler-safe engine kwargs, AUTO_CREATE_SCHEMA rule (Alembic imports it)
+    │   │   ├── types.py                 # UtcDateTime: timestamptz that is always aware UTC
     │   │   ├── app_role.py              # `task db:create-app-role`: lineup_app password + .env rewrite
     │   │   ├── urls.py                  # to_asyncpg_url(): plain postgresql:// -> postgresql+asyncpg://
     │   │   └── models.py                # Team, Player, SavedLineup, LineupPlayerSnapshot
@@ -444,11 +451,14 @@ lineup/
     │   ├── test_app_role.py             # lineup.db.app_role (password + .env rewrite, fake engine)
     │   ├── test_postgres_migrations.py  # RLS / roles / grants on a real Postgres (skipped without POSTGRES_TEST_URL)
     │   ├── test_migrations.py           # Data migrations on a throw-away SQLite file
+    │   ├── test_db_env.py               # scripts/db_env.py (task db:status / db:sqlite / db:postgres on temp .env files)
+    │   ├── test_db_query.py             # scripts/db_query.py (task db:query: libpq variables, read-only wrapper, no URL leaks)
     │   ├── test_smoke_auth.py           # scripts/smoke_auth.py tokens are accepted by the real verifier
     │   ├── test_smoke_live.py           # scripts/smoke_live.py run against the real app: steps, failure, cleanup, sweep
     │   ├── test_input_hardening.py      # Control chars/blanks, unknown team_id, source-or-text, duplicate NSSZ, ordering
     │   ├── test_docs_tooling.py         # scripts/ (References generator, docs gate), wiki page naming and sync (`scripts/sync_wiki.py`), Claude context guards
-    │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate, Postgres pool settings)
+    │   ├── test_db_engine.py            # DB engine unit tests (SQLite pragma gate)
+    │   ├── test_connection_settings.py  # pooler-safe engine kwargs, AUTO_CREATE_SCHEMA rule
     │   ├── test_db_models.py            # ORM model unit tests
     │   ├── test_teams.py                # Teams API + repository tests
     │   ├── test_players.py              # Players API + repository tests

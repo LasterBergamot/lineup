@@ -266,3 +266,56 @@ class TestCreateAppRoleTask:
                 assert await conn.scalar(text("SELECT current_user")) == "lineup_app"
         finally:
             await app_engine.dispose()
+
+
+TIMESTAMP_COLUMNS = [
+    ("teams", "created_at"),
+    ("players", "created_at"),
+    ("saved_lineups", "created_at"),
+    ("team_members", "joined_at"),
+    ("team_invitations", "created_at"),
+    ("team_invitations", "expires_at"),
+    ("team_invitations", "revoked_at"),
+]
+
+
+class TestTimestampsAndDefaults:
+    """#65: timestamptz columns and server defaults, as the migration leaves them."""
+
+    @pytest.mark.parametrize(("table", "column"), TIMESTAMP_COLUMNS)
+    async def test_timestamps_are_timestamptz(self, engine, table, column):
+        rows = await _rows(
+            engine,
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = :t AND column_name = :c",
+            t=table,
+            c=column,
+        )
+        assert rows == [("timestamp with time zone",)]
+
+    async def test_a_hand_written_insert_gets_every_default(self, engine):
+        """What an INSERT in Supabase Studio looks like: only the columns without a default."""
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO teams (id, name, created_by) VALUES "
+                    "('00000000-0000-0000-0000-0000000000a1', 'Studio', gen_random_uuid())"
+                )
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO team_members (team_id, user_id) VALUES "
+                    "('00000000-0000-0000-0000-0000000000a1', gen_random_uuid())"
+                )
+            )
+            team = (
+                await conn.execute(text("SELECT is_public, created_at FROM teams"))
+            ).one()
+            member = (
+                await conn.execute(text("SELECT role, joined_at FROM team_members"))
+            ).one()
+            await conn.execute(text("DELETE FROM teams"))
+        assert team.is_public is True
+        assert team.created_at.utcoffset().total_seconds() == 0
+        assert member.role == "member"
+        assert member.joined_at is not None

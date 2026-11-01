@@ -25,10 +25,11 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task install` | `uv sync` — install dependencies |
 | `task doctor` | check the required tools and their minimum versions (`scripts/doctor.sh`); the first step of [[Setup]] |
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
-| `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
+| `task test-e2e` | build image, start a throw-away container (Compose project `lineup-e2e`, port 8001, no `backend/.env`), run real-conversion fidelity tests, tear it down with its volume |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
-| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |
+| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
+| `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite); `status` also warns when `ENV` doesn't match |
+| `task db:query -- "SQL"` | one read-only statement through `psql` (app role; `--owner` for the table owner); never prints the URL |
 | `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
 | `task up` / `task down` | start/stop the container |
@@ -47,7 +48,8 @@ external services.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
-| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod). It also makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
+| `AUTO_CREATE_SCHEMA` | unset | Opt-in (`1`/`true`/`yes`): create the tables from the ORM models on startup. Only honoured for SQLite, never for Postgres (Alembic owns that schema). `task serve` and the default Compose setup set it |
+| `ENV` | unset | `production` = fail closed at startup and no API docs. Set it for any real Postgres (dev or prod). It makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin; team invite links are `<APP_BASE_URL>/join/<code>`. Set in `fly.toml` to the Pages URL |
 | `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc`, `/openapi.json`; always off when `ENV=production` |
@@ -99,7 +101,10 @@ git-ignored.
   reach the image. `backend/.dockerignore` matters for **security**, not just size: the
   Dockerfile does `COPY . .`, so anything not excluded ends up in an image layer. It excludes
   `.env`/`.env.*` (the Supabase credentials in `backend/.env` sit *inside* the context) and
-  `*.db` (local SQLite data), plus tests, `*.md`, caches and `.git`. Check it whenever a new
+  `*.db`/`*.sqlite` (local SQLite data) and `resources/modified_rajtlista.docx` (the output of
+  `task run`, a filled-in lineup, i.e. personal data), plus tests, `*.md`, caches and `.git`. The
+  root `.gitignore` covers the same files so they can't be committed either
+  (`backend/tests/test_repo_hygiene.py` guards both lists). Check it whenever a new
   secret or local-state file appears in `backend/`. The image ships without tests, which is why the
   e2e suite runs from the host against the running container rather than inside the image.
 - The container starts `uvicorn` straight from the virtualenv's `bin` directory (which is on `PATH`):
@@ -110,8 +115,13 @@ git-ignored.
   always required before `task up`. It takes its settings from `env_file: backend/.env`
   (`required: false`, Compose >= 2.24) — Compose's own `.env` lookup only checks next to
   `compose.yml`, so it would no longer see `backend/.env` — and the container falls back to its
-  SQLite default when the file is absent. Full reset: `task down` → `docker rmi lineup` →
-  `docker image prune` → `task rebuild` → `task up`.
+  SQLite default when the file is absent. That default is `sqlite+aiosqlite:////data/lineup.db`
+  (set as `ENV DATABASE_URL` in the Dockerfile; `env_file` and Fly's secret override it), and
+  `/data` is the named volume `lineup-data`, so the data survives `task down`, `task rebuild`
+  and a reboot. The port is published on `127.0.0.1` only (the API must not be reachable from the
+  LAN) and the service has `restart: unless-stopped`; the image's own `HEALTHCHECK` on `/health` is
+  inherited. Full reset: `task down` → `docker compose down -v` (deletes the volume and with it the
+  local data) → `docker rmi lineup` → `docker image prune` → `task rebuild` → `task up`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
   `task build` + `task up`, not `task serve`.
@@ -175,7 +185,12 @@ Four GitHub Actions workflows (`.github/workflows/`):
 - **`ci.yml`** — runs on every PR (and push) against `develop` or `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
   coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
-  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The
+  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The workflow's
+  token is read-only (`permissions: contents: read`; only the e2e job adds `security-events: write`
+  for the SARIF upload), a new push to a PR cancels that PR's older run (`concurrency`), Python
+  dependencies install with `uv sync --locked` (fails when `uv.lock` is stale), and **every
+  third-party action in every workflow is pinned to a commit SHA** with the tag in a comment
+  (`# v7`), which Dependabot keeps current; `backend/tests/test_ci_workflow.py` enforces it. The
   `arduino/setup-task` steps pass `repo-token: ${{ secrets.GITHUB_TOKEN }}` so the action's
   GitHub API lookups are authenticated; without it, shared runners occasionally hit the
   unauthenticated rate limit and the job fails before any of our code runs. The input really is
@@ -217,7 +232,7 @@ Four GitHub Actions workflows (`.github/workflows/`):
   workflows after 60 days without repo activity, and a disabled workflow doesn't fail, so after a long break
   check the Actions tab and re-enable it.
 
-`ci.yml` has five jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
+`ci.yml` has six jobs. **Workflow files** runs `actionlint` (pinned Docker image, which also runs shellcheck on the `run:` scripts) and `yamllint --strict` over `.github/`. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
 Prettier, the type check, the Vitest suite with a coverage report (it fails below 100 %, set in `frontend/vite.config.ts`) and the production build, then `task fe:api:check`, which
 regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
 and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
@@ -227,7 +242,7 @@ on `develop` and `main`. **Lint & test** runs ruff, the tests at 100% coverage, 
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
 (`tests/test_postgres_migrations.py`), then `alembic check` with type comparison and a
-`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests. **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
+`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests (no Docker layer cache: tried with buildx and the `gha` cache, it saved no job time because the build takes about 40 s). **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
 
 `ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
 `documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the
@@ -239,7 +254,7 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
   ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`), the `docker` ecosystem (`backend/Dockerfile`: the
   digest-pinned base image and the `uv` image) the `npm` ecosystem (`directory: /frontend`, i.e. `frontend/package.json`/`frontend/pnpm-lock.yaml`, minor and patch updates grouped into one PR) and the `github-actions` ecosystem (the workflow
-  files). Security-alert PRs are governed separately by the repo's "Dependabot security
+  files). Every ecosystem groups its minor and patch updates into one PR; majors stay separate. Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
   repo level — no code/config here, just a setting.
@@ -251,9 +266,20 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
   executable path) ignored the same way — its `subprocess.run([...])` call uses a literal
   executable name and an argv list with no `shell=True` and no user-controlled input, so
   neither warning reflects a real risk there.
+- **CodeQL** (`.github/workflows/codeql.yml`, #98): static analysis of the Python and
+  TypeScript code with GitHub's default query suite, on every PR into `develop`/`main`, every
+  push to them and weekly (Tuesday). Both languages are interpreted, so no build is traced
+  (`build-mode: none`). Dependabot PRs are skipped, because Dependabot's token is read-only and
+  cannot upload results. Results land in Security → Code scanning next to Trivy's. The repo uses
+  this *advanced* workflow, so GitHub's "default setup" for code scanning must stay off (the two
+  conflict).
+- **Security policy**: `SECURITY.md` tells people to report privately through GitHub's
+  *private vulnerability reporting* (a repository setting the owner turns on under
+  Settings → Code security; the file alone does not enable it).
 - **Container image scanning**: `aquasecurity/trivy-action` scans the built `lineup:latest`
-  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). Both the
-  table-format and SARIF-format runs are pinned to `exit-code: "0"` — this is deliberately
+  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). One scan
+  produces the SARIF file; the job summary's findings table is rendered from it, so the two never
+  disagree. It is pinned to `exit-code: "0"` — this is deliberately
   **report-only**, never failing the build, because the LibreOffice + apt package surface has
   more CVEs than a plain slim-Python image can realistically stay ahead of. SARIF results are
   uploaded to the repo's Security → Code scanning tab via `github/codeql-action/upload-sarif`
@@ -320,11 +346,12 @@ full model ID. If a skill seems to run an older model, check the
 `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL` environment variables on your machine: they
 override what the aliases resolve to. Every skill that writes to GitHub, git or
 Supabase asks before each state-changing command. The shared `.claude/settings.json` lets
-`task lint`/`task test` run without prompting and denies reading `.env*` (at the root and in `backend/`), so credentials
+`task lint`/`task test` run without prompting and denies reading `.env*` (at the root, in `backend/` and in `frontend/`), so credentials
 never enter the conversation.
 
 **Issue conventions** (the values `new-issue` reads from `.claude/context/issues.md`):
 - Bodies follow Problem / Evidence / Proposal / Acceptance.
+- Issues opened on GitHub itself use the forms in `.github/ISSUE_TEMPLATE/` (bug, feature, chore; blank issues are off). A form can only set the `type:*` label, so a maintainer adds `area:*`, `priority:*`, `plan:*` and the milestone.
 - Labels: one `type:*`, one or more `area:*`, one `priority:*`, and one `plan:*` (keep, keep-cheap, defer, drop).
 - Milestones: M1 Hardening, M3 Dev preview, Mx Parked (deliberately not now; M2 Prod is closed).
 - Work is grouped under epics (#41–#46, the frontend epic #20, the compliance epic #92) as GitHub sub-issues, with

@@ -12,8 +12,12 @@ docs/
 # Throw-away signing key made by `task test-e2e`
 .e2e-auth/
 
-# Local SQLite database (default DATABASE_URL)
-lineup.db
+# Local SQLite databases (the default DATABASE_URL is backend/lineup.db). They hold real rows.
+*.db
+*.sqlite
+
+# Written by `task run`: a filled-in lineup, i.e. personal data
+backend/resources/modified_rajtlista.docx
 
 # Personal Claude Code settings
 .claude/settings.local.json

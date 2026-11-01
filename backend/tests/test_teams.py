@@ -4,13 +4,14 @@ Each test gets a fresh in-memory SQLite DB via the async_client fixture.
 """
 
 import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lineup.db.models import TeamMember
+from lineup.db.models import Player, Team, TeamMember
 from lineup.teams import repository as team_repo
 from lineup.teams.schemas import TeamPoolItem
 from tests.conftest import CurrentUser
@@ -257,6 +258,61 @@ class TestDeleteTeam:
         await async_client.delete(f"/teams/{team['id']}")
         response = await async_client.get(f"/teams/{team['id']}")
         assert response.status_code == 200
+
+
+class TestDeleteRelyingOnTheDatabase:
+    """The 409 pre-checks are only friendly messages: the database's RESTRICT is the guard."""
+
+    async def test_a_player_added_after_the_check_blocks_the_delete(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        team = await _create_team(async_client)
+        player = await _create_player(async_client, team_id=team["id"])
+        # Simulate the race: the service saw an empty roster, then a player appeared.
+        monkeypatch.setattr(
+            team_repo, "count_players_for_team", AsyncMock(return_value=0)
+        )
+        response = await async_client.delete(f"/teams/{team['id']}")
+        assert response.status_code == 409
+        db_session.expire_all()
+        kept = await db_session.get(Player, uuid.UUID(player["id"]))
+        assert kept is not None and str(kept.team_id) == team["id"]
+        assert await db_session.get(Team, uuid.UUID(team["id"])) is not None
+
+    async def test_a_lineup_saved_after_the_check_blocks_the_delete(
+        self,
+        async_client: AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        team = await _create_team(async_client)
+        await _save_lineup(async_client, team["id"], "Them")
+        monkeypatch.setattr(
+            team_repo, "count_saved_lineups_for_team", AsyncMock(return_value=0)
+        )
+        response = await async_client.delete(f"/teams/{team['id']}")
+        assert response.status_code == 409
+        assert (await async_client.get(f"/teams/{team['id']}")).status_code == 200
+
+    async def test_listing_teams_never_loads_their_players(
+        self, async_client: AsyncClient, db_engine
+    ):
+        team = await _create_team(async_client)
+        await _create_player(async_client, team_id=team["id"])
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, *_):
+            statements.append(statement)
+
+        event.listen(db_engine.sync_engine, "before_cursor_execute", record)
+        try:
+            response = await async_client.get("/teams")
+        finally:
+            event.remove(db_engine.sync_engine, "before_cursor_execute", record)
+        assert response.status_code == 200
+        assert not any("FROM players" in s for s in statements)
 
 
 class TestMembership:

@@ -3,6 +3,9 @@ version: 2
 # Version-update PRs target `develop` (the integration branch); `main`
 # only receives release merges from `develop`. Security-update PRs always
 # target the default branch, which is also `develop`.
+#
+# Every ecosystem groups its minor and patch updates into one PR, so a routine bump is a single
+# PR to triage. Major versions stay separate (a breaking change gets its own review).
 
 updates:
   # Python dependencies managed by uv (pyproject.toml + uv.lock in backend/).
@@ -14,8 +17,14 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
+    groups:
+      backend-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
 
-  # Keep the two GitHub Actions workflows' pinned action versions current too.
+  # Keep the pinned versions of the actions used by the workflows current (a tag or a commit
+  # SHA; Dependabot updates both forms).
   - package-ecosystem: "github-actions"
     directory: "/"
     target-branch: "develop"
@@ -24,6 +33,11 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
 
   # Frontend dependencies (package.json + pnpm-lock.yaml in frontend/). Minor and patch
   # updates of related packages are grouped so a routine bump is one PR, not ten.
@@ -50,6 +64,11 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
+    groups:
+      docker-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
       # Python 3.15 cannot build the image yet: lxml, pydantic-core, httptools, markupsafe,
       # pyyaml and uvloop have no 3.15 wheels (PR #138 failed on it). Remove this entry once

@@ -184,7 +184,7 @@ task test           # run the tests (must report 100% coverage)
 task lint           # ruff
 task serve          # local API on :8000, DOCX only; tables are created automatically
 task build && task up    # full API in a container, with PDF output
-task test-e2e       # real-conversion tests against the container (needs port 8000 free)
+task test-e2e       # real-conversion tests against a throw-away container (port 8001; your `task up` keeps running)
 ```
 
 Then open `http://localhost:8000/docs` for the interactive API docs (they are off when `ENV=production` or `DOCS_ENABLED=false`; `/health` always answers).
@@ -248,8 +248,9 @@ the service if a rule applies, tests for the new behaviour, and the docs.
 
 ## 10. Gotchas that have bitten people
 
-- **Async SQLAlchemy can't lazy-load.** Relationships are declared `lazy="selectin"` so they load
-  up front; otherwise you get `MissingGreenlet`.
+- **Async SQLAlchemy can't lazy-load.** A relationship is either loaded up front
+  (`lazy="selectin"`, as for a lineup's player snapshots) or forbidden (`lazy="raise"`, as for a team's
+  players, which nothing reads); a plain lazy load gives `MissingGreenlet`.
 - **SQLite ignores foreign-key rules by default.** `enable_sqlite_foreign_keys()` turns them on
   per connection; without it `ON DELETE SET NULL` silently does nothing.
 - **Postgres behind Supabase's pooler** needs prepared statements turned off and `NullPool`; SQLite

@@ -360,6 +360,27 @@ class TestDataIndependence:
         response = await async_client.get(f"/lineups/saved/{lineup['id']}")
         assert response.json()["players"][0]["name"] == "Locked Player"
         assert response.json()["players"][0]["nssz_number"] == "LOCK001"
+        assert response.json()["players"][0]["source_player_id"] is None
+
+    async def test_lineup_survives_opponent_deletion(self, async_client: AsyncClient):
+        workspace = await ensure_team(async_client, "Workspace")
+        opponent = await _create_team(async_client, "Csongrád VVSE")
+        player = await create_player(async_client, team_id=workspace["id"])
+        payload = _lineup_payload(workspace["id"], player["id"])
+        payload.pop("opponent_name")
+        payload["source_opponent_id"] = opponent["id"]
+        created = await async_client.post("/lineups/saved", json=payload)
+        assert created.status_code == 201, created.text
+        lineup = created.json()
+        assert lineup["source_opponent_id"] == opponent["id"]
+
+        assert (
+            await async_client.delete(f"/teams/{opponent['id']}")
+        ).status_code == 200
+
+        response = await async_client.get(f"/lineups/saved/{lineup['id']}")
+        assert response.json()["opponent_name"] == "Csongrád VVSE"
+        assert response.json()["source_opponent_id"] is None
 
 
 class TestDeleteSavedLineup:

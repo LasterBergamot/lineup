@@ -108,14 +108,15 @@ task migrate
 ## 7. End-to-end PDF check (recommended)
 
 This proves the real PDF conversion matches the reference layout. It builds the image again,
-makes a throw-away signing key in `.e2e-auth/`, starts its **own** container (host port 8000 must
-be free), runs the tests, and then **stops the container, including the one from step 5**.
+makes a throw-away signing key in `.e2e-auth/`, starts its **own** container as a separate Compose
+project (`lineup-e2e`, host port 8001, no `backend/.env`, its own data volume), runs the tests, and then
+removes that container and volume. The container from step 5 keeps running.
 
 ```bash
 task test-e2e
 ```
 
-**Expected:** the tests pass. Run `task up` again afterwards if you want the API running.
+**Expected:** the tests pass, and `http://127.0.0.1:8000/health` still answers.
 
 ## 8. Frontend (optional)
 

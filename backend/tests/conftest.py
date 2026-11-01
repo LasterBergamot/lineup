@@ -98,15 +98,27 @@ def current_user() -> CurrentUser:
 
 @pytest.fixture
 async def async_client(
-    db_session: AsyncSession, current_user: CurrentUser
+    db_engine, db_session: AsyncSession, current_user: CurrentUser
 ) -> AsyncClient:
     """
     AsyncClient wired to the FastAPI app with dependency overrides:
-    - get_session → in-memory SQLite session
+    - get_session → a **new** session per request from the test engine, like production, so
+      one request never sees another request's identity map (a shared session hid stale data
+      after deletes and would hide a missing rollback after an `IntegrityError`)
     - get_current_user_id → `current_user.id` (no token needed; the real JWT check is
       covered in test_auth_dependencies.py)
+
+    `db_session` is a separate session on the same engine, for tests that arrange or assert
+    rows directly: call `db_session.expire_all()` (or use a fresh `select`) before reading
+    something an API call changed.
     """
-    app.dependency_overrides[get_session] = lambda: db_session
+    factory = async_sessionmaker(db_engine, expire_on_commit=False)
+
+    async def per_request_session():
+        async with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_session] = per_request_session
     app.dependency_overrides[get_current_user_id] = lambda: current_user.id
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

@@ -51,16 +51,20 @@ RUN fc-cache -f
 # A fixed uid/gid so bind mounts and orchestrators see a stable, non-root identity. HOME is
 # writable because LibreOffice and fontconfig expect one even though conversions use a
 # private profile under /tmp. /app is created here (not by WORKDIR, which would make it
-# root-owned) because the default SQLite database (./lineup.db) is written there.
+# root-owned) (and /data, the default SQLite database's directory) because the app user has to write there.
 RUN groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --create-home --home-dir /home/app \
         --shell /usr/sbin/nologin app \
-    && mkdir /app \
-    && chown app:app /app
+    && mkdir /app /data \
+    && chown app:app /app /data
 
+# The default database lives in /data, a directory of its own, so Compose can keep it on a
+# named volume (a volume copies this directory's ownership the first time it is mounted).
+# It is only a default: Fly's DATABASE_URL secret and backend/.env (compose `env_file`) override it.
 ENV HOME=/home/app \
     PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DATABASE_URL=sqlite+aiosqlite:////data/lineup.db
 
 WORKDIR /app
 

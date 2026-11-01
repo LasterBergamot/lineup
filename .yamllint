@@ -2,5 +2,7 @@ extends: default
 
 rules:
   document-start: disable
+  # Workflow comments explain the why and `run:` lines hold URLs and long commands.
+  line-length: disable
   truthy:
     check-keys: false

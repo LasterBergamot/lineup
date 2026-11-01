@@ -50,8 +50,8 @@ router serialises back through the response schema.
 ### Entry points
 
 - `app.py` — builds the FastAPI app, registers the routers and the security middleware,
-  optionally initialises Sentry, checks the production config on startup (fail closed) and
-  (unless `ENV=production`) creates missing tables on startup.
+  optionally initialises Sentry, checks the production config on startup (fail closed) and,
+  only when `AUTO_CREATE_SCHEMA` is set and the database is SQLite, creates missing tables.
 - `lineup/security/` — API hardening: security headers, body size cap, rate limiter and the
   startup config check, see [Hardening for public exposure](#hardening-for-public-exposure).
 - `main.py` — a small CLI that generates one hard-coded lineup to `resources/modified_rajtlista.docx`
@@ -259,11 +259,16 @@ erDiagram
 `opponent_name`/`match_name` as plain text plus nullable soft FKs `source_team_id`/
 `source_opponent_id` → `teams.id` (`ondelete="SET NULL"`); each `LineupPlayerSnapshot`
 freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` →
-`players.id` (`ondelete="SET NULL"`). Rendering a lineup relies **only** on the frozen
+`players.id` (`ondelete="SET NULL"`). A cap number can appear once per lineup (a unique index on
+`(saved_lineup_id, cap_number)`: Pydantic gives the friendly 422, the database is the guarantee), and the
+three soft-reference columns are indexed, because Postgres does not index foreign keys by itself and
+each `SET NULL` would otherwise scan the table. Rendering a lineup relies **only** on the frozen
 fields — no joins to live tables — so editing or deleting master data never breaks history.
-`Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"` at the DB level, but team
-deletion is actually blocked earlier, at the service layer (409), so the DB-level RESTRICT never
-fires in practice.
+`Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"`. Team deletion
+checks first, so the caller gets a clear 409 ("it still has N player(s)"), but the database is the real
+guard: a player added between the check and the delete makes `RESTRICT` refuse, and the repository
+turns that `IntegrityError` into the same 409. `Team.players` is `passive_deletes="all"` so the ORM
+never tries to null the players' `team_id` itself.
 
 **Teams, members and invitations**: `team_members` says who belongs to a team (composite primary
 key `(team_id, user_id)`, role `owner` or `member`, enforced by a `CHECK` so adding `admin` later is a
@@ -288,9 +293,11 @@ saved lineup into the team it was made for, or else its creator's oldest team. T
 because the dev project was the single database holding pre-auth rows; it is not a pattern for data that
 matters.
 
-**Async loading gotcha**: `Team.players` and `SavedLineup.player_snapshots` are
-`relationship(..., lazy="selectin")` — async SQLAlchemy can't lazy-load relationships
-synchronously (raises `MissingGreenlet`), so eager `selectin` loading is required.
+**Async loading gotcha**: async SQLAlchemy can't lazy-load relationships synchronously (raises
+`MissingGreenlet`), so a relationship is either eager or forbidden. `SavedLineup.player_snapshots` is
+`lazy="selectin"` (every lineup response needs it). `Team.players` is `lazy="raise"`: nothing reads a
+roster through the team, so listing teams loads no players; use an explicit `selectinload(Team.players)`
+if a query ever needs it.
 
 **SQLite foreign keys**: SQLite ignores `ondelete` clauses entirely unless
 `PRAGMA foreign_keys=ON` is set per-connection — `enable_sqlite_foreign_keys(engine)` in
@@ -322,26 +329,36 @@ Why the Postgres URL looks the way it does:
   different clients from one transaction to the next, but asyncpg caches prepared statements
   per connection under auto-generated names. Two clients then collide on a name and the
   request fails with `DuplicatePreparedStatementError`. So for Postgres URLs
-  `_make_engine_kwargs()` passes `connect_args` that disable asyncpg's own statement cache
+  `make_engine_kwargs()` passes `connect_args` that disable asyncpg's own statement cache
   (`statement_cache_size=0`) and SQLAlchemy's (`prepared_statement_cache_size=0`), and give
   any statement that is still prepared a unique name (`prepared_statement_name_func`). These
   live in code, not the URL, because the naming function can't be expressed in a URL; an old
   URL that still ends in `&prepared_statement_cache_size=0` is harmless.
 - **`ssl=require`** — Supabase enforces TLS.
-- **`NullPool`** — for Postgres URLs `_make_engine_kwargs()` disables SQLAlchemy's own
+- **`NullPool`** — for Postgres URLs `make_engine_kwargs()` disables SQLAlchemy's own
   connection pool, because the Supabase pooler already pools and stacking a second pool on
   top causes stale/duplicated connections.
-- **Naive UTC timestamps** — the `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so
-  the model defaults produce naive UTC datetimes (`_utcnow()` in `lineup/db/models.py`).
-  SQLite silently drops time zones, so an aware datetime worked there; asyncpg rejects it.
-  Moving to `timestamptz` columns would be a possible future improvement (needs a migration).
-- **`ENV=production`** — `app.py` skips `Base.metadata.create_all` on startup when this is set
-  so Alembic is the only thing that touches the schema. Despite the name it means "the schema
-  is Alembic-managed", **not** "this is the prod deployment": set it for any real Postgres,
-  dev or prod — `ENV=production` is the correct value for the dev Supabase project too. (If it
-  were left unset, the app would create the tables itself on first start, without an
-  `alembic_version` record, and the next `task migrate` would fail with "table already
-  exists".)
+- **Timestamps are `timestamptz`, always aware UTC** (migration `f2c8a5d7e931`, #65). Every
+  timestamp column uses `UtcDateTime` (`lineup/db/types.py`): it accepts only timezone-aware values
+  (a naive one raises, instead of silently guessing a zone), stores UTC, and returns aware UTC on
+  both databases, because SQLite has no real timestamp type and hands back text without a zone.
+  `_utcnow()` in `lineup/db/models.py` is the one clock. The API therefore serialises
+  `2026-11-01T10:00:00Z`-style values; the frontend's `parseApiDate` accepts both forms. Before this
+  the columns were `TIMESTAMP WITHOUT TIME ZONE` holding naive UTC, which asyncpg forced on us.
+- **Server defaults** — `is_public`, both `role` columns and every `created_at` / `joined_at` also
+  have a database default (`true`, `'member'`, `now()`), so a row inserted by hand in Supabase Studio
+  does not fail on a NOT NULL column. The Python-side defaults stay for SQLite and for readability.
+  The migration applies both changes on Postgres only; a SQLite file migrated by Alembic keeps its
+  old column definitions (SQLite is for local runs, and `create_all` builds the new shape).
+- **`AUTO_CREATE_SCHEMA`** — opt-in (`1`/`true`/`yes`) for `Base.metadata.create_all` on startup, and
+  honoured **only for SQLite** (`auto_create_schema_enabled()` in `lineup/db/connection_settings.py`).
+  `task serve` and the default Compose setup set it; Fly, tests and a Postgres `DATABASE_URL` never
+  create tables themselves, so Alembic is the only thing that touches a Postgres schema. (An app that
+  created the tables itself would leave no `alembic_version` record, and the next `task migrate`
+  would fail with "table already exists".)
+- **`ENV=production`** — despite the name it means "fail closed at startup and turn the docs
+  off", **not** "this is the prod deployment": set it for any real Postgres, dev or prod —
+  `ENV=production` is the correct value for the dev Supabase project too.
 - **Why the app uses the pooler, not the direct connection.** Migrations are a separate,
   manual step (`task migrate`) — the app never runs them at startup — so the direct connection
   is only needed for that one-off command. The app stays on the transaction pooler because
@@ -358,10 +375,12 @@ Supabase by accident.
 
 **Switching databases**: `task db:postgres` and `task db:sqlite` flip `backend/.env` between the two
 (uncomment/comment the real pooler `DATABASE_URL`, add/remove `ENV=production`), and
-`task db:status` reports the active one. Restart `task serve` / run `task up` to apply.
+`task db:status` reports the active one and its `ENV`, with a warning when they disagree. Restart `task serve` / run `task up` to apply.
 Switching back to SQLite involves no code or data migration — the two databases are simply
 independent. `db:postgres` refuses to run unless `backend/.env` already holds a filled-in pooler URL
-(port 6543, no `<placeholders>`).
+(port 6543, no `<placeholders>`). The three tasks share `scripts/db_env.py`, which understands `#DATABASE_URL=` with or without a space, quoted or unquoted values and any port when switching back to SQLite.
+
+`task db:query -- "select ..."` (`scripts/db_query.py`) is the read-only way to look at the database from a terminal: it runs the statement in `BEGIN READ ONLY ... ROLLBACK` with a 30 s timeout, as the app role by default (RLS applies) or as the owner with `--owner`. It hands the URL to `psql` as `PG*` environment variables, so the password is neither printed nor visible in the process list. It needs `psql` on the `PATH`. Changing data still goes through Alembic or the [[Supabase Admin Guide]].
 
 ### Changing the schema later (Alembic)
 
