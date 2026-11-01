@@ -347,6 +347,8 @@ describe("LineupCreator preview", () => {
 
     expect(await screen.findByTestId("viewer")).toHaveTextContent("4 bytes");
     expect(screen.getByRole("complementary", { name: "Preview" })).toBeInTheDocument();
+    // The file is handed to the panel, so the large view is on offer.
+    expect(screen.getByRole("button", { name: "Enlarge" })).toBeInTheDocument();
     const [body, format] = mocks.generateLineup.mock.calls[0]!;
     expect(format).toBe("pdf");
     expect(body).toMatchObject({

@@ -22,3 +22,22 @@ test("previewing a saved lineup highlights its row", async ({
   }
   await expectNoHorizontalScroll(app);
 });
+
+test("a saved lineup's preview can be enlarged and closed again", async ({
+  app,
+  expectAccessible,
+  expectNoHorizontalScroll,
+}) => {
+  await app.goto("/saved");
+  await app.getByRole("button", { name: "Preview SZVTK - Opponent 2" }).click();
+  const enlarge = app.getByRole("button", { name: "Enlarge" });
+  await enlarge.click();
+  const large = app.getByRole("dialog", { name: /Opponent 2.*\(enlarged\)/ });
+  await expect(large.locator("canvas")).toHaveCount(1);
+  await large.getByRole("radio", { name: "150 %" }).click();
+  await expectNoHorizontalScroll(app);
+  await expectAccessible(app);
+  await app.keyboard.press("Escape");
+  await expect(large).toBeHidden();
+  await expect(enlarge).toBeFocused();
+});

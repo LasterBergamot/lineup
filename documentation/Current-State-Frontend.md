@@ -251,6 +251,13 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   is bundled (`?url`), so nothing comes from a CDN. The PDF is a `Blob` held by the mutation
   (`gcTime: 0`), never given a URL or stored, and dropped when the panel closes. The slow-PDF notice
   appears after 5 s as before.
+- **Enlarge.** Once the PDF exists the panel shows an **Enlarge** button (also in the phone dialog)
+  that opens the same file in a large view (#242): the whole screen on a phone, nearly the whole
+  viewport on a desktop. A zoom control (Fit width, 100 %, 150 %, 200 %) sits above a scrollable
+  page area; only that area scrolls, never the page behind it. `PdfViewer` draws each page at the
+  size it is shown (CSS width times the screen's pixel ratio, redrawn after a resize or zoom), so
+  names and NSSZ numbers stay sharp instead of being a stretched bitmap. Esc or the close button
+  return to the Enlarge button. The file is still only in memory: no URL, no storage.
 - **Save.** `POST /lineups/saved` (a "Lineup saved" toast confirms it); afterwards "Saved" stays until the next edit, the PDF/DOCX
   download buttons use `POST /lineups/saved/{id}/generate`, and the saved and recent-opponent
   queries are refreshed. A 422 is mapped onto the fields (`formPath()`).
@@ -309,7 +316,8 @@ has:
   because each one runs LibreOffice and counts against the generate rate limit). A saved lineup is a
   frozen snapshot that never changes, so each preview is kept in the in-memory query cache while the
   page is open and opening it again costs nothing. The file is never given a URL or stored. After 5 s
-  the usual "the first PDF after a break takes longer" note appears.
+  the usual "the first PDF after a break takes longer" note appears. Once it is shown, an **Enlarge**
+  button opens the full-size view with zoom (see *Enlarge* under the lineup creator).
 - **PDF / DOCX**: downloads the file again.
 - **Clone to new match**: opens the Lineup page with only the lineup's id in the router's state
   (`cloneFromId`); the page fetches the saved lineup itself and pre-fills a new one from it. The

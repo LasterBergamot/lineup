@@ -223,7 +223,14 @@
   "preview": {
     "title": "Preview",
     "close": "Close the preview",
-    "unreadable": "The preview could not be shown. You can still download the file."
+    "unreadable": "The preview could not be shown. You can still download the file.",
+    "enlarge": "Enlarge",
+    "enlargedTitle": "{{title}} (enlarged)",
+    "closeEnlarged": "Close the enlarged preview",
+    "zoom": "Zoom",
+    "zoomFit": "Fit width",
+    "zoomPercent": "{{percent}} %",
+    "pages": "Pages of the lineup sheet"
   },
   "creator": {
     "description": "Build the lineup for {{team}} from the roster, preview the sheet and save it for later.",

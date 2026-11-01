@@ -10,7 +10,8 @@ import { cn } from "@/lib/utils";
  * child such as the PDF viewer only exists while it is on screen). The title labels the dialog
  * (`aria-labelledby`), the optional `description` describes it (`aria-describedby`), and the
  * close button, Esc and a click on the scrim all call `onClose`: the owner of the state closes it.
- * Focus goes back to whatever opened it. For a destructive row action keep using `ConfirmButton`.
+ * `actions` sit in the header next to the close button (an Enlarge button, say). Focus goes back to
+ * whatever opened it. For a destructive row action keep using `ConfirmButton`.
  */
 export function Dialog({
   open,
@@ -18,6 +19,7 @@ export function Dialog({
   title,
   description,
   closeLabel,
+  actions,
   className,
   children,
 }: {
@@ -27,6 +29,8 @@ export function Dialog({
   description?: string;
   /** Accessible name of the close button, translated by the caller. */
   closeLabel: string;
+  /** Extra header controls, shown before the close button. */
+  actions?: ReactNode;
   className?: string;
   children?: ReactNode;
 }) {
@@ -79,15 +83,18 @@ export function Dialog({
             <h2 id={titleId} className="text-lg font-semibold">
               {title}
             </h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={closeLabel}
-              onClick={onClose}
-            >
-              <X />
-            </Button>
+            <div className="flex items-center gap-2">
+              {actions}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={closeLabel}
+                onClick={onClose}
+              >
+                <X />
+              </Button>
+            </div>
           </div>
           {description && (
             <p id={descriptionId} className="text-sm text-muted-foreground">

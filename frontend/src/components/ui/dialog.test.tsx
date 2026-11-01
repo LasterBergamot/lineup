@@ -96,3 +96,15 @@ describe("Dialog", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+describe("Dialog actions", () => {
+  it("shows header actions next to the close button", () => {
+    render(
+      <Dialog open onClose={() => {}} title="T" closeLabel="Close" actions={<button>Extra</button>}>
+        body
+      </Dialog>,
+    );
+    expect(screen.getByRole("button", { name: "Extra" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+});

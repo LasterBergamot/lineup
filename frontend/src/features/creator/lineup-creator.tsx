@@ -415,7 +415,7 @@ export function LineupCreator({
       </form>
 
       {showPreview && (
-        <PreviewPanel title={t("preview.title")} onClose={closePreview}>
+        <PreviewPanel title={t("preview.title")} onClose={closePreview} file={preview.data?.blob}>
           {preview.isPending && (
             <div role="status" aria-busy="true" aria-label={t("common.loading")}>
               <Skeleton className="aspect-[1/1.414] w-full" />
