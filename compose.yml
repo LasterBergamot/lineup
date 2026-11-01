@@ -20,6 +20,11 @@ services:
     env_file:
       - path: backend/.env
         required: false
+    # The default in-container SQLite database has no Alembic run, so let the app build its
+    # tables. Ignored for Postgres (see AUTO_CREATE_SCHEMA in backend/.env.example).
+    environment:
+      AUTO_CREATE_SCHEMA: "1"
+
 
 volumes:
   lineup-data:

@@ -15,7 +15,8 @@ from sqlalchemy.exc import IntegrityError
 from lineup.api.router import router as lineup_router
 from lineup.common.errors import handle_integrity_error
 from lineup.db.base import Base
-from lineup.db.engine import engine
+from lineup.db.connection_settings import auto_create_schema_enabled
+from lineup.db.engine import DATABASE_URL, engine
 from lineup.health.router import router as health_router
 from lineup.invitations.router import router as invitations_router
 from lineup.invitations.router import team_router as team_invitations_router
@@ -49,17 +50,18 @@ def parse_cors_origins(raw: str | None) -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Check the production config, then create missing tables unless Alembic owns the schema.
+    """Check the production config, then create missing tables only when explicitly asked to.
 
     With `ENV=production` the app refuses to start (`ValueError`) when the database or sign-in
     settings are missing or insecure, see `validate_production_config`.
 
-    The tables are created straight from the ORM models for local SQLite and tests. With
-    `ENV=production` (any real Postgres, dev or prod) startup leaves the schema alone, because
-    Alembic migrations are the only thing allowed to change it there.
+    The tables are created straight from the ORM models only when `AUTO_CREATE_SCHEMA` is set
+    *and* the database is SQLite (`task serve` and the default Compose setup set it). Otherwise,
+    and always on Postgres, startup leaves the schema alone, because Alembic migrations are the
+    only thing allowed to change it there.
     """
     validate_production_config()
-    if os.getenv("ENV") != "production":
+    if auto_create_schema_enabled(DATABASE_URL, os.getenv("AUTO_CREATE_SCHEMA")):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     yield

@@ -27,7 +27,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
+| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |
 | `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
@@ -47,7 +47,8 @@ external services.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
-| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod). It also makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
+| `AUTO_CREATE_SCHEMA` | unset | Opt-in (`1`/`true`/`yes`): create the tables from the ORM models on startup. Only honoured for SQLite, never for Postgres (Alembic owns that schema). `task serve` and the default Compose setup set it |
+| `ENV` | unset | `production` = fail closed at startup and no API docs. Set it for any real Postgres (dev or prod). It makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin; team invite links are `<APP_BASE_URL>/join/<code>`. Set in `fly.toml` to the Pages URL |
 | `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc`, `/openapi.json`; always off when `ENV=production` |
