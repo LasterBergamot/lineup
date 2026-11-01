@@ -222,6 +222,7 @@ export function SavedLineups({ team }: { team: Team }) {
           <PreviewPanel
             title={t("savedLineups.previewTitle", { match: selected.match_name })}
             onClose={() => setSelected(null)}
+            file={preview.data}
           >
             {preview.isError ? (
               <p

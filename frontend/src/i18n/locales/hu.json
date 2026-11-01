@@ -223,7 +223,14 @@
   "preview": {
     "title": "Előnézet",
     "close": "Előnézet bezárása",
-    "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheti."
+    "unreadable": "Az előnézetet nem sikerült megjeleníteni. A fájlt továbbra is letöltheti.",
+    "enlarge": "Kinagyítás",
+    "enlargedTitle": "{{title}} (nagyítva)",
+    "closeEnlarged": "Nagyított előnézet bezárása",
+    "zoom": "Nagyítás",
+    "zoomFit": "Szélességhez igazítva",
+    "zoomPercent": "{{percent}} %",
+    "pages": "A rajtlista oldalai"
   },
   "creator": {
     "description": "Állítsa össze a(z) {{team}} rajtlistáját a keretből, nézze meg az előnézetet, és mentse el későbbre.",

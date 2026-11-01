@@ -125,6 +125,7 @@ describe("SavedLineups", () => {
     const panel = screen.getByRole("complementary", { name: "Preview: SZVTK - Opponent 2" });
     expect(await within(panel).findByText("pdf: two")).toBeInTheDocument();
     expect(mocks.generateSavedLineup).toHaveBeenCalledWith("l-2", "pdf");
+    expect(within(panel).getByRole("button", { name: "Enlarge" })).toBeInTheDocument();
     const row = await rowOf("SZVTK - Opponent 2");
     expect(row).toHaveAttribute("aria-current", "true");
     // The row's Preview button, plus the "Preview" badge on the selected row only.
