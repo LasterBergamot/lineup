@@ -184,7 +184,7 @@ task test           # run the tests (must report 100% coverage)
 task lint           # ruff
 task serve          # local API on :8000, DOCX only; tables are created automatically
 task build && task up    # full API in a container, with PDF output
-task test-e2e       # real-conversion tests against the container (needs port 8000 free)
+task test-e2e       # real-conversion tests against a throw-away container (port 8001; your `task up` keeps running)
 ```
 
 Then open `http://localhost:8000/docs` for the interactive API docs (they are off when `ENV=production` or `DOCS_ENABLED=false`; `/health` always answers).

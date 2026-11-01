@@ -79,15 +79,21 @@ tasks:
     cmd: uv run pytest --cov=lineup --cov-report=term-missing
 
   test-e2e:
-    desc: Build+run the container and validate real PDF conversion fidelity
+    desc: Build+run a throw-away container (own Compose project, port 8001) and validate real PDF conversion fidelity
+    # Own Compose project, so the stack (containers, network, data volume) never touches the one
+    # `task up` started; compose.e2e.yml also moves the host port to 8001 and drops backend/.env.
+    env:
+      COMPOSE_PROJECT_NAME: lineup-e2e
+      LINEUP_API_URL: http://127.0.0.1:8001
     cmds:
-      - docker build -t lineup backend
+      - task: build
       # POST /lineups needs a signed-in user: make a throw-away signing key and let the container
       # trust it (compose.e2e.yml). Nothing is committed; .e2e-auth/ is git-ignored.
       - cd backend && uv run python ../scripts/e2e_keys.py ../.e2e-auth
       - defer: rm -rf .e2e-auth
       - docker compose -f compose.yml -f compose.e2e.yml up -d --wait --wait-timeout 120
-      - defer: docker compose -f compose.yml -f compose.e2e.yml down
+      # -v also removes the project's data volume
+      - defer: docker compose -f compose.yml -f compose.e2e.yml down -v
       - cd backend && uv run pytest -m e2e tests/test_pdf_conversion_e2e.py -v
 
   build:

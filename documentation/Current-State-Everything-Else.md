@@ -25,7 +25,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task install` | `uv sync` — install dependencies |
 | `task doctor` | check the required tools and their minimum versions (`scripts/doctor.sh`); the first step of [[Setup]] |
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
-| `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
+| `task test-e2e` | build image, start a throw-away container (Compose project `lineup-e2e`, port 8001, no `backend/.env`), run real-conversion fidelity tests, tear it down with its volume |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
 | `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |

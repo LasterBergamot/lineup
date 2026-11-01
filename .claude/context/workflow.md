@@ -8,7 +8,7 @@ Run the tasks from anywhere in the repo (`Taskfile.yml` sets the working directo
 task install    # uv sync — install dependencies
 task doctor     # check required tools + minimum versions (scripts/doctor.sh; the setup runbook is documentation/Setup.md)
 task test       # pytest with coverage (must pass at 100%; e2e tests excluded)
-task test-e2e   # build image, make a throw-away JWT key, start container (+ compose.e2e.yml JWKS sidecar), run real-conversion fidelity tests, tear down
+task test-e2e   # build image, make a throw-away JWT key, start a separate Compose project `lineup-e2e` (port 8001, no backend/.env, own volume; + compose.e2e.yml JWKS sidecar), run real-conversion fidelity tests, tear it down. A running `task up` is left alone
 task lint       # ruff check
 task format     # ruff format
 task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup for SQLite via AUTO_CREATE_SCHEMA=1)

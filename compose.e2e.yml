@@ -4,8 +4,17 @@
 # SUPABASE_URL may only be plain http for localhost, so a tiny sidecar that shares the API's
 # network namespace serves the test's public signing key on localhost:9999. The key pair is made
 # fresh for each run by scripts/e2e_keys.py into ./.e2e-auth (git-ignored).
+#
+# The test stack must not touch the developer's own (`task up`): the Taskfile runs it as the
+# Compose project `lineup-e2e` (own containers, network and data volume), and this file
+#   - publishes the API on host port 8001 instead of 8000, so both can run side by side;
+#   - drops `env_file: backend/.env`, so a developer's Supabase URL, SENTRY_DSN or ENV=production
+#     can never leak into a test run (the container uses its in-image SQLite default).
 services:
   api:
+    ports: !override
+      - "127.0.0.1:8001:8000"
+    env_file: !reset []
     environment:
       SUPABASE_URL: http://localhost:9999
 

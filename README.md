@@ -295,7 +295,7 @@ POST /lineups/saved
 | `task db:postgres` | Switch `backend/.env` to the Supabase pooler (`DATABASE_URL` + `ENV=production`) |
 | `task db:sqlite` | Switch `backend/.env` back to local SQLite                             |
 | `task test`     | Run tests with coverage (100%)                                  |
-| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; needs host port 8000 free) |
+| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; runs as its own Compose project `lineup-e2e` on host port 8001, so a running `task up` is left alone) |
 | `task lint`     | Lint the codebase with ruff                                     |
 | `task format`   | Format the codebase with ruff                                   |
 | `task build`    | Build the container image                                       |
@@ -330,7 +330,7 @@ POST /lineups/saved
 lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
-├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
+├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key, moves it to port 8001 and drops `backend/.env`
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
 ├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
 ├── .github/                         # CI (ci.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
