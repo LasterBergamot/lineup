@@ -5,9 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTeams } from "@/features/teams/context";
 import { roleKey } from "@/features/teams/role";
+import { cn } from "@/lib/utils";
 
-/** The current team's name and the caller's role in it, or a skeleton while it loads. */
-export function TeamLabel({ className }: { className?: string }) {
+/** Up to two initials of a team name, for the avatar. */
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]!.toUpperCase())
+    .join("");
+}
+
+/**
+ * The current team's name and the caller's role in it, or a skeleton while it loads. `avatar`
+ * adds a round initials badge before the text (decorative: the name is already beside it).
+ */
+export function TeamLabel({ className, avatar = false }: { className?: string; avatar?: boolean }) {
   const { t } = useTranslation();
   const {
     query: { isPending },
@@ -15,10 +29,22 @@ export function TeamLabel({ className }: { className?: string }) {
   } = useTeams();
   if (isPending) return <Skeleton className="h-4 w-24" />;
   if (!current) return null;
-  return (
-    <div className={className}>
+  const text = (
+    <div className="min-w-0">
       <p className="truncate text-sm font-medium">{current.name}</p>
       <p className="text-xs text-muted-foreground capitalize">{t(roleKey(current.role))}</p>
+    </div>
+  );
+  if (!avatar) return <div className={className}>{text}</div>;
+  return (
+    <div className={cn("flex items-center gap-3", className)}>
+      <span
+        aria-hidden="true"
+        className="flex size-8 shrink-0 items-center justify-center rounded-pill bg-primary text-xs font-semibold text-primary-foreground"
+      >
+        {initials(current.name)}
+      </span>
+      {text}
     </div>
   );
 }

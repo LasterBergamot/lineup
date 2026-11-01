@@ -73,7 +73,7 @@ export function PlayersCard({ team }: { team: Team }) {
               <div className="flex flex-col gap-2">
                 <ul
                   aria-label={t("players.listLabel", { team: team.name })}
-                  className="flex flex-col divide-y border"
+                  className="flex flex-col divide-y overflow-hidden rounded-lg border"
                 >
                   {rows.map((player) => (
                     <li key={player.id} className="p-3">

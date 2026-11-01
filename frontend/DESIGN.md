@@ -126,6 +126,17 @@ Motion uses `--duration-fast/base/slow` (120/200/320 ms) and `--ease-standard`.
   (`public/favicon.svg`, which uses the light values because an SVG favicon cannot read the app's
   tokens), the installable-app icons (`pnpm icons`) and avatars. Never next to the wordmark.
 
+## Components
+
+- **Button:** `rounded-md`, `shadow-xs`; `default` is the one main action, hover is `primary-hover`; `outline` and `ghost` hover to `accent`. Heights 40px, 44px on touch (`pointer-coarse:`).
+- **Card:** `rounded-lg`, `shadow-sm`, 24px padding. **Input / Select:** `rounded-md`, `border-input` boundary, `bg-card`, `shadow-xs`, 16px text on phones.
+- **Badge:** a 24px pill, 12px text; neutral, primary, success, warning, danger, outline. A word always, plus an icon for a status.
+- **Tabs:** a pill segmented control, the selected option is a raised `card` chip. Real tabs for switching views, the radio form for choosing a value.
+- **Dialog:** the native `<dialog>`, `rounded-xl`, `shadow-lg`, `overlay` scrim. Used for the phone preview sheet; a row's destructive action keeps `ConfirmButton`.
+- **Toast:** `rounded-lg`, `shadow-md`, bottom right (above the bottom navigation on a phone). Success and info disappear after 5 s, an error stays until dismissed, at most three. Generic text only, nothing stored.
+- **Navigation:** the active item is the soft `sidebar-accent` tint (a pill behind the icon in the bottom bar), not a solid fill. The sidebar footer shows the team with an initials avatar.
+- **Language switch:** a pill segmented control; the active language is the raised chip.
+
 ## Do's and Don'ts
 
 **Do**

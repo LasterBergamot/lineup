@@ -239,7 +239,8 @@
     "save": "Rajtlista mentése",
     "preview": "Előnézet",
     "saved": "Elmentve. Most le is töltheti.",
-    "seeSaved": "Mentett rajtlisták megnyitása"
+    "seeSaved": "Mentett rajtlisták megnyitása",
+    "savedToast": "Rajtlista mentve"
   },
   "opponent": {
     "directory": "Listázott csapat",
@@ -263,6 +264,11 @@
     "delete": "Törlés",
     "deleteConfirm": "Rajtlista törlése",
     "deleteOf": "Törlés: {{match}}",
-    "gone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A lista frissült."
+    "gone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A lista frissült.",
+    "previewBadge": "Előnézet"
+  },
+  "toast": {
+    "region": "Értesítések",
+    "dismiss": "Bezárás"
   }
 }

@@ -1,9 +1,14 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-/** Content surface: card fill and a hairline border. */
+/** Content surface: card fill, hairline border, `rounded-lg` and a small shadow. */
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("border bg-card text-card-foreground", className)} {...props} />;
+  return (
+    <div
+      className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}
+      {...props}
+    />
+  );
 }
 
 export function CardHeader({ className, ...props }: ComponentProps<"div">) {

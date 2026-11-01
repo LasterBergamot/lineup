@@ -5,6 +5,7 @@ import { ApiError, describeError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { ConfirmButton } from "@/components/confirm-button";
 import { QueryBoundary } from "@/components/query-boundary";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMembers, membersKey, removeMember, transferOwnership } from "@/features/members/api";
@@ -71,7 +72,7 @@ export function MembersList({ team }: { team: Team }) {
           {(rows) => {
             let others = 0;
             return (
-              <ul className="flex flex-col divide-y border">
+              <ul className="flex flex-col divide-y overflow-hidden rounded-lg border">
                 {rows.map((member) => {
                   const number = member.is_you ? 0 : ++others;
                   return (
@@ -82,9 +83,9 @@ export function MembersList({ team }: { team: Team }) {
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <span className="flex items-center gap-2 text-sm font-medium">
                           {member.is_you ? t("members.you") : t("members.member", { number })}
-                          <span className="border px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                          <Badge variant={member.role === "owner" ? "primary" : "neutral"}>
                             {t(roleKey(member.role))}
-                          </span>
+                          </Badge>
                         </span>
                         <span className="text-xs text-muted-foreground">
                           {t("members.joined", {

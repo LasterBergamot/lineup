@@ -12,7 +12,7 @@ and `PLAN.md`). The backend it talks to is described in [[Current State: Backend
 |---|---|---|
 | Language and UI | React 19 + TypeScript, built by Vite | Mainstream, fast dev server, one static bundle to host |
 | Styling | Tailwind CSS v4 with the **Lineup design system** (`frontend/DESIGN.md`) as CSS variables in `src/index.css`, light and dark | Components use semantic tokens (`bg-primary`) and never raw colors, so the theme can change in one file |
-| Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Skeleton) on Radix primitives | We own the code and can restyle it in one place |
+| Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Input/Select, Field, Skeleton, Badge, Tabs, Dialog, Toast); only Button's `asChild` uses a Radix primitive (Slot), Dialog is the native `<dialog>` and Tabs and Toast are hand-written | We own the code and can restyle it in one place |
 | Routing | React Router (`src/app.tsx`) | Client-side navigation; `/sign-in` and `/join/:code` are public, `/`, `/roster`, `/saved`, `/members` need a signed-in user |
 | Sign-in | `@supabase/supabase-js`, for sign-in only | Supabase Auth runs the Google flow; the browser never queries Supabase's Data API, every piece of data goes through our API, which checks the token |
 | Language | `react-i18next` with `src/i18n/locales/hu.json` and `en.json`, Hungarian by default | The users and the generated document are Hungarian; both files ship in the bundle, so there is no extra request and no loading state (see *Language* below) |
@@ -49,7 +49,7 @@ strict Content-Security-Policy stays possible) and remembered in localStorage.
   and remove button, then the roster picker, name and NSSZ number each full width) below the
   container's `2xl` width, so the picker's text is never cut off.
 - **Safe areas**: `index.html` has `viewport-fit=cover`; the top bar, the bottom navigation and the
-  full-screen preview sheet add `env(safe-area-inset-*)` padding, so nothing hides under a notch
+  full-screen preview dialog add `env(safe-area-inset-*)` padding, so nothing hides under a notch
   or the home bar when the app runs from the home screen.
 - **Installable**: `public/manifest.webmanifest` (standalone, the brand teal, 192/512 px and a
   maskable icon) and an `apple-touch-icon` make "Add to home screen" work. The PNGs are rendered
@@ -62,10 +62,12 @@ strict Content-Security-Policy stays possible) and remembered in localStorage.
   Supabase host inside the browser (a session is placed in localStorage), so the tests need no
   backend, database or Google account and use made-up data only. They check, per screen and in
   the light and dark theme, that the page does not scroll sideways and has no serious or critical
-  axe violation (including WCAG 2.5.3 label-in-name), in English and Hungarian, plus the sign-in page, onboarding, the creator's preview, the Saved page's
-  highlighted row, the invite page `/join/:code` (public preview, a second explicit click to join,
-  expired and unknown links) and the 404 page. The last two run in English and the light theme only
-  (the join page once more in Hungarian); the four main screens cover both languages and themes. A test fails when the app calls an API route the fixture does not know.
+  axe violation (including WCAG 2.5.3 label-in-name), in English and Hungarian, plus the sign-in
+  page, onboarding and the creator's preview (these three in light and dark), the preview dialog's
+  Esc and focus return, the "Lineup saved" toast, the Saved page's highlighted row, the invite page
+  `/join/:code` (public preview, a second explicit click to join, expired and unknown links) and the
+  404 page. The last two run in English and the light theme only (the join page once more in
+  Hungarian); the four main screens cover both languages and themes. A test fails when the app calls an API route the fixture does not know.
   Locally, `LINEUP_CHROMIUM=/usr/bin/chromium task fe:e2e`; CI installs Playwright's Chromium.
 
 ### Language (Hungarian / English)
@@ -217,7 +219,7 @@ the current team. The API stores no names or e-mail addresses for members, so ro
 **Member 1**, **Member 2** … with their role and join date, and a user id is never shown. Everyone
 can **leave** (the only owner gets a message to hand the team over first). An **owner** can also
 **remove** a member, **make** someone else the owner, and create **invite links**: pick 2 hours,
-24 hours (the default) or 3 days, then copy the link or use the phone's share sheet. The link is
+24 hours (the default) or 3 days, then copy the link (a "Link copied" toast confirms it) or use the phone's share sheet. The link is
 shown once, right after it is made (the server keeps only a hash of the code), and the list of
 active links below lets the owner revoke one. Removing, handing over, leaving and revoking each ask
 for a second click first. Members do not see the owner controls (the server enforces it anyway).
@@ -245,11 +247,11 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   form keeps its id (`source_opponent_id`), otherwise the text is sent as `opponent_name`.
 - **Preview.** `POST /lineups` (the stateless endpoint) with the values resolved by
   `resolve.ts`, shown by `PdfViewer` (`src/features/preview/`) in a `PreviewPanel`: a sticky side
-  column from the `lg` breakpoint, a full-screen sheet below. pdf.js is a lazy chunk and its worker
+  column from the `lg` breakpoint, a full-screen modal dialog (native `<dialog>`: focus trap, Esc to close) below. pdf.js is a lazy chunk and its worker
   is bundled (`?url`), so nothing comes from a CDN. The PDF is a `Blob` held by the mutation
   (`gcTime: 0`), never given a URL or stored, and dropped when the panel closes. The slow-PDF notice
   appears after 5 s as before.
-- **Save.** `POST /lineups/saved`; afterwards "Saved" stays until the next edit, the PDF/DOCX
+- **Save.** `POST /lineups/saved` (a "Lineup saved" toast confirms it); afterwards "Saved" stays until the next edit, the PDF/DOCX
   download buttons use `POST /lineups/saved/{id}/generate`, and the saved and recent-opponent
   queries are refreshed. A 422 is mapped onto the fields (`formPath()`).
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
@@ -302,7 +304,7 @@ name, date, division, cap colour and opponent. Every member sees and manages the
 has:
 
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
-  a side panel on a desktop and a full-screen sheet on a phone. It loads on a tap of the button, or
+  a side panel on a desktop and a full-screen modal dialog on a phone. It loads on a tap of the button, or
   when the mouse rests on a row for 300 ms (passing over the list does not start a PDF for every row,
   because each one runs LibreOffice and counts against the generate rate limit). A saved lineup is a
   frozen snapshot that never changes, so each preview is kept in the in-memory query cache while the

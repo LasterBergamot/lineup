@@ -78,48 +78,48 @@ creator (desktop and phone), saved lineups, roster and team, in light and dark.
 
 ## PR 2 — components and screens
 
-- [ ] **Restyle `src/components/ui/`.** `button.tsx`: `rounded-md`, `shadow-xs`, hover via
+- [x] **Restyle `src/components/ui/`.** `button.tsx`: `rounded-md`, `shadow-xs`, hover via
   `primary-hover` / `secondary-hover` / `destructive-hover` instead of `/90`, outline and ghost hover
   `bg-accent`, keep `loading`, `asChild` and the `pointer-coarse:` 44px heights. `card.tsx`: `rounded-lg`,
   `shadow-sm`, 24px padding. `input.tsx` (`CONTROL`, shared by `Input` and `Select`): `rounded-md`,
   `border-input`, `bg-card`, `shadow-xs`; keep `h-10`, `pointer-coarse:h-11` and `text-base md:text-sm`
   (16px on phones). `field.tsx`, `skeleton.tsx` (rounded). Focus stays a 2px `ring` with a 2px offset.
-- [ ] **Shell.** `app-shell.tsx`: active nav item uses `sidebar-accent` (soft) instead of the solid
+- [x] **Shell.** `app-shell.tsx`: active nav item uses `sidebar-accent` (soft) instead of the solid
   `bg-sidebar-primary` fill; the bottom nav's active item gets the soft pill; the sidebar footer's team
   label gets an initials avatar. Keep safe-area padding, 44px targets and `max-w-[1200px]`.
   `account-panel.tsx`, `language-switch.tsx` (pill segmented control, still `aria-pressed`, still
   `HU – Magyar` accessible names; its active state stops using the amber `secondary` button).
-- [ ] **`ui/badge.tsx`.** Variants neutral, primary, success, warning, danger, outline (24px pill,
+- [x] **`ui/badge.tsx`.** Variants neutral, primary, success, warning, danger, outline (24px pill,
   12px text, icon plus word for status). Replaces the hand-made role label at
   `features/members/members-list.tsx:85` and adds the "Preview" badge on the selected saved row.
-- [ ] **`ui/tabs.tsx`.** Segmented control with `role="tablist"` / `role="tab"` / `aria-selected`.
+- [x] **`ui/tabs.tsx`.** Segmented control with `role="tablist"` / `role="tab"` / `aria-selected`.
   Used for the Quick sheet toggle (`pages/lineup-page.tsx:55-65`), the cap colour and the invite expiry
   (`features/invitations/invite-panel.tsx`).
-- [ ] **`ui/dialog.tsx`.** Wraps native `<dialog>` (`showModal()`, `aria-labelledby`/`aria-describedby`,
+- [x] **`ui/dialog.tsx`.** Wraps native `<dialog>` (`showModal()`, `aria-labelledby`/`aria-describedby`,
   scrim `overlay`, focus returns to the trigger, Esc cancels). Adopted for the phone preview sheet in
   `features/preview/preview-panel.tsx` (today a `fixed inset-0` aside with no focus trap).
-- [ ] **`ui/toast.tsx`.** `ToastProvider` plus `useToast()` with an `aria-live` region, mounted in
+- [x] **`ui/toast.tsx`.** `ToastProvider` plus `useToast()` with an `aria-live` region, mounted in
   `src/app.tsx`. Success and info auto-dismiss after 5 s (pause on hover and focus); errors stay until
   dismissed; at most three at once. No storage and no personal data in messages (generic text such as
   "Lineup saved", never a player name or NSSZ number). Adopt for "Lineup saved"
   (`features/creator/lineup-creator.tsx`) and "Link copied" (`invite-panel.tsx`, which today swaps text
   inline at L148).
-- [ ] **i18n.** Every new string goes through `t()` with identical keys in `src/i18n/locales/hu.json`
+- [x] **i18n.** Every new string goes through `t()` with identical keys in `src/i18n/locales/hu.json`
   and `en.json` (a test enforces parity). New `aria-label`s start with the visible verb (WCAG 2.5.3).
   `components/ui/` is exempt from the literal-string lint; Dialog and Toast callers are not.
-- [ ] **Tests, 100 % coverage** (`task fe:coverage`). New unit tests for Badge, Tabs, Dialog and Toast
+- [x] **Tests, 100 % coverage** (`task fe:coverage`). New unit tests for Badge, Tabs, Dialog and Toast
   (timers, hover pause, Esc, focus return, both locales). Update `app-shell.test.tsx`,
   `members-list`, `lineup-page`, `invite-panel` and `preview-panel` tests that touch changed markup.
   E2E: add dark-theme axe checks for sign-in, onboarding and the creator preview (today only the four
   signed-in screens run in dark), plus a Toast and a Dialog flow; `touch.e2e.ts` (44px targets, 16px
   inputs) and `expectNoHorizontalScroll` must stay green. In tests never write
   `beforeEach(() => mock.mockReset())` (see `.claude/rules/frontend.md`).
-- [ ] **Docs, same PR.** `.claude/rules/frontend.md` (new components, Toast and Dialog rules,
+- [x] **Docs, same PR.** `.claude/rules/frontend.md` (new components, Toast and Dialog rules,
   `ConfirmButton` unchanged), `documentation/Current-State-Frontend.md` component list,
   `frontend/DESIGN.md` component section, `documentation/Privacy-and-Security.md` only if something
   stored changes (expected: no). Then update the artifact's Dialog guidance to say `ConfirmButton`
   stays for rows.
-- [ ] **Verify.** `task fe:check`, `task fe:e2e`, run the app (`task fe:dev` with `task up`) and compare
+- [x] **Verify.** `task fe:check`, `task fe:e2e`, run the app (`task fe:dev` with `task up`) and compare
   every screen with the artifact in light, dark and phone width; check the favicon in a browser tab
   and the installed-app icon; check the network panel for third-party requests and `localStorage`
   for keys beyond the Supabase session, `lineup-theme` and `lineup-lang`.
@@ -130,6 +130,7 @@ creator (desktop and phone), saved lineups, roster and team, in light and dark.
 |------|------|----|
 | 2026-11-01 | Plan written | #237 |
 | 2026-11-01 | PR 1: visual foundation (tokens, wordmark, favicon, selected row, banners, docs), issue #238 | #240 |
+| 2026-11-01 | PR 2: restyled `ui/`, shell, Badge, Tabs, Dialog, Toast, dark-theme e2e, docs; issue #239 | #241 |
 
 ---
 

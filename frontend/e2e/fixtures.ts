@@ -204,6 +204,11 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
         ]);
       }
       if (method === "GET" && /^\/teams\/[^/]+\/invitations$/.test(path)) return json(route, []);
+      if (method === "POST" && path === "/lineups/saved") {
+        const created = makeSaved(api.teams[0]!, api.saved.length + 1);
+        api.saved.push(created);
+        return json(route, created, 201);
+      }
       if (method === "POST" && path === "/lineups") {
         api.previews.push(request.postDataJSON());
         return route.fulfill({ status: 200, contentType: "application/pdf", body: PDF });

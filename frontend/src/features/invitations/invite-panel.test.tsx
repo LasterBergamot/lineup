@@ -81,13 +81,14 @@ describe("creating a link", () => {
 
   it("offers 2 hours, 24 hours and 3 days", async () => {
     await open();
-    const choice = screen.getByLabelText("Link valid for");
+    const choice = screen.getByRole("radiogroup", { name: "Link valid for" });
     expect(
       within(choice)
-        .getAllByRole("option")
+        .getAllByRole("radio")
         .map((o) => o.textContent),
     ).toEqual(["2 hours", "24 hours", "3 days"]);
-    await userEvent.selectOptions(choice, "3 days");
+    expect(within(choice).getByRole("radio", { name: "24 hours" })).toBeChecked();
+    await userEvent.click(within(choice).getByRole("radio", { name: "3 days" }));
     await userEvent.click(screen.getByRole("button", { name: "Create invite link" }));
     expect(mocks.createInvitation).toHaveBeenCalledWith(TEAM, 72);
   });
