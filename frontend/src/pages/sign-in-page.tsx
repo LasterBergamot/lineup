@@ -48,7 +48,7 @@ export function SignInPage() {
       <main className="flex flex-1 items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="gap-4">
-            <Brand />
+            <Brand size="lg" />
             <CardTitle>{t("auth.signIn.title")}</CardTitle>
             <CardDescription>{t("auth.signIn.description")}</CardDescription>
           </CardHeader>

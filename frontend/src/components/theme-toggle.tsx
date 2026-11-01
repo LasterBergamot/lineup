@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/lib/theme";
 
-/** Switches between the light and dark Polaris themes. */
+/** Switches between the light and dark themes. */
 export function ThemeToggle() {
   const { t } = useTranslation();
   const { theme, toggle } = useTheme();

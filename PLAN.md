@@ -45,9 +45,10 @@ before the public deploy, and the public deploy comes before inviting anyone.
 | D8 | **Supabase free-tier pause:** a GitHub Actions cron runs **twice a week** (Mon + Thu, so one failed run is not enough to let it pause). It starts as `SELECT 1` through the pooler (#156), independent of Fly, and gains `/health?db=1` once the API is deployed. The FE detects a paused DB and says so (see §5.3). | Decided |
 | D9 | **Milestones:** **"M3 – Dev preview"** holds the dev-preview work (auth, teams and invitations, UI, dev deployment); **"Mx – Parked"** holds what is deliberately not planned now, prod items included; "M2 – Prod" is closed (D1, amended 2026-10-31). Phase 1 issues stay in M1, since Phase 1 is a subset of it. | Decided |
 | D10 | **Team/ownership model:** teams as workspaces, owner + member roles, multi-use invite links, name-only public opponent directory, invite links that expire after 24 h by default (see §6). | Decided |
-| D11 | **UI theme: Polaris** (tweakcn, shadcn tokens). Its spec lives in `frontend/DESIGN.md`. AstroVista was dropped. | Decided |
+| D11 | **UI theme: Polaris** (superseded by D14) (tweakcn, shadcn tokens). Its spec lives in `frontend/DESIGN.md`. AstroVista was dropped. | Decided |
 | D12 | **UI language: Hungarian by default, English selectable** (react-i18next, #155). Done first in Phase 6 so every new screen uses `t()` from the start; the choice is kept in localStorage under `lineup-lang` (disclose in #94). The `.docx` template and the API are unchanged. Server 422 sentences from the API stay English until the backend returns error codes. | Decided |
 | D13 | **Versions: one repo-wide SemVer tag `vX.Y.Z`** for backend and frontend (the FE client is generated from the backend spec, so they move together). A manual `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub Release; pre-1.0 tags are cut from `develop` when a feature set lands on dev, `v1.0.0`+ from `main`. Images are tagged `lineup:<version>` so an older version can be deployed; going back needs expand/contract migrations (#17). | Decided |
+| D14 | **UI design system: Lineup** replaces Polaris (rounded shapes, soft tokens, a text wordmark with an amber dot, an L-tile favicon). Ported in two PRs (#238 foundation, #239 components and screens); the plan is `PLAN-ui-redesign.md`, the spec `frontend/DESIGN.md`. D11 is kept as history. | Decided |
 
 ### Supabase JS and the "disabled API"
 The setting turned off on the dev project is the **Data API** (PostgREST: auto-generated
@@ -406,7 +407,9 @@ Endpoints (amends #51):
 
 ---
 
-## 8. UI theme (D11)
+## 8. UI theme (D11, superseded by D14)
+
+_History: the Polaris theme below was replaced by the Lineup design system (D14, `PLAN-ui-redesign.md`, spec in `frontend/DESIGN.md`); do not follow its instructions._
 - **Polaris** (tweakcn): deep teal primary + amber secondary, square corners, Google Sans Flex,
   light and dark. The full spec is in `frontend/DESIGN.md`, kept there as guidance for coding
   agents. Install the tokens with `npx shadcn@latest add @shadcnblocks/theme/polaris` during the

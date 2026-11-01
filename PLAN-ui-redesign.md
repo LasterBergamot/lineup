@@ -36,7 +36,7 @@ creator (desktop and phone), saved lineups, roster and team, in light and dark.
 
 ## PR 1 — visual foundation (tokens, radii, shadows, dark theme, brand)
 
-- [ ] **Tokens in `frontend/src/index.css`.** Replace the Polaris values with appendix A (light in
+- [x] **Tokens in `frontend/src/index.css`.** Replace the Polaris values with appendix A (light in
   `:root`, dark in `.dark`). Remove `--radius: 0px` and the four `--radius-*` aliases at L73-76;
   define `--radius-sm/md/lg/xl` (6/10/14/20px) and `--radius-pill` directly in `@theme inline`. Add the
   new colour tokens to `@theme inline` (`primary-soft(-foreground)`, `primary-hover`,
@@ -45,35 +45,35 @@ creator (desktop and phone), saved lineups, roster and team, in light and dark.
   values) and `--duration-*`. Keep `@custom-variant dark`, the `dark` class on `<html>` and
   `public/theme-init.js` unchanged. The old `--warning` pair (L35-36, L66-67, L103-104) is replaced
   by `warning-soft`; the amber stays `secondary`.
-- [ ] **Wordmark.** `src/components/brand.tsx` renders the text "Lineup" (keep the `APP_NAME`
+- [x] **Wordmark.** `src/components/brand.tsx` renders the text "Lineup" (keep the `APP_NAME`
   constant) plus an `aria-hidden` amber dot `span` (`bg-secondary`), no `<img>`. Size 22px in the
   sidebar and mobile top bar (`app-shell.tsx:25`, `:56`), 36px on the sign-in page
   (`pages/sign-in-page.tsx:51`); `join-page.tsx:92` and `:151` also use `Brand`. The dot must not be a
   text node, so `getByText("Lineup")` and the heading tests (`auth/flow.test.tsx`,
   `pages/join-page.test.tsx`, `e2e/*.e2e.ts`) keep working.
-- [ ] **Favicon and icons.** `public/favicon.svg` becomes the L tile (appendix B). Update
+- [x] **Favicon and icons.** `public/favicon.svg` becomes the L tile (appendix B). Update
   `scripts/make-icons.mjs` (the `TEAL`, `AMBER` and `ARROW` constants and the `svg()` template; the
   maskable icon keeps a safe zone, scale 0.65) and run `pnpm icons` for `icon-192.png`,
   `icon-512.png`, `icon-maskable-512.png` and `apple-touch-icon.png` (`LINEUP_CHROMIUM=…` skips the
   Chromium download). Update `theme_color` and `background_color` in `public/manifest.webmanifest`
   and the `theme-color` meta in `index.html` together: `src/manifest.test.ts:28` asserts they match.
-- [ ] **Selected saved row.** `features/saved/saved-lineups.tsx:126-127` drops
+- [x] **Selected saved row.** `features/saved/saved-lineups.tsx:126-127` drops
   `border-l-4 border-l-transparent` / `border-l-primary bg-accent` for a fill that is distinct from
   the hover tint (the design uses `bg-accent` plus a "Preview" badge from PR 2; for PR 1 use
   `bg-accent` with a font-medium title). Change the class assertions in
   `saved-lineups.test.tsx:130-133` and `e2e/saved.e2e.ts:14-17` to rely on `aria-current="true"`, which
   is already asserted next to them.
-- [ ] **Banners.** `backend-status/banner.tsx:23`, `:33` swap `bg-warning` and
+- [x] **Banners.** `backend-status/banner.tsx:23`, `:33` swap `bg-warning` and
   `text-warning-foreground` for the `warning-soft` tokens; recheck the "down" banner (`:42`) and its
   outline Retry button (`:45`) against `destructive`.
-- [ ] **Docs, same PR.** Rewrite `frontend/DESIGN.md` for the new system (tokens, shapes, elevation,
+- [x] **Docs, same PR.** Rewrite `frontend/DESIGN.md` for the new system (tokens, shapes, elevation,
   do's and don'ts, wordmark, link to the artifact). Update `README.md` (L117, L344, L349, L352, L355),
   `documentation/Current-State-Frontend.md` (L14-15, L54-56, L64-68),
   `documentation/Roadmap-Frontend.md` (L16), `documentation/Newcomer-Guide.md` (L72),
   `documentation/References.md` handwritten rows (L37-38, L46), `.claude/rules/frontend.md` (Polaris and
   "square corners", the Saved highlight, dark-theme coverage) and the comment in `theme-toggle.tsx`.
   Add a new decision entry to `PLAN.md` (do not rewrite D11, it is history).
-- [ ] **Verify.** `task fe:check`, `task fe:e2e` (axe runs in light and dark on the four signed-in
+- [x] **Verify.** `task fe:check`, `task fe:e2e` (axe runs in light and dark on the four signed-in
   screens), and look at every screen in light, dark and phone width against the artifact.
 
 ## PR 2 — components and screens
@@ -128,7 +128,8 @@ creator (desktop and phone), saved lineups, roster and team, in light and dark.
 
 | Date | Item | PR |
 |------|------|----|
-| 2026-11-01 | Plan written | this PR |
+| 2026-11-01 | Plan written | #237 |
+| 2026-11-01 | PR 1: visual foundation (tokens, wordmark, favicon, selected row, banners, docs), issue #238 | #240 |
 
 ---
 

@@ -11,8 +11,8 @@ and `PLAN.md`). The backend it talks to is described in [[Current State: Backend
 | Concern | Choice | Why |
 |---|---|---|
 | Language and UI | React 19 + TypeScript, built by Vite | Mainstream, fast dev server, one static bundle to host |
-| Styling | Tailwind CSS v4 with the **Polaris** theme (`frontend/DESIGN.md`) as CSS variables in `src/index.css`, light and dark | Components use semantic tokens (`bg-primary`) and never raw colors, so the theme can change in one file |
-| Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Skeleton) on Radix primitives | We own the code and can keep Polaris's square corners |
+| Styling | Tailwind CSS v4 with the **Lineup design system** (`frontend/DESIGN.md`) as CSS variables in `src/index.css`, light and dark | Components use semantic tokens (`bg-primary`) and never raw colors, so the theme can change in one file |
+| Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Skeleton) on Radix primitives | We own the code and can restyle it in one place |
 | Routing | React Router (`src/app.tsx`) | Client-side navigation; `/sign-in` and `/join/:code` are public, `/`, `/roster`, `/saved`, `/members` need a signed-in user |
 | Sign-in | `@supabase/supabase-js`, for sign-in only | Supabase Auth runs the Google flow; the browser never queries Supabase's Data API, every piece of data goes through our API, which checks the token |
 | Language | `react-i18next` with `src/i18n/locales/hu.json` and `en.json`, Hungarian by default | The users and the generated document are Hungarian; both files ship in the bundle, so there is no extra request and no loading state (see *Language* below) |
@@ -51,9 +51,9 @@ strict Content-Security-Policy stays possible) and remembered in localStorage.
 - **Safe areas**: `index.html` has `viewport-fit=cover`; the top bar, the bottom navigation and the
   full-screen preview sheet add `env(safe-area-inset-*)` padding, so nothing hides under a notch
   or the home bar when the app runs from the home screen.
-- **Installable**: `public/manifest.webmanifest` (standalone, the Polaris teal, 192/512 px and a
+- **Installable**: `public/manifest.webmanifest` (standalone, the brand teal, 192/512 px and a
   maskable icon) and an `apple-touch-icon` make "Add to home screen" work. The PNGs are rendered
-  from the favicon mark by `pnpm icons` (`scripts/make-icons.mjs`) and committed. There is
+  from the favicon's L tile by `pnpm icons` (`scripts/make-icons.mjs`) and committed. There is
   deliberately **no service worker**: no personal data is cached for offline use. A strict CSP
   (#97) will need `manifest-src 'self'`.
 - **Browser tests** (`task fe:e2e`, `frontend/e2e/*.e2e.ts`, Playwright, #159): the production
@@ -131,7 +131,7 @@ takes a few seconds (and the first PDF longer). The UI is built so that never lo
   | State | Meaning | What the user sees |
   |---|---|---|
   | `unknown` | first check under ~1.5 s old | nothing |
-  | `waking` | no answer after 1.5 s | amber banner "The server is starting up ..." with elapsed seconds (behind `VITE_COLD_START_NOTICE`, on unless set to `false`) |
+  | `waking` | no answer after 1.5 s | soft-amber banner "The server is starting up ..." with elapsed seconds (behind `VITE_COLD_START_NOTICE`, on unless set to `false`) |
   | `ready` | `/health` answered 200 | nothing |
   | `db-paused` | `/health` answered but `/health?db=true` returned 503 | banner: the database is paused (free tier) and someone must resume it |
   | `down` | no answer after ~60 s, or a non-retryable answer (e.g. 404 from a wrong API URL) | red banner with a "Try again" button |
