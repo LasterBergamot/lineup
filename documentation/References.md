@@ -34,8 +34,8 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 |---|---|---|
 | React + TypeScript | UI framework and language | [react.dev](https://react.dev/) · [typescriptlang.org](https://www.typescriptlang.org/docs/) |
 | Vite | Dev server (with the `/api` proxy) and bundler | [vite.dev](https://vite.dev/) |
-| Tailwind CSS | Styling; the Polaris tokens are CSS variables in `src/index.css` | [tailwindcss.com](https://tailwindcss.com/) |
-| shadcn/ui | Component conventions (Polaris theme, see `frontend/DESIGN.md`) | [ui.shadcn.com](https://ui.shadcn.com/) |
+| Tailwind CSS | Styling; the design tokens are CSS variables in `src/index.css` | [tailwindcss.com](https://tailwindcss.com/) |
+| shadcn/ui | Component conventions (token contract, see `frontend/DESIGN.md`) | [ui.shadcn.com](https://ui.shadcn.com/) |
 | Radix UI | Accessible primitives under shadcn components (`Slot` for `asChild`) | [radix-ui.com](https://www.radix-ui.com/primitives) |
 | React Router | Client-side routes and the navigation links | [reactrouter.com](https://reactrouter.com/) |
 | React Hook Form, Zod | Form state and the validation schema that mirrors the API's limits | [react-hook-form.com](https://react-hook-form.com/) · [zod.dev](https://zod.dev/) |
@@ -43,7 +43,7 @@ new service, tool, spec or regulation, add a row in the matching table in the sa
 | eslint-plugin-i18next | `no-literal-string` rule: fails lint on a hard-coded UI string | [github.com/edvardchen/eslint-plugin-i18next](https://github.com/edvardchen/eslint-plugin-i18next) |
 | TanStack Query | Data fetching, caching, retries (cold-start handling) | [tanstack.com/query](https://tanstack.com/query) |
 | openapi-typescript, openapi-fetch | Generate the typed API client from the backend's OpenAPI spec | [openapi-ts.dev](https://openapi-ts.dev/) |
-| Fontsource (Google Sans Flex) | The Polaris font, served from our own origin (no Google Fonts request) | [fontsource.org](https://fontsource.org/) |
+| Fontsource (Google Sans Flex) | The app font, served from our own origin (no Google Fonts request) | [fontsource.org](https://fontsource.org/) |
 | Lucide | Icons | [lucide.dev](https://lucide.dev/) |
 | pdf.js | In-page PDF previews (planned) | [mozilla.github.io/pdf.js](https://mozilla.github.io/pdf.js/) |
 | Vitest, Testing Library | Unit and component tests (`@vitest/coverage-v8` adds the coverage report and the 100 % gate) | [vitest.dev](https://vitest.dev/) · [testing-library.com](https://testing-library.com/docs/react-testing-library/intro/) |

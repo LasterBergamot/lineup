@@ -114,7 +114,7 @@ task build && task up   # full API in a container, with PDF conversion
 
 ## Frontend
 
-The web app (React + TypeScript on Vite, styled with Tailwind and the Polaris theme) lives in `frontend/`. It is a single-page app that talks to the API over HTTP; nothing in the backend changes for it to run.
+The web app (React + TypeScript on Vite, styled with Tailwind and the Lineup design system) lives in `frontend/`. It is a single-page app that talks to the API over HTTP; nothing in the backend changes for it to run.
 
 ```bash
 task fe:install   # pnpm install (exact versions from frontend/pnpm-lock.yaml)
@@ -342,7 +342,7 @@ lineup/
 ├── PLAN.md  PLAN-ui-redesign.md     # Working plans: the dev preview; porting the new UI design system into frontend/ (delete when done)
 ├── CLAUDE.md  README.md             # Assistant router (detail in .claude/rules + .claude/context); this file
 ├── frontend/                        # React + TypeScript + Vite web app (pnpm)
-│   ├── DESIGN.md                    # Polaris theme spec
+│   ├── DESIGN.md                    # Design system spec (tokens, shapes, wordmark)
 │   ├── package.json  pnpm-lock.yaml # Dependencies and scripts (packageManager pins pnpm)
 │   ├── eslint.config.js  tsconfig.json  index.html
 │   ├── playwright.config.ts  tsconfig.e2e.json  # Browser tests (task fe:e2e)
@@ -353,7 +353,7 @@ lineup/
 │   ├── public/                      # Static files (favicon, theme-init.js, manifest.webmanifest, icons, _headers)
 │   └── src/
 │       ├── main.tsx  app.tsx        # Entry point, providers and route table
-│       ├── index.css                # Tailwind + Polaris design tokens (light/dark)
+│       ├── index.css                # Tailwind + design tokens (light/dark)
 │       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
 │       ├── auth/                    # Google sign-in: config.ts (env check), supabase.ts (sign-in-only client), provider/context, require-auth, return-path, events
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner

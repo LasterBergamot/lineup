@@ -5,14 +5,20 @@ import { chromium } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 
 const TEAL = "#02677f";
+const WHITE = "#ffffff";
 const AMBER = "#ffb500";
-const ARROW = "M16 5l6 11h-4v11h-4V16h-4z";
 
-/** `scale` shrinks the arrow towards the centre: a maskable icon keeps it inside the safe zone. */
+/**
+ * The "L tile" of `public/favicon.svg`: a white post and an amber bar on a teal square. The icons
+ * are full-bleed (no rounded corners, the OS masks them). `scale` shrinks the L towards the
+ * centre: a maskable icon keeps it inside the safe zone.
+ */
 const svg = (scale) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="100%" height="100%">` +
   `<rect width="32" height="32" fill="${TEAL}"/>` +
-  `<path d="${ARROW}" fill="${AMBER}" transform="translate(16 16) scale(${scale}) translate(-16 -16)"/></svg>`;
+  `<g transform="translate(16 16) scale(${scale}) translate(-16 -16)">` +
+  `<rect x="10" y="7" width="5" height="18" rx="2.5" fill="${WHITE}"/>` +
+  `<rect x="10" y="20" width="13" height="5" rx="2.5" fill="${AMBER}"/></g></svg>`;
 
 const ICONS = [
   { file: "icon-192.png", size: 192, scale: 1 },

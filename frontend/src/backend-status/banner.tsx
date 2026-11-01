@@ -20,7 +20,10 @@ export function BackendStatusBanner() {
 
   if (status === "waking" && coldStartNoticeEnabled()) {
     return (
-      <div role="status" className="border-b bg-warning px-4 py-3 text-sm text-warning-foreground">
+      <div
+        role="status"
+        className="border-b bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground"
+      >
         {t("backend.waking")}
         <span className="ml-2 tabular-nums opacity-80">
           {t("backend.elapsed", { seconds: elapsedSeconds })}
@@ -30,7 +33,10 @@ export function BackendStatusBanner() {
   }
   if (status === "db-paused") {
     return (
-      <div role="alert" className="border-b bg-warning px-4 py-3 text-sm text-warning-foreground">
+      <div
+        role="alert"
+        className="border-b bg-warning-soft px-4 py-3 text-sm text-warning-soft-foreground"
+      >
         {t("backend.dbPaused")}
       </div>
     );
@@ -39,10 +45,10 @@ export function BackendStatusBanner() {
     return (
       <div
         role="alert"
-        className="flex flex-wrap items-center gap-3 border-b bg-destructive px-4 py-3 text-sm text-destructive-foreground"
+        className="flex flex-wrap items-center gap-3 border-b bg-destructive-soft px-4 py-3 text-sm text-destructive-soft-foreground"
       >
         {t("backend.down")}
-        <Button size="sm" variant="outline" className="text-foreground" onClick={retry}>
+        <Button size="sm" variant="outline" onClick={retry}>
           {t("common.tryAgain")}
         </Button>
       </div>

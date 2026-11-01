@@ -123,15 +123,17 @@ export function SavedLineups({ team }: { team: Team }) {
               <li
                 key={lineup.id}
                 className={cn(
-                  "flex flex-col gap-3 border-l-4 border-l-transparent p-4 md:flex-row md:items-center md:justify-between",
-                  selected?.id === lineup.id && "border-l-primary bg-accent",
+                  "flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between",
+                  selected?.id === lineup.id && "bg-accent",
                 )}
                 aria-current={selected?.id === lineup.id ? "true" : undefined}
                 onMouseEnter={() => hoverStart(lineup)}
                 onMouseLeave={() => clearTimeout(hoverTimer.current)}
               >
                 <div className="flex flex-col gap-1">
-                  <p className="font-medium">{lineup.match_name}</p>
+                  <p className={cn("font-medium", selected?.id === lineup.id && "font-semibold")}>
+                    {lineup.match_name}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {t("savedLineups.details", {
                       date: lineup.date,

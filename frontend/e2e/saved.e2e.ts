@@ -11,9 +11,8 @@ test("previewing a saved lineup highlights its row", async ({
   const panel = app.getByRole("complementary", { name: /Opponent 2/ });
   await expect(panel.locator("canvas")).toHaveCount(1);
   await expect(row).toHaveAttribute("aria-current", "true");
-  await expect(row).toHaveClass(/bg-accent/);
-  await expect(app.getByRole("listitem").filter({ hasText: "Opponent 1" })).not.toHaveClass(
-    /bg-accent/,
+  await expect(app.getByRole("listitem").filter({ hasText: "Opponent 1" })).not.toHaveAttribute(
+    "aria-current",
   );
   if (isMobile) {
     expect((await panel.boundingBox())!.width).toBeGreaterThanOrEqual(359);

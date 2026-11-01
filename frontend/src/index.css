@@ -1,79 +1,121 @@
 @import "tailwindcss";
 @import "@fontsource-variable/google-sans-flex";
 
-/* Polaris theme (see frontend/DESIGN.md): teal primary, amber secondary, square corners. */
+/* Lineup design system (see frontend/DESIGN.md): teal primary, amber highlight, rounded shapes. */
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0px;
-  --background: #f5fafb;
-  --foreground: #081e24;
-  --card: #fcffff;
-  --card-foreground: #081e24;
-  --popover: #fcffff;
-  --popover-foreground: #081e24;
+  --background: #f3f7f8;
+  --foreground: #0b1f26;
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+  --muted: #e8eff1;
+  --muted-foreground: #4b5d65;
+  --accent: #e0f1f4;
+  --accent-foreground: var(--foreground);
+  --border: #dbe5e8;
+  --input: #7d8f96;
+  --ring: #02677f;
   --primary: #02677f;
   --primary-foreground: #ffffff;
+  --primary-hover: #01566a;
+  --primary-soft: #dff1f5;
+  --primary-soft-foreground: #014f61;
   --secondary: #ffb500;
-  --secondary-foreground: #321c04;
-  --muted: #e4eef0;
-  --muted-foreground: #5a6569;
-  --accent: #03a2bc;
-  --accent-foreground: #ffffff;
-  --destructive: #d3451e;
+  --secondary-foreground: #2b1a03;
+  --secondary-hover: #e6a300;
+  --success: #0f7a4d;
+  --success-foreground: #ffffff;
+  --success-soft: #e0f4ea;
+  --success-soft-foreground: #0b5c3a;
+  --warning-soft: #fff4d6;
+  --warning-soft-foreground: #7a4f00;
+  --destructive: #b8340f;
   --destructive-foreground: #ffffff;
-  --border: #d4e1e4;
-  --input: #b3c0c4;
-  --ring: #02677f;
-  --sidebar: #f5fafb;
-  --sidebar-foreground: #030d11;
-  --sidebar-primary: #02677f;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e4eef0;
-  --sidebar-accent-foreground: #030d11;
-  --sidebar-border: #d4e1e4;
-  --warning: #ffb500;
-  --warning-foreground: #321c04;
+  --destructive-hover: #9a2a0a;
+  --destructive-soft: #fdeee9;
+  --destructive-soft-foreground: #8f270a;
+  --overlay: rgba(6, 20, 24, 0.45);
+  --water: #0aa5c0;
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--primary-soft);
+  --sidebar-accent-foreground: var(--primary-soft-foreground);
+  --sidebar-border: var(--border);
 }
 
 .dark {
-  --background: #020608;
-  --foreground: #d2d9da;
-  --card: #060e11;
-  --card-foreground: #d2d9da;
-  --popover: #060e11;
-  --popover-foreground: #d2d9da;
-  --primary: #03a2bc;
-  --primary-foreground: #010406;
-  --secondary: #eaaa2c;
-  --secondary-foreground: #1a1004;
-  --muted: #111d20;
-  --muted-foreground: #80888a;
-  --accent: #084150;
-  --accent-foreground: #d2d9da;
-  --destructive: #e45937;
-  --destructive-foreground: #010406;
-  --border: #1e2b30;
-  --input: #2a3a40;
-  --ring: #03a2bc;
-  --sidebar: #010405;
-  --sidebar-foreground: #d2d9da;
-  --sidebar-primary: #03a2bc;
-  --sidebar-primary-foreground: #010406;
-  --sidebar-accent: #111d20;
-  --sidebar-accent-foreground: #d2d9da;
-  --sidebar-border: #1e2b30;
-  --warning: #eaaa2c;
-  --warning-foreground: #1a1004;
+  --background: #0e2329;
+  --foreground: #eaf3f5;
+  --card: #14303a;
+  --popover: #1b3b46;
+  --muted: #1a3842;
+  --muted-foreground: #a9bcc3;
+  --accent: #1f4753;
+  --border: #2b4a56;
+  --input: #6d8893;
+  --ring: #2cc4de;
+  --primary: #2cc4de;
+  --primary-foreground: #04181d;
+  --primary-hover: #5ad3e8;
+  --primary-soft: #164a58;
+  --primary-soft-foreground: #9fe6f3;
+  --secondary: #f0b429;
+  --secondary-foreground: #231503;
+  --secondary-hover: #ffc94d;
+  --success: #4cc38a;
+  --success-foreground: #04170e;
+  --success-soft: #17402f;
+  --success-soft-foreground: #9be6c1;
+  --warning-soft: #44350f;
+  --warning-soft-foreground: #f7d27e;
+  --destructive: #ff8a6b;
+  --destructive-foreground: #2a0a02;
+  --destructive-hover: #ffa68d;
+  --destructive-soft: #4a2018;
+  --destructive-soft-foreground: #ffbca7;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --water: #0b86a0;
+  --sidebar: #112a32;
+}
+
+/* Elevation: the light values here, the dark ones in `.dark`. The `shadow-*` utilities (see
+   `@theme inline`) point at these variables because Tailwind inlines a literal shadow value into
+   the utility, which would never follow the theme. */
+:root {
+  --elev-xs: 0 1px 2px rgba(11, 31, 38, 0.06);
+  --elev-sm: 0 1px 3px rgba(11, 31, 38, 0.08), 0 1px 2px rgba(11, 31, 38, 0.04);
+  --elev-md: 0 6px 16px rgba(11, 31, 38, 0.08), 0 2px 4px rgba(11, 31, 38, 0.04);
+  --elev-lg: 0 20px 40px rgba(11, 31, 38, 0.16), 0 4px 8px rgba(11, 31, 38, 0.06);
+}
+
+.dark {
+  --elev-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --elev-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --elev-md: 0 6px 16px rgba(0, 0, 0, 0.5);
+  --elev-lg: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
   --font-sans: "Google Sans Flex Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Google Sans Flex Variable", ui-monospace, monospace;
-  --radius-sm: var(--radius);
-  --radius-md: var(--radius);
-  --radius-lg: var(--radius);
-  --radius-xl: var(--radius);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 9999px;
+  --shadow-xs: var(--elev-xs);
+  --shadow-sm: var(--elev-sm);
+  --shadow-md: var(--elev-md);
+  --shadow-lg: var(--elev-lg);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -82,14 +124,29 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-soft-foreground: var(--primary-soft-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary-hover: var(--secondary-hover);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-soft-foreground: var(--success-soft-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-foreground: var(--warning-soft-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  --color-overlay: var(--overlay);
+  --color-water: var(--water);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -100,8 +157,6 @@
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
 }
 
 @layer base {

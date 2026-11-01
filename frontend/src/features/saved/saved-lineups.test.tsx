@@ -127,10 +127,9 @@ describe("SavedLineups", () => {
     expect(mocks.generateSavedLineup).toHaveBeenCalledWith("l-2", "pdf");
     const row = await rowOf("SZVTK - Opponent 2");
     expect(row).toHaveAttribute("aria-current", "true");
-    expect(row).toHaveClass("border-l-primary", "bg-accent");
-    expect(await rowOf("SZVTK - Opponent 1")).not.toHaveClass("bg-accent");
+    expect(await rowOf("SZVTK - Opponent 1")).not.toHaveAttribute("aria-current");
     await userEvent.click(within(panel).getByRole("button", { name: "Close the preview" }));
-    expect(row).not.toHaveClass("bg-accent");
+    expect(row).not.toHaveAttribute("aria-current");
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
