@@ -267,12 +267,138 @@ class TestCheckDocsTouched:
         assert _run_check(git_repo, labels="no-docs-needed").returncode == 1
 
 
-class TestWikiSyncPageMap:
-    def test_every_documentation_page_is_published(self):
-        workflow = (REPO_ROOT / ".github/workflows/wiki-sync.yml").read_text()
-        mapped = set(re.findall(r'\["([^"]+\.md)"\]=', workflow))
-        pages = {path.name for path in (REPO_ROOT / "documentation").glob("*.md")}
-        assert pages == mapped
+def _load_sync_wiki():
+    spec = importlib.util.spec_from_file_location("sync_wiki", SCRIPTS / "sync_wiki.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+sync_wiki = _load_sync_wiki()
+DOCS = REPO_ROOT / "documentation"
+
+
+class TestWikiPageNames:
+    """The wiki page for a documentation file is named after its H1 (#63)."""
+
+    def test_every_documentation_page_gets_a_unique_name(self):
+        pages = sync_wiki.page_map(DOCS)
+        assert {p.name for p in pages} == {p.name for p in DOCS.glob("*.md")}
+        assert len(set(pages.values())) == len(pages)
+
+    def test_home_stays_home_and_titles_become_hyphenated_names(self):
+        pages = {p.name: n for p, n in sync_wiki.page_map(DOCS).items()}
+        assert pages["Home.md"] == "Home.md"
+        assert pages["Current-State-Backend.md"] == "Current-State:-Backend.md"
+        assert pages["Privacy-and-Security.md"] == "Privacy-and-Security.md"
+
+    def test_every_page_is_linked_from_home(self):
+        """A page nobody links to is published but unreachable."""
+        home = (DOCS / "Home.md").read_text()
+        for source in DOCS.glob("*.md"):
+            if source.name == "Home.md":
+                continue
+            title = sync_wiki.wiki_name(source).removesuffix(".md").replace("-", " ")
+            assert f"[[{title}]]" in home, f"{source.name} is not linked from Home.md"
+
+    def test_a_page_without_a_title_is_an_error(self, tmp_path):
+        (tmp_path / "Untitled.md").write_text("just text\n")
+        with pytest.raises(ValueError, match="no '# Title'"):
+            sync_wiki.page_map(tmp_path)
+
+    def test_two_pages_with_the_same_title_are_an_error(self, tmp_path):
+        (tmp_path / "A.md").write_text("# Same\n")
+        (tmp_path / "B.md").write_text("# Same\n")
+        with pytest.raises(ValueError, match="would both become"):
+            sync_wiki.page_map(tmp_path)
+
+
+class TestWikiSync:
+    @pytest.fixture
+    def folders(self, tmp_path):
+        docs, wiki = tmp_path / "documentation", tmp_path / "wiki"
+        docs.mkdir()
+        wiki.mkdir()
+        (docs / "Home.md").write_text("# Welcome\n")
+        (docs / "Some-Page.md").write_text("# Some Page\nbody\n")
+        return docs, wiki
+
+    def test_copies_pages_under_their_wiki_names(self, folders):
+        docs, wiki = folders
+        written, deleted = sync_wiki.sync(docs, wiki)
+        assert sorted(written) == ["Home.md", "Some-Page.md"]
+        assert deleted == []
+        assert (wiki / "Some-Page.md").read_text() == "# Some Page\nbody\n"
+
+    def test_a_new_page_needs_no_other_edit(self, folders):
+        docs, wiki = folders
+        (docs / "Brand-New.md").write_text("# Brand New Thing\n")
+        sync_wiki.sync(docs, wiki)
+        assert (wiki / "Brand-New-Thing.md").exists()
+
+    def test_deletes_pages_whose_source_is_gone_but_keeps_wiki_chrome(self, folders):
+        docs, wiki = folders
+        (wiki / "Old-Page.md").write_text("stale")
+        (wiki / "_Sidebar.md").write_text("mine")
+        (wiki / "image.png").write_bytes(b"x")
+        _, deleted = sync_wiki.sync(docs, wiki)
+        assert deleted == ["Old-Page.md"]
+        assert (wiki / "_Sidebar.md").exists()
+        assert (wiki / "image.png").exists()
+
+    def test_a_rename_replaces_the_old_page(self, folders):
+        docs, wiki = folders
+        sync_wiki.sync(docs, wiki)
+        (docs / "Some-Page.md").write_text("# Renamed Page\n")
+        sync_wiki.sync(docs, wiki)
+        assert not (wiki / "Some-Page.md").exists()
+        assert (wiki / "Renamed-Page.md").exists()
+
+    def test_main_mirrors_and_reports(self, folders, capsys):
+        docs, wiki = folders
+        (wiki / "Old.md").write_text("stale")
+        assert sync_wiki.main([str(docs), str(wiki)]) == 0
+        out = capsys.readouterr().out
+        assert "Wrote 2 wiki pages." in out
+        assert "Deleted Old.md" in out
+
+    def test_main_lists_the_mapping_without_a_wiki_folder(self, folders, capsys):
+        docs, _ = folders
+        assert sync_wiki.main([str(docs), "--list"]) == 0
+        assert "Some-Page.md -> Some-Page.md" in capsys.readouterr().out
+
+    def test_main_needs_a_wiki_folder_unless_listing(self, folders):
+        docs, _ = folders
+        with pytest.raises(SystemExit):
+            sync_wiki.main([str(docs)])
+
+    def test_main_fails_with_a_workflow_error_on_a_bad_page(self, folders, capsys):
+        docs, wiki = folders
+        (docs / "Bad.md").write_text("no heading")
+        assert sync_wiki.main([str(docs), str(wiki)]) == 1
+        assert "::error::" in capsys.readouterr().err
+
+
+class TestWikiSyncWorkflow:
+    @pytest.fixture
+    def workflow(self):
+        return (REPO_ROOT / ".github/workflows/wiki-sync.yml").read_text()
+
+    def test_has_no_hand_kept_page_map(self, workflow):
+        assert "PAGE_MAP" not in workflow
+        assert "python3 scripts/sync_wiki.py documentation wiki" in workflow
+
+    def test_reruns_when_the_workflow_or_script_changes_and_can_be_started_by_hand(
+        self, workflow
+    ):
+        assert '- ".github/workflows/wiki-sync.yml"' in workflow
+        assert '- "scripts/sync_wiki.py"' in workflow
+        assert "workflow_dispatch:" in workflow
+
+    def test_runs_queue_instead_of_racing_and_only_publish_develop(self, workflow):
+        assert "group: wiki-sync" in workflow
+        assert "cancel-in-progress: false" in workflow
+        assert "if: github.ref == 'refs/heads/develop'" in workflow
 
 
 CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
