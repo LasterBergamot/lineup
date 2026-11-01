@@ -36,10 +36,10 @@ jobs:
       # Must match `app` in backend/fly.toml (tests/test_deploy_workflow.py checks it).
       FLY_APP: lineup-dev-lb
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           enable-cache: true
 
@@ -119,10 +119,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           enable-cache: true
 
@@ -156,7 +156,7 @@ jobs:
             uv run uvicorn app:app --host 127.0.0.1 --port 8000 --no-access-log \
             >"$work/api.log" 2>&1) &
 
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --silent --fail --max-time 5 "http://127.0.0.1:8000/health?db=1" >/dev/null \
               && [ -s "$work/owner.jwt" ] && [ -s "$work/member.jwt" ]; then
               break

@@ -29,7 +29,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           # Full history and tags: the notes need the previous tag and the migrations since it.
           fetch-depth: 0
@@ -78,6 +78,7 @@ jobs:
             echo "## Database migrations"
             echo
             if [ -n "$migrations" ]; then
+              # shellcheck disable=SC2016  # the backticks are Markdown, not a command substitution
               echo "$migrations" | sed 's/^/- `/; s/$/`/'
               echo
               echo "Going back to an earlier version across these needs expand/contract migrations (see documentation/Roadmap-Everything-Else.md)."
@@ -86,5 +87,7 @@ jobs:
             fi
           } >> notes.md
 
+          # $PRERELEASE is empty or "--prerelease": unquoted on purpose so an empty value adds no argument
+          # shellcheck disable=SC2086
           gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md $PRERELEASE
           echo "Released $tag at $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

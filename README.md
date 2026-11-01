@@ -59,7 +59,7 @@ Four GitHub Actions workflows run automatically on GitHub — no local setup or 
 - **`.github/workflows/release.yml`** — by hand only (#17): reads the version from `backend/pyproject.toml` and `frontend/package.json` (they must match), then creates the `vX.Y.Z` tag and a GitHub Release with generated notes and the list of new Alembic migrations. Bump the version first with `task release:bump` in a normal PR; see "Versions and releases" in [Roadmap-Everything-Else](documentation/Roadmap-Everything-Else.md).
 - **`.github/workflows/keepalive.yml`** — on Mondays and Thursdays (and by hand): a `SELECT 1` through the Supabase pooler (Actions secret `KEEPALIVE_DATABASE_URL`) so the free-tier dev project is never paused for inactivity. If you've been away for a long time, check the Actions tab: GitHub disables scheduled workflows after 60 days without repo activity.
 
-If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
+If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing; CI runs both on every PR (`Workflow files` job), and every third-party action must be pinned to a commit SHA (`# vX` comment; `backend/tests/test_ci_workflow.py` fails otherwise).
 
 ### Security tooling
 
@@ -163,7 +163,7 @@ Configuration is through environment variables, all optional. `backend/.env.exam
 
 The dev environment can run against a hosted Postgres on [Supabase](https://supabase.com) (project `lineup-dev`). This only replaces the database; authentication is not wired up yet.
 
-1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `backend/.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `backend/.env.example`. `ENV=production` is the right value for the dev database too: it means "Alembic owns the schema", not "this is the prod deployment". The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 backend/.env` keeps other users on your machine from reading it.
+1. Put the **transaction pooler** URL (port 6543, with `?ssl=require`) in `backend/.env` as `DATABASE_URL`, and set `ENV=production`. Exact URL formats are in `backend/.env.example`. `ENV=production` is the right value for the dev database too: it means "fail closed and no API docs", not "this is the prod deployment". Tables are never created by the app on Postgres, only by `task migrate:supabase`. The app uses the pooler rather than the direct connection because the direct host is IPv6-only and, with one fresh connection per request, is slower and burns Postgres's limited connection slots; the direct connection is only needed for the one-off migration in step 2. Tip: `chmod 600 backend/.env` keeps other users on your machine from reading it.
 2. Put the **owner's direct** connection string (port 5432; the pooler can't run migrations, and on IPv4-only networks use the session-mode pooler instead) in a separate git-ignored file, `backend/.env.migrate`, as `MIGRATE_DATABASE_URL` (`chmod 600`). It is kept out of `.env` on purpose: Compose and `task serve` load `.env` into the API's environment, and the API must never hold the owner's password. Then run `task migrate:supabase`. This creates the tables **and** switches on Row Level Security with a least-privilege `lineup_app` role (see *Current State: Backend* on the wiki).
 3. Run `task db:create-app-role`: it gives `lineup_app` a generated password and rewrites the pooler `DATABASE_URL` in `backend/.env` to that role (nothing is printed). The API then connects as `lineup_app`, not as the table-owning `postgres` role. It generates a **new** password on every run, so it asks you to type `yes` first (`task db:create-app-role -- --yes` skips the question for scripts); a second run invalidates the old password, and the deployed API's Fly secret `DATABASE_URL` and the `KEEPALIVE_DATABASE_URL` Actions secret then have to be updated (`documentation/Fly-Setup.md`).
 4. Start the app (`task up` or `task serve`; both read `backend/.env`).
@@ -291,12 +291,12 @@ POST /lineups/saved
 | `task install`  | Install dependencies via `uv sync`                              |
 | `task doctor`   | Check the required tools and their minimum versions (`scripts/doctor.sh`) |
 | `task run`      | Run the CLI application                                         |
-| `task serve`    | Start the API server locally (DOCX only; loads `backend/.env`; creates tables on startup unless `ENV=production`) |
+| `task serve`    | Start the API server locally (DOCX only; loads `backend/.env`; creates the SQLite tables on startup via `AUTO_CREATE_SCHEMA=1`) |
 | `task db:status` | Show whether `backend/.env` currently selects SQLite or the Supabase pooler |
 | `task db:postgres` | Switch `backend/.env` to the Supabase pooler (`DATABASE_URL` + `ENV=production`) |
 | `task db:sqlite` | Switch `backend/.env` back to local SQLite                             |
 | `task test`     | Run tests with coverage (100%)                                  |
-| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; needs host port 8000 free) |
+| `task test-e2e` | Build+run the container and verify real PDF conversion fidelity (makes a throw-away signing key so the test can sign in; runs as its own Compose project `lineup-e2e` on host port 8001, so a running `task up` is left alone) |
 | `task lint`     | Lint the codebase with ruff                                     |
 | `task format`   | Format the codebase with ruff                                   |
 | `task build`    | Build the container image                                       |
@@ -331,7 +331,7 @@ POST /lineups/saved
 lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
-├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key
+├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key, moves it to port 8001 and drops `backend/.env`
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
 ├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job)
 ├── SECURITY.md                      # Security policy: how to report a vulnerability privately
@@ -385,7 +385,8 @@ lineup/
     │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
     │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
     │       ├── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
-    │       └── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       ├── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       └── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)

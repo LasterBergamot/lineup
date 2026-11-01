@@ -25,9 +25,9 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task install` | `uv sync` — install dependencies |
 | `task doctor` | check the required tools and their minimum versions (`scripts/doctor.sh`); the first step of [[Setup]] |
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
-| `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
+| `task test-e2e` | build image, start a throw-away container (Compose project `lineup-e2e`, port 8001, no `backend/.env`), run real-conversion fidelity tests, tear it down with its volume |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
+| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |
 | `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
@@ -47,7 +47,8 @@ external services.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
-| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod). It also makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
+| `AUTO_CREATE_SCHEMA` | unset | Opt-in (`1`/`true`/`yes`): create the tables from the ORM models on startup. Only honoured for SQLite, never for Postgres (Alembic owns that schema). `task serve` and the default Compose setup set it |
+| `ENV` | unset | `production` = fail closed at startup and no API docs. Set it for any real Postgres (dev or prod). It makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin; team invite links are `<APP_BASE_URL>/join/<code>`. Set in `fly.toml` to the Pages URL |
 | `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc`, `/openapi.json`; always off when `ENV=production` |
@@ -183,7 +184,12 @@ Four GitHub Actions workflows (`.github/workflows/`):
 - **`ci.yml`** — runs on every PR (and push) against `develop` or `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
   coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
-  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The
+  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The workflow's
+  token is read-only (`permissions: contents: read`; only the e2e job adds `security-events: write`
+  for the SARIF upload), a new push to a PR cancels that PR's older run (`concurrency`), Python
+  dependencies install with `uv sync --locked` (fails when `uv.lock` is stale), and **every
+  third-party action in every workflow is pinned to a commit SHA** with the tag in a comment
+  (`# v7`), which Dependabot keeps current; `backend/tests/test_ci_workflow.py` enforces it. The
   `arduino/setup-task` steps pass `repo-token: ${{ secrets.GITHUB_TOKEN }}` so the action's
   GitHub API lookups are authenticated; without it, shared runners occasionally hit the
   unauthenticated rate limit and the job fails before any of our code runs. The input really is
@@ -219,7 +225,7 @@ Four GitHub Actions workflows (`.github/workflows/`):
   workflows after 60 days without repo activity, and a disabled workflow doesn't fail, so after a long break
   check the Actions tab and re-enable it.
 
-`ci.yml` has five jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
+`ci.yml` has six jobs. **Workflow files** runs `actionlint` (pinned Docker image, which also runs shellcheck on the `run:` scripts) and `yamllint --strict` over `.github/`. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
 Prettier, the type check, the Vitest suite with a coverage report (it fails below 100 %, set in `frontend/vite.config.ts`) and the production build, then `task fe:api:check`, which
 regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
 and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
@@ -229,7 +235,7 @@ on `develop` and `main`. **Lint & test** runs ruff, the tests at 100% coverage, 
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
 (`tests/test_postgres_migrations.py`), then `alembic check` with type comparison and a
-`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests. **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
+`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests (no Docker layer cache: tried with buildx and the `gha` cache, it saved no job time because the build takes about 40 s). **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
 
 `ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
 `documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the
@@ -264,8 +270,9 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
   *private vulnerability reporting* (a repository setting the owner turns on under
   Settings → Code security; the file alone does not enable it).
 - **Container image scanning**: `aquasecurity/trivy-action` scans the built `lineup:latest`
-  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). Both the
-  table-format and SARIF-format runs are pinned to `exit-code: "0"` — this is deliberately
+  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). One scan
+  produces the SARIF file; the job summary's findings table is rendered from it, so the two never
+  disagree. It is pinned to `exit-code: "0"` — this is deliberately
   **report-only**, never failing the build, because the LibreOffice + apt package surface has
   more CVEs than a plain slim-Python image can realistically stay ahead of. SARIF results are
   uploaded to the repo's Security → Code scanning tab via `github/codeql-action/upload-sarif`
