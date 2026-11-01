@@ -27,7 +27,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start container, run real-conversion fidelity tests, tear down |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
-| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup unless `ENV=production`) |
+| `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite) |
 | `task run` | run `main.py`, the CLI demo that writes one hard-coded lineup to `resources/modified_rajtlista.docx` |
 | `task build` / `task rebuild` | build container image (`lineup`) / force fresh build with `--no-cache` |
@@ -47,7 +47,8 @@ external services.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./lineup.db` | Which database to use — SQLite locally, Supabase Postgres via a `postgresql+asyncpg://` URL. See [[Current State: Backend]] for the exact URLs |
-| `ENV` | unset | `production` = "schema is Alembic-managed, skip `create_all` on startup". Set it for any real Postgres (dev or prod). It also makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
+| `AUTO_CREATE_SCHEMA` | unset | Opt-in (`1`/`true`/`yes`): create the tables from the ORM models on startup. Only honoured for SQLite, never for Postgres (Alembic owns that schema). `task serve` and the default Compose setup set it |
+| `ENV` | unset | `production` = fail closed at startup and no API docs. Set it for any real Postgres (dev or prod). It makes startup fail closed (needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off |
 | `CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call the API. Unset = no CORS headers; `*` is refused at startup |
 | `APP_BASE_URL` | `http://localhost:5173` | The web app's origin; team invite links are `<APP_BASE_URL>/join/<code>`. Set in `fly.toml` to the Pages URL |
 | `DOCS_ENABLED` | `true` | Serve `/docs`, `/redoc`, `/openapi.json`; always off when `ENV=production` |
@@ -110,8 +111,13 @@ git-ignored.
   always required before `task up`. It takes its settings from `env_file: backend/.env`
   (`required: false`, Compose >= 2.24) — Compose's own `.env` lookup only checks next to
   `compose.yml`, so it would no longer see `backend/.env` — and the container falls back to its
-  SQLite default when the file is absent. Full reset: `task down` → `docker rmi lineup` →
-  `docker image prune` → `task rebuild` → `task up`.
+  SQLite default when the file is absent. That default is `sqlite+aiosqlite:////data/lineup.db`
+  (set as `ENV DATABASE_URL` in the Dockerfile; `env_file` and Fly's secret override it), and
+  `/data` is the named volume `lineup-data`, so the data survives `task down`, `task rebuild`
+  and a reboot. The port is published on `127.0.0.1` only (the API must not be reachable from the
+  LAN) and the service has `restart: unless-stopped`; the image's own `HEALTHCHECK` on `/health` is
+  inherited. Full reset: `task down` → `docker compose down -v` (deletes the volume and with it the
+  local data) → `docker rmi lineup` → `docker image prune` → `task rebuild` → `task up`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
   `task build` + `task up`, not `task serve`.
@@ -238,7 +244,7 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
   ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`), the `docker` ecosystem (`backend/Dockerfile`: the
   digest-pinned base image and the `uv` image) the `npm` ecosystem (`directory: /frontend`, i.e. `frontend/package.json`/`frontend/pnpm-lock.yaml`, minor and patch updates grouped into one PR) and the `github-actions` ecosystem (the workflow
-  files). Security-alert PRs are governed separately by the repo's "Dependabot security
+  files). Every ecosystem groups its minor and patch updates into one PR; majors stay separate. Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the
   repo level — no code/config here, just a setting.
@@ -325,6 +331,7 @@ never enter the conversation.
 
 **Issue conventions** (the values `new-issue` reads from `.claude/context/issues.md`):
 - Bodies follow Problem / Evidence / Proposal / Acceptance.
+- Issues opened on GitHub itself use the forms in `.github/ISSUE_TEMPLATE/` (bug, feature, chore; blank issues are off). A form can only set the `type:*` label, so a maintainer adds `area:*`, `priority:*`, `plan:*` and the milestone.
 - Labels: one `type:*`, one or more `area:*`, one `priority:*`, and one `plan:*` (keep, keep-cheap, defer, drop).
 - Milestones: M1 Hardening, M3 Dev preview, Mx Parked (deliberately not now; M2 Prod is closed).
 - Work is grouped under epics (#41–#46, the frontend epic #20, the compliance epic #92) as GitHub sub-issues, with

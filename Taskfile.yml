@@ -32,6 +32,8 @@ tasks:
       set -a
       [ -f .env ] && . ./.env
       set +a
+      # Local SQLite has no Alembic run: let the app build its tables (ignored for Postgres).
+      export AUTO_CREATE_SCHEMA=1
       uv run uvicorn app:app --reload
 
   db:status:

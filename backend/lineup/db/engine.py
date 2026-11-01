@@ -1,22 +1,22 @@
 """Database engine, session factory and the connection quirks of SQLite and Supabase Postgres.
 
 `DATABASE_URL` picks the database (local SQLite file by default). Everything dialect-specific
-(foreign keys on SQLite, pooler-safe settings on Postgres) is confined to this module.
+(foreign keys on SQLite) is confined to this module; the URL-dependent settings live in
+`connection_settings.py` so Alembic can use them without creating the app's engine.
 """
 
 import os
-import uuid
 from collections.abc import AsyncGenerator
 
 from sqlalchemy import event
-from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import NullPool
+
+from lineup.db.connection_settings import make_engine_kwargs
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -39,31 +39,8 @@ def enable_sqlite_foreign_keys(async_engine: AsyncEngine) -> None:
         cursor.close()
 
 
-def _unique_statement_name() -> str:
-    """Give every prepared statement its own name so pooled connections never collide."""
-    return f"__asyncpg_{uuid.uuid4()}__"
-
-
-def _make_engine_kwargs(database_url: str) -> dict:
-    """Postgres (Supabase) sits behind a transaction-mode pooler that already pools
-    connections, so SQLAlchemy must not keep its own pool on top of it. The pooler also
-    hands the same server connection to different clients, so asyncpg's prepared
-    statements must be off (both caches) and any it still names must be unique —
-    otherwise requests fail with DuplicatePreparedStatementError."""
-    if make_url(database_url).get_backend_name() != "postgresql":
-        return {}
-    return {
-        "poolclass": NullPool,
-        "connect_args": {
-            "statement_cache_size": 0,
-            "prepared_statement_cache_size": 0,
-            "prepared_statement_name_func": _unique_statement_name,
-        },
-    }
-
-
 engine = create_async_engine(
-    DATABASE_URL, echo=False, **_make_engine_kwargs(DATABASE_URL)
+    DATABASE_URL, echo=False, **make_engine_kwargs(DATABASE_URL)
 )
 enable_sqlite_foreign_keys(engine)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)

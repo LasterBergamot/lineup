@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lineup.db.models import (
+    LineupPlayerSnapshot,
     Player,
     SavedLineup,
     Team,
@@ -137,3 +138,50 @@ class TestTeamInvitation:
         await db_session.delete(team)
         await db_session.commit()
         assert (await db_session.execute(select(TeamInvitation))).first() is None
+
+
+class TestLineupPlayerSnapshot:
+    async def _lineup(self, db_session: AsyncSession) -> SavedLineup:
+        team = await _team(db_session)
+        lineup = SavedLineup(
+            team_id=team.id,
+            team_name="T",
+            opponent_name="O",
+            match_name="T - O",
+            division="OB I.",
+            cap="Fehér",
+            date="2026. 11. 01.",
+            coach="C",
+            created_by=uuid.uuid4(),
+        )
+        db_session.add(lineup)
+        await db_session.commit()
+        return lineup
+
+    def _snapshot(self, lineup_id: uuid.UUID, cap_number: int) -> LineupPlayerSnapshot:
+        return LineupPlayerSnapshot(
+            saved_lineup_id=lineup_id,
+            cap_number=cap_number,
+            name="P",
+            nssz_number="N1",
+        )
+
+    async def test_a_cap_number_can_be_used_once_per_lineup(
+        self, db_session: AsyncSession
+    ):
+        lineup = await self._lineup(db_session)
+        db_session.add(self._snapshot(lineup.id, 1))
+        await db_session.commit()
+
+        db_session.add(self._snapshot(lineup.id, 1))
+        with pytest.raises(IntegrityError):
+            await db_session.commit()
+
+    async def test_two_lineups_can_use_the_same_cap_number(
+        self, db_session: AsyncSession
+    ):
+        first = await self._lineup(db_session)
+        second = await self._lineup(db_session)
+        db_session.add_all([self._snapshot(first.id, 1), self._snapshot(second.id, 1)])
+
+        await db_session.commit()
