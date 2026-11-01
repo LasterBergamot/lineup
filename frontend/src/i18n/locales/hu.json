@@ -149,6 +149,7 @@
     "description": "A(z) {{team}} minden tagja ugyanazt a keretet és ugyanazokat a mentett rajtlistákat látja és szerkeszti.",
     "listTitle": "Tagok",
     "you": "Ön",
+    "youNamed": "{{name}} (Ön)",
     "member": "{{number, number}}. tag",
     "joined": "Csatlakozott: {{date}}",
     "leave": "Kilépés a csapatból",
@@ -156,9 +157,11 @@
     "remove": "Eltávolítás",
     "removeConfirm": "Igen, eltávolítom",
     "removeLabel": "Eltávolítás: {{number, number}}. tag",
+    "removeNamedLabel": "Eltávolítás: {{name}}",
     "makeOwner": "Tulajdonossá tétel",
     "makeOwnerConfirm": "Igen, legyen tulajdonos",
     "makeOwnerLabel": "Tulajdonossá tétel: {{number, number}}. tag",
+    "makeOwnerNamedLabel": "Tulajdonossá tétel: {{name}}",
     "lastOwner": "Ön az egyetlen tulajdonos. Kilépés előtt tegyen tulajdonossá valaki mást."
   },
   "players": {

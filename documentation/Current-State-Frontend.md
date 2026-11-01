@@ -215,8 +215,9 @@ sequenceDiagram
 ### Team members and invitations
 
 The **Team** page (`/members`, the fourth item in the sidebar and the bottom bar) shows who is in
-the current team. The API stores no names or e-mail addresses for members, so rows read **You** and
-**Member 1**, **Member 2** … with their role and join date, and a user id is never shown. Everyone
+the current team. Rows show each member's name (their Google name, filled in by the API the next time they open
+the app; yours reads "Name (you)"). A member with no name yet reads **You** or **Member 1**,
+**Member 2** …. Each row also shows the role and join date, and a user id or e-mail is never shown. Everyone
 can **leave** (the only owner gets a message to hand the team over first). An **owner** can also
 **remove** a member, **make** someone else the owner, and create **invite links**: pick 2 hours,
 24 hours (the default) or 3 days, then copy the link (a "Link copied" toast confirms it) or use the phone's share sheet. The link is

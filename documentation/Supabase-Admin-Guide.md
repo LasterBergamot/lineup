@@ -87,8 +87,8 @@ select t.id, t.name, t.is_public, t.created_at,
 from teams t
 where t.name ilike '%name%';
 
--- Everyone in one team (ids only: the API stores no names or e-mails, look them up in auth.users)
-select m.user_id, m.role, m.joined_at, u.email
+-- Everyone in one team (the API stores a display name but no e-mail; look that up in auth.users)
+select m.user_id, m.display_name, m.role, m.joined_at, u.email
 from team_members m
 left join auth.users u on u.id = m.user_id
 where m.team_id = '<team id>'

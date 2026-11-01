@@ -63,7 +63,8 @@ export interface paths {
          * Accept Invitation
          * @description Join the team behind the link (sign-in required). Returns the team with your role.
          *     Safe to repeat: if you are already a member nothing changes (and an owner stays an owner).
-         *     404 for an unknown code, 410 when the link expired or was revoked.
+         *     Your name from the sign-in token is saved on the new membership. 404 for an unknown code,
+         *     410 when the link expired or was revoked.
          */
         post: operations["accept_invitation_invitations__code__accept_post"];
         delete?: never;
@@ -241,7 +242,8 @@ export interface paths {
          * List Teams
          * @description List the teams you belong to, ordered by name, each with your `role`. Paginated: `limit`
          *     is 1-200 (default 20) and `offset` starts at 0; the response carries `total` so clients
-         *     can page.
+         *     can page. As a side effect your current name (from your sign-in token) is saved on your
+         *     memberships, so teammates see it on the Members page.
          */
         get: operations["list_teams_teams_get"];
         put?: never;
@@ -368,8 +370,9 @@ export interface paths {
         };
         /**
          * List Members
-         * @description Who is in this team: user id, role and join date, oldest first (`is_you` marks your own
-         *     row). No names or e-mail addresses are stored. 404 unless you are a member.
+         * @description Who is in this team: user id, role, join date and display name, oldest first (`is_you`
+         *     marks your own row). `display_name` is `null` until that member has opened the app with a
+         *     name on their account. No e-mail addresses are stored. 404 unless you are a member.
          */
         get: operations["list_members_teams__team_id__members_get"];
         put?: never;
@@ -589,10 +592,15 @@ export interface components {
         };
         /**
          * MemberResponse
-         * @description One member of a team. Only ids and roles: the API stores no names or e-mail addresses for
-         *     members. `is_you` marks the caller's own row so a client can show "(you)" and a Leave button.
+         * @description One member of a team: id, role, join date and, when known, their name. `display_name` is
+         *     the Google name the member's own token carried the last time they used the app; it is `null`
+         *     for someone who has not opened the app since names were introduced, so show a fallback
+         *     such as "Member 2". No e-mail addresses are stored. `is_you` marks the caller's own row so a
+         *     client can show "(you)" and a Leave button.
          */
         MemberResponse: {
+            /** Display Name */
+            display_name: string | null;
             /** Is You */
             is_you: boolean;
             /**

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -34,13 +34,19 @@ async def create_team(
     name: str,
     created_by: uuid.UUID,
     is_public: bool,
+    display_name: str | None = None,
 ) -> Team:
-    """Insert a team and its creator's `owner` membership in one transaction, commit, and return
-    the team with database-generated fields loaded."""
+    """Insert a team and its creator's `owner` membership (carrying their `display_name`) in one
+    transaction, commit, and return the team with database-generated fields loaded."""
     team = Team(id=uuid.uuid4(), name=name, created_by=created_by, is_public=is_public)
     session.add(team)
     session.add(
-        TeamMember(team_id=team.id, user_id=created_by, role=TeamRole.OWNER.value)
+        TeamMember(
+            team_id=team.id,
+            user_id=created_by,
+            role=TeamRole.OWNER.value,
+            display_name=display_name,
+        )
     )
     await session.commit()
     await session.refresh(team)
@@ -100,15 +106,41 @@ async def add_member(
     team_id: uuid.UUID,
     user_id: uuid.UUID,
     role: str,
+    display_name: str | None = None,
 ) -> None:
-    """Insert a membership and commit. Swallows the duplicate-key error of a double click (two
+    """Insert a membership (with the joiner's `display_name`) and commit. Swallows the duplicate-key error of a double click (two
     accepts racing past the "not a member yet" check): the user is a member either way, so the
     caller re-reads the row instead of trusting this call."""
-    session.add(TeamMember(team_id=team_id, user_id=user_id, role=role))
+    session.add(
+        TeamMember(
+            team_id=team_id, user_id=user_id, role=role, display_name=display_name
+        )
+    )
     try:
         await session.commit()
     except IntegrityError:
         await session.rollback()
+
+
+async def refresh_display_name(
+    session: AsyncSession, user_id: uuid.UUID, display_name: str
+) -> None:
+    """Set `display_name` on every membership of `user_id` that has a different one, and commit.
+
+    This is how members who joined before names were stored get filled in, and how a changed
+    Google name catches up. Only the caller's own rows are touched (`user_id` is the verified
+    token's `sub`). Rows that already match are skipped, so the usual call writes nothing.
+    """
+    result = await session.execute(
+        update(TeamMember)
+        .where(
+            TeamMember.user_id == user_id,
+            TeamMember.display_name.is_distinct_from(display_name),
+        )
+        .values(display_name=display_name)
+    )
+    if result.rowcount:
+        await session.commit()
 
 
 async def remove_member(session: AsyncSession, member: TeamMember) -> None:

@@ -16,7 +16,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lineup.auth.dependencies import get_current_user_id
+from lineup.auth.dependencies import get_current_display_name, get_current_user_id
 from lineup.db.engine import get_session
 from lineup.teams import service
 from lineup.teams.schemas import (
@@ -41,13 +41,19 @@ async def list_teams(
     offset: Annotated[int, Query(ge=0)] = 0,
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
+    display_name: str | None = Depends(get_current_display_name),
 ) -> PaginatedTeams:
     """List the teams you belong to, ordered by name, each with your `role`. Paginated: `limit`
     is 1-200 (default 20) and `offset` starts at 0; the response carries `total` so clients
-    can page.
+    can page. As a side effect your current name (from your sign-in token) is saved on your
+    memberships, so teammates see it on the Members page.
     """
     items, total = await service.list_teams(
-        session, user_id=user_id, limit=limit, offset=offset
+        session,
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        display_name=display_name,
     )
     return PaginatedTeams(
         items=[TeamResponse.from_team(team, role) for team, role in items],
@@ -62,11 +68,16 @@ async def create_team(
     body: TeamCreate,
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
+    display_name: str | None = Depends(get_current_display_name),
 ) -> TeamResponse:
     """Create a team; you become its owner. `is_public` (default true) lists its name in the
     opponent directory, which never reveals anything else about the team."""
     team, role = await service.create_team(
-        session, name=body.name, created_by=user_id, is_public=body.is_public
+        session,
+        name=body.name,
+        created_by=user_id,
+        is_public=body.is_public,
+        display_name=display_name,
     )
     return TeamResponse.from_team(team, role)
 
@@ -125,8 +136,9 @@ async def list_members(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> list[MemberResponse]:
-    """Who is in this team: user id, role and join date, oldest first (`is_you` marks your own
-    row). No names or e-mail addresses are stored. 404 unless you are a member."""
+    """Who is in this team: user id, role, join date and display name, oldest first (`is_you`
+    marks your own row). `display_name` is `null` until that member has opened the app with a
+    name on their account. No e-mail addresses are stored. 404 unless you are a member."""
     return await service.list_members(session, team_id=team_id, user_id=user_id)
 
 

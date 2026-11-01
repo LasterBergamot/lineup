@@ -118,9 +118,13 @@ async def accept_invitation(
     code: CodePath,
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
+    display_name: str | None = Depends(get_current_display_name),
 ) -> TeamResponse:
     """Join the team behind the link (sign-in required). Returns the team with your role.
     Safe to repeat: if you are already a member nothing changes (and an owner stays an owner).
-    404 for an unknown code, 410 when the link expired or was revoked."""
-    team, role = await service.accept_invitation(session, code=code, user_id=user_id)
+    Your name from the sign-in token is saved on the new membership. 404 for an unknown code,
+    410 when the link expired or was revoked."""
+    team, role = await service.accept_invitation(
+        session, code=code, user_id=user_id, display_name=display_name
+    )
     return TeamResponse.from_team(team, role)

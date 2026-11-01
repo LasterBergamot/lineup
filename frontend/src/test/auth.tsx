@@ -95,18 +95,20 @@ export function teamsPage(...names: string[]) {
 }
 
 /** Builds the JSON a `GET /teams/{id}/members` answers with: the caller first, then others. */
-export function membersList(...others: { id: string; role?: string }[]) {
+export function membersList(...others: { id: string; role?: string; name?: string | null }[]) {
   return [
     {
       user_id: "11111111-1111-4111-8111-111111111111",
       role: "owner",
       joined_at: "2026-10-05T10:00:00",
+      display_name: null,
       is_you: true,
     },
-    ...others.map(({ id, role = "member" }) => ({
+    ...others.map(({ id, role = "member", name = null }) => ({
       user_id: id,
       role,
       joined_at: "2026-10-06T09:30:00",
+      display_name: name,
       is_you: false,
     })),
   ];
