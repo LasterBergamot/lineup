@@ -181,7 +181,12 @@ Four GitHub Actions workflows (`.github/workflows/`):
 - **`ci.yml`** — runs on every PR (and push) against `develop` or `main`: `task lint` (`ruff check .`,
   including flake8-bandit's `S` security rules), `ruff format --check .`, `task test` (100%
   coverage), then `task test-e2e` (builds the image, runs a container, verifies real PDF
-  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The
+  conversion fidelity), then scans the built image for vulnerabilities with Trivy. The workflow's
+  token is read-only (`permissions: contents: read`; only the e2e job adds `security-events: write`
+  for the SARIF upload), a new push to a PR cancels that PR's older run (`concurrency`), Python
+  dependencies install with `uv sync --locked` (fails when `uv.lock` is stale), and **every
+  third-party action in every workflow is pinned to a commit SHA** with the tag in a comment
+  (`# v7`), which Dependabot keeps current; `backend/tests/test_ci_workflow.py` enforces it. The
   `arduino/setup-task` steps pass `repo-token: ${{ secrets.GITHUB_TOKEN }}` so the action's
   GitHub API lookups are authenticated; without it, shared runners occasionally hit the
   unauthenticated rate limit and the job fails before any of our code runs. The input really is
@@ -217,7 +222,7 @@ Four GitHub Actions workflows (`.github/workflows/`):
   workflows after 60 days without repo activity, and a disabled workflow doesn't fail, so after a long break
   check the Actions tab and re-enable it.
 
-`ci.yml` has five jobs. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
+`ci.yml` has six jobs. **Workflow files** runs `actionlint` (pinned Docker image, which also runs shellcheck on the `run:` scripts) and `yamllint --strict` over `.github/`. **Frontend** installs the frontend with a frozen pnpm lockfile and runs ESLint and
 Prettier, the type check, the Vitest suite with a coverage report (it fails below 100 %, set in `frontend/vite.config.ts`) and the production build, then `task fe:api:check`, which
 regenerates the API client from the backend's OpenAPI spec (`scripts/dump_openapi.py`, no server)
 and fails if the committed `frontend/src/api/` differs; a report-only `pnpm audit --prod` closes it.
@@ -227,7 +232,7 @@ on `develop` and `main`. **Lint & test** runs ruff, the tests at 100% coverage, 
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
 (`tests/test_postgres_migrations.py`), then `alembic check` with type comparison and a
-`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests. **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
+`downgrade base` / `upgrade head` round trip. **E2E** builds the image and runs the real-conversion tests (no Docker layer cache: tried with buildx and the `gha` cache, it saved no job time because the build takes about 40 s). **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
 
 `ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
 `documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the
@@ -252,8 +257,9 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
   executable name and an argv list with no `shell=True` and no user-controlled input, so
   neither warning reflects a real risk there.
 - **Container image scanning**: `aquasecurity/trivy-action` scans the built `lineup:latest`
-  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). Both the
-  table-format and SARIF-format runs are pinned to `exit-code: "0"` — this is deliberately
+  image in the `e2e` CI job (severity `CRITICAL,HIGH`, `ignore-unfixed: true`). One scan
+  produces the SARIF file; the job summary's findings table is rendered from it, so the two never
+  disagree. It is pinned to `exit-code: "0"` — this is deliberately
   **report-only**, never failing the build, because the LibreOffice + apt package surface has
   more CVEs than a plain slim-Python image can realistically stay ahead of. SARIF results are
   uploaded to the repo's Security → Code scanning tab via `github/codeql-action/upload-sarif`

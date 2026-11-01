@@ -6,24 +6,54 @@ on:
   push:
     branches: [main, develop]
 
+# Read-only token for every job; a job that needs more says so itself (e2e: security-events).
+permissions:
+  contents: read
+
+# A new push to a PR makes the older run pointless, so cancel it. Pushes to main/develop are
+# never cancelled: every merge keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  workflows:
+    name: Workflow files (actionlint, yamllint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
+
+      # actionlint checks the expressions, the action inputs and (through shellcheck) the
+      # `run:` scripts. The image is pinned by digest, the same as the base images.
+      - name: actionlint
+        run: >-
+          docker run --rm -v "$PWD:/repo" -w /repo
+          rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+          -color
+
+      - name: yamllint
+        run: uvx yamllint==1.38.0 --strict -c .yamllint .github
+
   checks:
     name: Lint & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --locked
         working-directory: backend
 
       - name: Install Task
-        uses: arduino/setup-task@v3
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52  # v3.0.0
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -68,15 +98,15 @@ jobs:
       POSTGRES_TEST_URL: >-
         postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --locked
         working-directory: backend
 
       - name: Migrate a fresh database and assert RLS and privileges
@@ -99,27 +129,27 @@ jobs:
     # No path filter on purpose: a filtered-out job would never report, and a job that is
     # (or later becomes) a required check must report on every PR. It costs about a minute.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6
         with:
           package_json_file: frontend/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7
         with:
           node-version: lts/*
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           enable-cache: true
 
       - name: Install Task
-        uses: arduino/setup-task@v3
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52  # v3.0.0
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -128,7 +158,7 @@ jobs:
         run: task fe:install
 
       - name: Install backend dependencies (to dump the OpenAPI spec)
-        run: uv sync --frozen
+        run: uv sync --locked
         working-directory: backend
 
       - name: Lint and format check
@@ -160,22 +190,22 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6
         with:
           package_json_file: frontend/package.json
 
       - name: Set up Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7
         with:
           node-version: lts/*
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install Task
-        uses: arduino/setup-task@v3
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52  # v3.0.0
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -192,7 +222,7 @@ jobs:
 
       - name: Keep the traces of failed tests
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: playwright-traces
           path: frontend/test-results
@@ -207,37 +237,34 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
         with:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --locked
         working-directory: backend
 
       - name: Install Task
-        uses: arduino/setup-task@v3
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52  # v3.0.0
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # No Docker layer cache on purpose: it was tried with buildx + the `gha` cache (#61) and the
+      # second run's job time was the same (1m52s): the image builds in about 40 s, and the
+      # Buildx set-up and cache export ate the saving.
       - name: Build image, run container, verify PDF fidelity
         run: task test-e2e
 
-      - name: Scan image for vulnerabilities (Trivy, human-readable)
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: "lineup:latest"
-          format: table
-          severity: "CRITICAL,HIGH"
-          ignore-unfixed: true
-          exit-code: "0"
-
+      # One scan, one result file: the table in the job summary is rendered from the same SARIF
+      # that is uploaded, so the two can't disagree and the vulnerability database is
+      # downloaded once.
       - name: Scan image for vulnerabilities (Trivy, SARIF)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: "lineup:latest"
           format: sarif
@@ -246,8 +273,21 @@ jobs:
           ignore-unfixed: true
           exit-code: "0"
 
+      - name: Show the Trivy findings
+        if: ${{ hashFiles('trivy-results.sarif') != '' }}
+        run: |
+          findings=$(jq -r '.runs[].results[]? | "\(.ruleId)  \(.level)  \(.message.text | gsub("\n"; " | "))"' trivy-results.sarif)
+          {
+            echo "### Trivy (CRITICAL, HIGH, fixable)"
+            echo '```'
+            echo "${findings:-No findings.}"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # `always()` would also run when the scan never produced a file; the upload would then
+      # fail and hide the real error.
       - name: Upload Trivy results to GitHub code scanning
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4
+        if: ${{ !cancelled() && hashFiles('trivy-results.sarif') != '' }}
         with:
           sarif_file: trivy-results.sarif

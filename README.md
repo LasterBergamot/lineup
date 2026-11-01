@@ -59,7 +59,7 @@ Four GitHub Actions workflows run automatically on GitHub — no local setup or 
 - **`.github/workflows/release.yml`** — by hand only (#17): reads the version from `backend/pyproject.toml` and `frontend/package.json` (they must match), then creates the `vX.Y.Z` tag and a GitHub Release with generated notes and the list of new Alembic migrations. Bump the version first with `task release:bump` in a normal PR; see "Versions and releases" in [Roadmap-Everything-Else](documentation/Roadmap-Everything-Else.md).
 - **`.github/workflows/keepalive.yml`** — on Mondays and Thursdays (and by hand): a `SELECT 1` through the Supabase pooler (Actions secret `KEEPALIVE_DATABASE_URL`) so the free-tier dev project is never paused for inactivity. If you've been away for a long time, check the Actions tab: GitHub disables scheduled workflows after 60 days without repo activity.
 
-If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing.
+If you're editing the workflow YAML files themselves, `yamllint` and `actionlint` (see [Prerequisites](#prerequisites)) let you validate them locally before pushing; CI runs both on every PR (`Workflow files` job), and every third-party action must be pinned to a commit SHA (`# vX` comment; `backend/tests/test_ci_workflow.py` fails otherwise).
 
 ### Security tooling
 
