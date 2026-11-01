@@ -113,7 +113,9 @@ async def delete_team(
     """Delete a team (owner only). Raises 404/403 as above and 409 while players or saved
     lineups are still in its workspace.
 
-    The 409 is an application-level check; the database's `RESTRICT` is only a backstop.
+    The pre-checks exist for their friendly messages. The database's `RESTRICT` is the real
+    guard: a player added between the check and the delete makes the delete fail, and that is
+    reported as the same 409.
 
     """
     team = await get_owned_team_or_404(session, team_id=team_id, user_id=user_id)
@@ -137,7 +139,14 @@ async def delete_team(
                 "Delete them before deleting the team."
             ),
         )
-    await repository.delete_team(session, team=team)
+    if not await repository.delete_team(session, team=team):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Cannot delete team: players or saved lineups were added while it was "
+                "being deleted. Remove them and try again."
+            ),
+        )
     return TeamDeleteResponse(id=team.id, name=team.name, deleted=True)
 
 
