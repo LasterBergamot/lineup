@@ -383,7 +383,8 @@ lineup/
     │       ├── c4e7a1b2d905_pin_rls_function_search_path.py  # Postgres-only: pinned search_path on the trigger function
     │       ├── a3d5f7c91e26_team_members_invitations_owner_not_null.py  # team_members/team_invitations; owner columns NOT NULL
     │       ├── e5b8c2d41f70_team_as_workspace.py  # teams are workspaces: created_by, required team_id on players/saved_lineups
-    │       └── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       ├── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
+    │       └── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
