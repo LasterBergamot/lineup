@@ -203,6 +203,55 @@ class TestProductionStartup:
             assert client.get("/health").status_code == 200
 
 
+class TestSchemaAutoCreate:
+    """`AUTO_CREATE_SCHEMA` is an explicit opt-in, and only ever honoured for SQLite (#67)."""
+
+    @staticmethod
+    async def _tables_after_startup(
+        tmp_path, monkeypatch, flag: str | None
+    ) -> set[str]:
+        from sqlalchemy import inspect
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        url = f"sqlite+aiosqlite:///{tmp_path / 'startup.db'}"
+        test_engine = create_async_engine(url)
+        monkeypatch.setattr(app_module, "engine", test_engine)
+        monkeypatch.setattr(app_module, "DATABASE_URL", url)
+        monkeypatch.delenv("ENV", raising=False)
+        if flag is None:
+            monkeypatch.delenv("AUTO_CREATE_SCHEMA", raising=False)
+        else:
+            monkeypatch.setenv("AUTO_CREATE_SCHEMA", flag)
+        try:
+            async with app_module.lifespan(app_module.app):
+                pass
+            async with test_engine.connect() as conn:
+                return set(await conn.run_sync(lambda c: inspect(c).get_table_names()))
+        finally:
+            await test_engine.dispose()
+
+    async def test_tables_are_created_when_opted_in(self, tmp_path, monkeypatch):
+        tables = await self._tables_after_startup(tmp_path, monkeypatch, "1")
+        assert {"teams", "players", "saved_lineups"} <= tables
+
+    async def test_nothing_is_created_by_default(self, tmp_path, monkeypatch):
+        assert await self._tables_after_startup(tmp_path, monkeypatch, None) == set()
+
+    async def test_postgres_is_never_touched_even_when_opted_in(self, monkeypatch):
+        class Untouchable:
+            def begin(self):
+                raise AssertionError("create_all must not run on Postgres")
+
+        monkeypatch.setattr(app_module, "engine", Untouchable())
+        monkeypatch.setattr(
+            app_module, "DATABASE_URL", "postgresql+asyncpg://u:p@host:6543/db"
+        )
+        monkeypatch.delenv("ENV", raising=False)
+        monkeypatch.setenv("AUTO_CREATE_SCHEMA", "1")
+        async with app_module.lifespan(app_module.app):
+            pass
+
+
 class TestMiddlewareStack:
     def test_security_headers_are_on_a_preflight(self, reload_app):
         client = reload_app("http://localhost:5173")
@@ -243,6 +292,7 @@ def teardown_module(module):
     os.environ.pop("CORS_ORIGINS", None)
     os.environ.pop("DOCS_ENABLED", None)
     os.environ.pop("ENV", None)
+    os.environ.pop("AUTO_CREATE_SCHEMA", None)
     os.environ.pop("DATABASE_URL", None)
     os.environ.pop("SUPABASE_URL", None)
     os.environ.pop("MAX_BODY_BYTES", None)

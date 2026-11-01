@@ -50,8 +50,8 @@ router serialises back through the response schema.
 ### Entry points
 
 - `app.py` — builds the FastAPI app, registers the routers and the security middleware,
-  optionally initialises Sentry, checks the production config on startup (fail closed) and
-  (unless `ENV=production`) creates missing tables on startup.
+  optionally initialises Sentry, checks the production config on startup (fail closed) and,
+  only when `AUTO_CREATE_SCHEMA` is set and the database is SQLite, creates missing tables.
 - `lineup/security/` — API hardening: security headers, body size cap, rate limiter and the
   startup config check, see [Hardening for public exposure](#hardening-for-public-exposure).
 - `main.py` — a small CLI that generates one hard-coded lineup to `resources/modified_rajtlista.docx`
@@ -326,26 +326,28 @@ Why the Postgres URL looks the way it does:
   different clients from one transaction to the next, but asyncpg caches prepared statements
   per connection under auto-generated names. Two clients then collide on a name and the
   request fails with `DuplicatePreparedStatementError`. So for Postgres URLs
-  `_make_engine_kwargs()` passes `connect_args` that disable asyncpg's own statement cache
+  `make_engine_kwargs()` passes `connect_args` that disable asyncpg's own statement cache
   (`statement_cache_size=0`) and SQLAlchemy's (`prepared_statement_cache_size=0`), and give
   any statement that is still prepared a unique name (`prepared_statement_name_func`). These
   live in code, not the URL, because the naming function can't be expressed in a URL; an old
   URL that still ends in `&prepared_statement_cache_size=0` is harmless.
 - **`ssl=require`** — Supabase enforces TLS.
-- **`NullPool`** — for Postgres URLs `_make_engine_kwargs()` disables SQLAlchemy's own
+- **`NullPool`** — for Postgres URLs `make_engine_kwargs()` disables SQLAlchemy's own
   connection pool, because the Supabase pooler already pools and stacking a second pool on
   top causes stale/duplicated connections.
 - **Naive UTC timestamps** — the `created_at` columns are `TIMESTAMP WITHOUT TIME ZONE`, so
   the model defaults produce naive UTC datetimes (`_utcnow()` in `lineup/db/models.py`).
   SQLite silently drops time zones, so an aware datetime worked there; asyncpg rejects it.
   Moving to `timestamptz` columns would be a possible future improvement (needs a migration).
-- **`ENV=production`** — `app.py` skips `Base.metadata.create_all` on startup when this is set
-  so Alembic is the only thing that touches the schema. Despite the name it means "the schema
-  is Alembic-managed", **not** "this is the prod deployment": set it for any real Postgres,
-  dev or prod — `ENV=production` is the correct value for the dev Supabase project too. (If it
-  were left unset, the app would create the tables itself on first start, without an
-  `alembic_version` record, and the next `task migrate` would fail with "table already
-  exists".)
+- **`AUTO_CREATE_SCHEMA`** — opt-in (`1`/`true`/`yes`) for `Base.metadata.create_all` on startup, and
+  honoured **only for SQLite** (`auto_create_schema_enabled()` in `lineup/db/connection_settings.py`).
+  `task serve` and the default Compose setup set it; Fly, tests and a Postgres `DATABASE_URL` never
+  create tables themselves, so Alembic is the only thing that touches a Postgres schema. (An app that
+  created the tables itself would leave no `alembic_version` record, and the next `task migrate`
+  would fail with "table already exists".)
+- **`ENV=production`** — despite the name it means "fail closed at startup and turn the docs
+  off", **not** "this is the prod deployment": set it for any real Postgres, dev or prod —
+  `ENV=production` is the correct value for the dev Supabase project too.
 - **Why the app uses the pooler, not the direct connection.** Migrations are a separate,
   manual step (`task migrate`) — the app never runs them at startup — so the direct connection
   is only needed for that one-off command. The app stays on the transaction pooler because

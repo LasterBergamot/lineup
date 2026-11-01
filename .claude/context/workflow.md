@@ -11,7 +11,7 @@ task test       # pytest with coverage (must pass at 100%; e2e tests excluded)
 task test-e2e   # build image, make a throw-away JWT key, start container (+ compose.e2e.yml JWKS sidecar), run real-conversion fidelity tests, tear down
 task lint       # ruff check
 task format     # ruff format
-task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup unless ENV=production)
+task serve      # local uvicorn dev server, loads backend/.env (no PDF support — no LibreOffice; DB tables auto-created on startup for SQLite via AUTO_CREATE_SCHEMA=1)
 task db:status  # show whether backend/.env selects SQLite or the Supabase pooler
 task db:postgres  # switch backend/.env to the Supabase pooler (DATABASE_URL + ENV=production)
 task db:sqlite  # switch backend/.env back to local SQLite (comments the pooler URL out, keeps it)
@@ -45,7 +45,7 @@ task docs:check   # fail if that block is stale (CI runs it)
 
 ## Environment variables
 
-Environment variables (`DATABASE_URL`, `ENV`, `CORS_ORIGINS`, `SUPABASE_URL`, `APP_BASE_URL`, `PDF_MAX_CONCURRENT`, `DOCS_ENABLED`, `MAX_BODY_BYTES`, `RATE_LIMIT_GENERATE_PER_USER`, `RATE_LIMIT_GENERATE_PER_IP`, `CLIENT_IP_HEADER`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; the frontend's public `VITE_*` settings, including `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, live in the separate `frontend/.env`, see `frontend/.env.example`) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
+Environment variables (`DATABASE_URL`, `ENV`, `AUTO_CREATE_SCHEMA`, `CORS_ORIGINS`, `SUPABASE_URL`, `APP_BASE_URL`, `PDF_MAX_CONCURRENT`, `DOCS_ENABLED`, `MAX_BODY_BYTES`, `RATE_LIMIT_GENERATE_PER_USER`, `RATE_LIMIT_GENERATE_PER_IP`, `CLIENT_IP_HEADER`, `SENTRY_DSN`) are documented in `backend/.env.example` — copy it to `backend/.env` (git-ignored; the frontend's public `VITE_*` settings, including `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, live in the separate `frontend/.env`, see `frontend/.env.example`) to opt into Postgres/Supabase; with no `backend/.env` everything runs on local SQLite.
 
 `ENV=production` also makes startup fail closed (`validate_production_config()`: needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off, so health checks and scripts must use `GET /health`, not `/docs`. On Fly.io `CLIENT_IP_HEADER=Fly-Client-IP` is already set in `backend/fly.toml`; `DATABASE_URL`, `SUPABASE_URL` and `CORS_ORIGINS` are Fly secrets (`fly secrets set`), never in `fly.toml`. Setup and deploy steps: `documentation/Fly-Setup.md`. The frontend origin (the Cloudflare Pages URL, `documentation/Pages-Setup.md`) has to be in `CORS_ORIGINS`, exact match.
 

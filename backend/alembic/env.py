@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 import lineup.db.models  # noqa: F401 — registers all ORM models with Base.metadata
 from alembic import context
 from lineup.db.base import Base
+from lineup.db.connection_settings import make_engine_kwargs
 from lineup.db.urls import to_asyncpg_url
 
 config = context.config
@@ -70,6 +71,9 @@ async def run_migrations_online() -> None:
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
+        # Same pooler-safe settings as the app (no pool, no prepared statements), so migrations
+        # also work through Supabase's pooler.
+        **make_engine_kwargs(url),
     )
     async with connectable.connect() as connection:
         await connection.run_sync(
