@@ -1,13 +1,17 @@
+import asyncio
+import os
 import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app import app
 from lineup.auth.dependencies import get_current_user_id
 from lineup.db.base import Base
+from lineup.db.connection_settings import make_engine_kwargs
 from lineup.db.engine import enable_sqlite_foreign_keys, get_session
 from lineup.security.rate_limit import reset_limiters
 
@@ -61,10 +65,50 @@ def valid_payload():
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
+# Set to a *throwaway* Postgres database (`postgresql+asyncpg://…`) to run the whole suite against
+# it instead of in-memory SQLite (#38). CI's "Backend on Postgres" job does; locally:
+#   docker run -d --rm -e POSTGRES_PASSWORD=postgres -p 55433:5432 postgres:17
+#   TEST_POSTGRES_URL=postgresql+asyncpg://postgres:postgres@localhost:55433/postgres uv run pytest
+# Its tables are dropped and rebuilt from the models at the start of the run and emptied after
+# every test, so never point it at a database you care about.
+POSTGRES_SUITE_URL = os.getenv("TEST_POSTGRES_URL")
+
+
+def _all_tables_sql() -> str:
+    return ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _postgres_schema():
+    """With `TEST_POSTGRES_URL` set, start the session from a freshly built schema."""
+    if not POSTGRES_SUITE_URL:
+        return
+
+    async def rebuild() -> None:
+        engine = create_async_engine(
+            POSTGRES_SUITE_URL, **make_engine_kwargs(POSTGRES_SUITE_URL)
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        await engine.dispose()
+
+    asyncio.run(rebuild())
+
 
 @pytest.fixture
 async def db_engine():
-    """Creates a fresh in-memory SQLite engine and drops all tables after the test."""
+    """A database engine for one test: in-memory SQLite, or the Postgres of
+    `TEST_POSTGRES_URL` (emptied again afterwards)."""
+    if POSTGRES_SUITE_URL:
+        engine = create_async_engine(
+            POSTGRES_SUITE_URL, **make_engine_kwargs(POSTGRES_SUITE_URL)
+        )
+        yield engine
+        async with engine.begin() as conn:
+            await conn.execute(text(f"TRUNCATE {_all_tables_sql()} CASCADE"))
+        await engine.dispose()
+        return
     engine = create_async_engine(TEST_DATABASE_URL)
     enable_sqlite_foreign_keys(engine)
     async with engine.begin() as conn:

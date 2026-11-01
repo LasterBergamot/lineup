@@ -457,7 +457,7 @@ migration history), and the `search_path` WARN on the trigger function is fixed 
 migration.
 
 `tests/test_postgres_migrations.py` proves all of the above against a real Postgres (skipped unless
-`POSTGRES_TEST_URL` is set; CI's "Migrations (Postgres)" job sets it): every table has RLS, the trigger
+`POSTGRES_TEST_URL` is set; CI's "Migrations (Postgres)" job sets it; the rest of the suite runs on Postgres too, via `TEST_POSTGRES_URL` and the "Backend tests (Postgres)" job): every table has RLS, the trigger
 exists and protects a table created later, `lineup_app` can do DML through RLS but not touch
 `alembic_version` or create objects, `anon`/`authenticated` reach nothing, and the generated password
 really logs in.
