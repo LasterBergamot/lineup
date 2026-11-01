@@ -173,7 +173,7 @@ those players would be orphaned. The full ERD is in [[Current State: Backend]].
 
 ## 7. Run it
 
-Prerequisites: Python 3.13+, `uv`, `task`, Docker with Compose (see the README for links).
+Prerequisites: Python 3.13+, `uv`, `task`, Docker with Compose, Node.js (current LTS), `pnpm` and the GitHub CLI `gh` (see the README for links).
 `task doctor` checks them for you. For a first setup, follow [[Setup]]: it is the same list
 with the result to expect at each step.
 
@@ -189,7 +189,7 @@ task test-e2e       # real-conversion tests against a throw-away container (port
 
 Then open `http://localhost:8000/docs` for the interactive API docs (they are off when `ENV=production` or `DOCS_ENABLED=false`; `/health` always answers).
 
-To run the web app as well, install Node.js (current LTS) and pnpm, then:
+To run the web app as well (Node.js and pnpm are already covered by `task doctor`):
 
 ```bash
 task fe:install     # install the frontend dependencies (exact versions from the lockfile)

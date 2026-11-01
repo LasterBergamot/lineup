@@ -79,13 +79,13 @@ Required to install and run the project:
 - [Python 3.13+](https://www.python.org/downloads/)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — dependency manager
 - [Task](https://taskfile.dev/installation/) — task runner
-- [Node.js](https://nodejs.org/) (current LTS) and [pnpm](https://pnpm.io/installation) — only for the web app in `frontend/`; the version of pnpm is pinned by `packageManager` in `frontend/package.json`
+- [Node.js](https://nodejs.org/) (current LTS) and [pnpm](https://pnpm.io/installation) — the web app in `frontend/` and the `task fe:*` targets; the version of pnpm is pinned by `packageManager` in `frontend/package.json`
 - [Docker Engine](https://docs.docker.com/engine/) & [Docker Compose](https://docs.docker.com/compose/) — container engine and compose (required for PDF conversion via LibreOffice)
+- [GitHub CLI (`gh`)](https://cli.github.com/) — the contribution workflow runs through it: filing issues, opening PRs (`gh pr create`), watching CI (`gh pr checks`, `gh run watch`) and the Dependabot triage. Sign in once with `gh auth login`. The CI and wiki-sync workflows themselves run on GitHub's servers and don't need it
 
 Optional, quality-of-life tools:
 
 - [lazydocker](https://github.com/jesseduffield/lazydocker) — terminal UI for Docker containers (recommended for container management)
-- [GitHub CLI (`gh`)](https://cli.github.com/) — not required for anything in this repo to work (the CI/wiki-sync workflows run entirely on GitHub's servers regardless), but useful for creating PRs and watching Actions runs (`gh pr create`, `gh pr checks`, `gh run watch`) from the terminal instead of the browser
 - [`yamllint`](https://yamllint.readthedocs.io/) & [`actionlint`](https://github.com/rhysd/actionlint) — only needed if you're modifying `.github/workflows/*.yml`; validate the YAML and GitHub Actions semantics locally before pushing (config: `.yamllint`)
 
 ## Installation

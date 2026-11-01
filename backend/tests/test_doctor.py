@@ -19,6 +19,9 @@ READY = {
     "task": "Task version: v3.54.0",
     "docker": "Docker version 29.0.1, build abc",
     "docker compose": "Docker Compose version v2.24.0",
+    "node": "v24.11.0",
+    "pnpm": "12.9.1",
+    "gh": "gh version 2.103.3 (2026-10-01)",
 }
 
 
@@ -70,7 +73,7 @@ def test_ready_machine_passes(tmp_path):
 def test_missing_optional_tools_are_only_reported(tmp_path):
     result = _run(tmp_path, READY)
     assert result.returncode == 0
-    for name in ("node", "pnpm", "gh", "yamllint", "actionlint", "lazydocker"):
+    for name in ("yamllint", "actionlint", "lazydocker"):
         assert f"skip  {name}" in result.stdout
 
 
@@ -80,6 +83,15 @@ def test_missing_required_tool_fails(tmp_path):
     assert result.returncode == 1
     assert "FAIL  uv              not found (required)" in result.stdout
     assert "README.md, section Prerequisites" in result.stdout
+
+
+@pytest.mark.parametrize("tool", ["node", "pnpm", "gh"])
+def test_missing_node_pnpm_or_gh_fails(tmp_path, tool):
+    # Required since #235: the fe:* tasks need Node.js and pnpm, the PR workflow needs gh.
+    tools = {k: v for k, v in READY.items() if k != tool}
+    result = _run(tmp_path, tools)
+    assert result.returncode == 1
+    assert f"FAIL  {tool:<15} not found (required)" in result.stdout
 
 
 @pytest.mark.parametrize(
