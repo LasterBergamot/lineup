@@ -319,6 +319,7 @@ never enter the conversation.
 
 **Issue conventions** (the values `new-issue` reads from `.claude/context/issues.md`):
 - Bodies follow Problem / Evidence / Proposal / Acceptance.
+- Issues opened on GitHub itself use the forms in `.github/ISSUE_TEMPLATE/` (bug, feature, chore; blank issues are off). A form can only set the `type:*` label, so a maintainer adds `area:*`, `priority:*`, `plan:*` and the milestone.
 - Labels: one `type:*`, one or more `area:*`, one `priority:*`, and one `plan:*` (keep, keep-cheap, defer, drop).
 - Milestones: M1 Hardening, M3 Dev preview, Mx Parked (deliberately not now; M2 Prod is closed).
 - Work is grouped under epics (#41–#46, the frontend epic #20, the compliance epic #92) as GitHub sub-issues, with

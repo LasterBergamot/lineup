@@ -1,0 +1,67 @@
+name: "Chore"
+description: "Maintenance, tooling, CI, refactoring or docs work"
+labels: ["type:chore"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep it short and concrete. Do not paste personal data (real player names, NSSZ numbers,
+        e-mail addresses) or secrets (tokens, passwords, database URLs): describe them instead.
+        Maintainers add the remaining labels (`area:*`, `priority:*`, `plan:*`) and the milestone.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem"
+      description: "What is stale, fragile or missing."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence"
+      description: "Files, workflow runs or tool output that show it."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposal"
+      description: "What to change."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance"
+      description: "Testable boxes that say when it is done."
+      placeholder: "- [ ] "
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      description: "Which part of the repo this touches (becomes an `area:*` label)."
+      options:
+        - api
+        - db
+        - auth
+        - pdf
+        - infra
+        - ci
+        - frontend
+        - tooling
+        - docs
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      description: "p0 fix now, p1 next up, p2 when convenient."
+      options:
+        - p2
+        - p1
+        - p0
+    validations:
+      required: true

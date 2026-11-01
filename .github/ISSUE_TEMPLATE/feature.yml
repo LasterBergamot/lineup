@@ -1,0 +1,67 @@
+name: "Feature"
+description: "A new capability or a change to behaviour users see"
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep it short and concrete. Do not paste personal data (real player names, NSSZ numbers,
+        e-mail addresses) or secrets (tokens, passwords, database URLs): describe them instead.
+        Maintainers add the remaining labels (`area:*`, `priority:*`, `plan:*`) and the milestone.
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem"
+      description: "The need or the gap, and who it affects."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: "Evidence"
+      description: "Where it shows up today: code, docs, `PLAN.md`, related issues."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposal"
+      description: "What to build, with the trade-offs you considered."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: "Acceptance"
+      description: "Testable boxes; include tests, docs and 100 % coverage."
+      placeholder: "- [ ] "
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: "Area"
+      description: "Which part of the repo this touches (becomes an `area:*` label)."
+      options:
+        - api
+        - db
+        - auth
+        - pdf
+        - infra
+        - ci
+        - frontend
+        - tooling
+        - docs
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      description: "p0 fix now, p1 next up, p2 when convenient."
+      options:
+        - p2
+        - p1
+        - p0
+    validations:
+      required: true
