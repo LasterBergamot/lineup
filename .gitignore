@@ -9,6 +9,10 @@ docs/
 .env.*
 !.env.example
 
+# Self-hosted install: its secrets and the nightly backups (database dumps = personal data)
+selfhost/.env
+selfhost/backups/
+
 # Throw-away signing key made by `task test-e2e`
 .e2e-auth/
 

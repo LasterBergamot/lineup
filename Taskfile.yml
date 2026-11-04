@@ -85,6 +85,12 @@ tasks:
       - defer: docker compose -f compose.yml -f compose.e2e.yml down -v
       - cd backend && uv run pytest -m e2e tests/test_pdf_conversion_e2e.py -v
 
+  selfhost:test:
+    dir: backend
+    desc: Build and start the self-hosted stack (selfhost/, Compose project lineup-selfhost-test, web on 127.0.0.1:8088), sign in through its real Auth, generate a real PDF, then remove it with its volumes
+    # scripts/selfhost_e2e.py always runs `down -v` and deletes its throw-away .env, tokens included.
+    cmd: uv run python ../scripts/selfhost_e2e.py
+
   build:
     desc: Build the container image
     cmd: docker build -t lineup backend
