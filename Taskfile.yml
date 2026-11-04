@@ -241,6 +241,10 @@ tasks:
       - python3 scripts/bump_version.py {{.CLI_ARGS}}
       - task: fe:api
 
+  deploy:
+    desc: "Deploy to the cloud or the self-hosted machine: task deploy [-- --cloud|--local] [--yes]"
+    cmd: python3 scripts/deploy.py {{.CLI_ARGS}}
+
   docs:references:
     desc: Regenerate the dependency block in documentation/References.md
     cmd: python3 scripts/docs_references.py --write
