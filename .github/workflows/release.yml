@@ -8,6 +8,10 @@ name: Release
 # checks). Creating the release through the API creates the tag server-side, so nothing is pushed.
 #
 # Run it from `develop` (pre-1.0 versions) or `main` (1.0.0 and later), after the bump PR is merged.
+#
+# The `publish` job then pushes the two images (`lineup-api`, `lineup-web`) as `vX.Y.Z` to GHCR and
+# attaches the self-hosted bundle (selfhost/, #256) to the release. It is amd64 only; an arm64 build
+# is an open item pending the architecture decision (#251, part M).
 
 on:
   workflow_dispatch:
@@ -26,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -91,3 +97,38 @@ jobs:
           # shellcheck disable=SC2086
           gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file notes.md $PRERELEASE
           echo "Released $tag at $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  # Only this job may write packages (GHCR). It runs after the tag exists, so the images and the
+  # bundle always belong to a release that is already on GitHub. Plain docker and gh commands with
+  # github.token and no third-party action: see backend/tests/test_versioning.py.
+  publish:
+    name: Publish images and the self-hosted bundle
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Build and push the images
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          source_label="org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY"
+          for pair in api:backend web:frontend; do
+            image="ghcr.io/lasterbergamot/lineup-${pair%%:*}:v$VERSION"
+            docker build --label "$source_label" -t "$image" "${pair##*:}"
+            docker push "$image"
+          done
+
+      - name: Attach the self-hosted bundle
+        run: |
+          echo "v$VERSION" > selfhost/VERSION
+          tar --exclude=compose.test.yml --exclude=.env --exclude=backups -czf "selfhost-v$VERSION.tar.gz" selfhost
+          sha256sum "selfhost-v$VERSION.tar.gz" > "selfhost-v$VERSION.tar.gz.sha256"
+          gh release upload "v$VERSION" "selfhost-v$VERSION.tar.gz" "selfhost-v$VERSION.tar.gz.sha256"
+          echo "Published the images and selfhost-v$VERSION.tar.gz for v$VERSION" >> "$GITHUB_STEP_SUMMARY"

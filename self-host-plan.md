@@ -165,7 +165,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [x] | **T2** Backend: self-hosted configuration | #253 | Sonnet 5.5, high (security-sensitive) | #264 |
 | [x] | **T3** Web image | #254 | Sonnet 5.5, high | #263 |
 | [x] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | #265 |
-| [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
+| [x] | **T5** Release publishing | #256 | Haiku 5.5, high | #268 |
 | [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
 | [ ] | **T7** `task deploy` | #258 | Haiku 5.5, high | |
 | [ ] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | |
@@ -1182,3 +1182,4 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T2 landed: `AUTH_JWKS_URL`, `DATABASE_TLS=internal-network`, `lineup.db.selfhost_bootstrap`, `lineup.auth.signing_key`, with tests and docs. | #253, PR #264 |
 | 2026-11-04 | T3 web image: `VITE_AUTH_SAME_ORIGIN`, `frontend/Dockerfile`, Caddyfile, `.dockerignore`, header/route tests. pnpm is installed from `packageManager` with npm because `node:lts` has no corepack. | #254, PR #263 |
 | 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
+| 2026-11-04 | T5 landed: `publish` job in `release.yml` (`packages: write` only there) pushes `lineup-api`/`lineup-web` as `vX.Y.Z` to GHCR and attaches `selfhost-vX.Y.Z.tar.gz` + `.sha256`; `release` exposes `outputs.version`; `selfhost/VERSION` git-ignored; guards and docs. **Open item:** arm64 is not implemented (amd64 only, the plan's YAML), pending the architecture decision in #251 (part M, owner-deferred). **Open item:** S13 MUST: the web image is pushed without a Trivy scan (the CI scan covers only the API image); the owner decides before the first release. | #256, PR #268 |

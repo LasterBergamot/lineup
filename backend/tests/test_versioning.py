@@ -143,6 +143,15 @@ def workflow():
     return RELEASE_WORKFLOW.read_text()
 
 
+def _job(workflow: str, name: str) -> str:
+    """The text of one job under `jobs:`, from its key to the next job's key (or the end)."""
+    match = re.search(
+        rf"^  {name}:\n(.*?)(?=^  [\w-]+:\n|\Z)", workflow, re.MULTILINE | re.DOTALL
+    )
+    assert match, f"no job named {name}"
+    return match.group(1)
+
+
 class TestReleaseWorkflow:
     def test_is_only_started_by_hand(self, workflow):
         assert re.search(r"^on:\n  workflow_dispatch:\n", workflow, re.MULTILINE)
@@ -158,6 +167,41 @@ class TestReleaseWorkflow:
         assert re.search(
             r"^permissions:\n  contents: write\n\n", workflow, re.MULTILINE
         )
+
+    def test_only_publish_may_write_packages(self, workflow):
+        """GHCR pushes need `packages: write`; the tag-and-release job must not hold it."""
+        assert workflow.count("packages: write") == 1
+        assert "packages: write" in _job(workflow, "publish")
+
+    def test_publish_runs_after_the_release_and_takes_its_version(self, workflow):
+        publish = _job(workflow, "publish")
+        assert "needs: release" in publish
+        assert "VERSION: ${{ needs.release.outputs.version }}" in publish
+        release = _job(workflow, "release")
+        assert (
+            "outputs:\n      version: ${{ steps.version.outputs.version }}\n" in release
+        )
+        assert "id: version" in release
+
+    def test_publish_uses_no_third_party_action(self, workflow):
+        uses = re.findall(r"uses: (\S+)", _job(workflow, "publish"))
+        assert uses and all(ref.startswith("actions/checkout@") for ref in uses)
+
+    def test_images_use_the_lowercase_registry_path(self, workflow):
+        """GHCR rejects upper-case repository names, so the owner's path is spelled in lower case."""
+        publish = _job(workflow, "publish")
+        assert "ghcr.io/lasterbergamot/lineup-" in publish
+        assert "api:backend web:frontend" in publish
+        for owner in re.findall(r"ghcr\.io/([\w.-]+)/", workflow):
+            assert owner == owner.lower(), owner
+
+    def test_the_bundle_leaves_out_the_test_overlay_and_the_env_file(self, workflow):
+        bundle = _job(workflow, "publish")
+        assert "--exclude=compose.test.yml" in bundle
+        assert "--exclude=.env " in bundle
+
+    def test_login_passes_the_token_on_stdin(self, workflow):
+        assert "--password-stdin" in _job(workflow, "publish")
 
     def test_uses_no_secrets_and_pins_its_action(self, workflow):
         assert "secrets." not in workflow
@@ -183,5 +227,9 @@ class TestReleaseWorkflow:
             if "${{" in line:
                 assert (
                     re.match(r"\s+(GH_TOKEN|VERSION|PRERELEASE): \$\{\{ .+ \}\}$", line)
+                    or re.match(
+                        r"\s+version: \$\{\{ steps\.version\.outputs\.version \}\}$",
+                        line,
+                    )
                     or "if:" in line
                 ), line

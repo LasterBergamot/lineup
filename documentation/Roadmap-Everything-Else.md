@@ -51,7 +51,9 @@ flowchart LR
     **Release** workflow from the Actions tab on `develop` (`gh workflow run release.yml --ref develop`). It checks that
     the two versions match and the tag is new, then creates the `vX.Y.Z` tag and a GitHub Release whose notes are
     generated from the merged PRs plus a "Database migrations" list (the Alembic revisions added since the previous
-    tag). Pre-1.0 releases are marked as pre-releases; `1.0.0` and later must be released from `main`.
+    tag). Pre-1.0 releases are marked as pre-releases; `1.0.0` and later must be released from `main`. A `publish`
+    job then pushes the two images (`lineup-api`, `lineup-web`, amd64 only) to GHCR and attaches the self-hosted
+    bundle to the release (#256).
   - Why the bump is a PR: `develop` and `main` only accept commits that passed the required checks, so a workflow
     cannot commit the bump itself without a stored admin token. Creating the release through the API creates the tag
     server-side, so the workflow pushes nothing.
