@@ -278,7 +278,6 @@ rely on a detail:
 
 - `selfhost/lineup.sh`, `selfhost/messages/` and `selfhost/backup/` (with the `backup` service in `compose.yml`):
   plan task T6.
-- `scripts/deploy.py` and `task deploy`: plan task T7.
 - The release job that publishes the images and the `selfhost-<tag>.tar.gz` bundle: plan task T5.
 
 When they land, this section should be deleted and the details above re-checked against the code.

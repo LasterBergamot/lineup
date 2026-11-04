@@ -93,11 +93,11 @@ that page gains a self-hosted section as part of this work.
 
 The decisions and tasks are in `self-host-plan.md` in the repo root (epic #250).
 
-**Done:** the backend settings, the web image, the Compose stack with its end-to-end CI test, and the operator
+**Done:** the backend settings, the web image, the Compose stack with its end-to-end CI test, `task deploy`, the GDPR documents for self-hosted installs, and the operator
 documentation: [[Self Hosting Guide]] and [[Saját gépes telepítés]] (step-by-step, for non-IT readers, English and
 Hungarian) and [[Self Hosting Reference]] (for developers). **Still planned:** the installer and backup tool
-(`selfhost/lineup.sh`), `task deploy`, publishing the images and the bundle with a release, the GDPR documents for
-self-hosted installs, and a real install with verification. The Self-Hosting Reference ends with a list of what is
+(`selfhost/lineup.sh`), publishing the images and the bundle with a release, and
+a real install with verification. The Self-Hosting Reference ends with a list of what is
 not built yet.
 
 ## Multi-tenancy rollout
