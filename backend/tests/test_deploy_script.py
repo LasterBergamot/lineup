@@ -268,12 +268,12 @@ class TestCloud:
     def test_a_missing_gh_gets_a_clear_message(self, run, capsys):
         run.outcomes = [FileNotFoundError()]
         assert deploy.main(["--cloud", "--yes"]) == 1
-        assert "cli.github.com" in capsys.readouterr().err
+        assert "GitHub CLI (gh) is not installed" in capsys.readouterr().err
 
     def test_a_missing_gh_while_watching_is_reported_too(self, run, capsys):
         run.outcomes = [0, (0, "9\n"), FileNotFoundError()]
         assert deploy.main(["--cloud", "--yes"]) == 1
-        assert "cli.github.com" in capsys.readouterr().err
+        assert "GitHub CLI (gh) is not installed" in capsys.readouterr().err
 
 
 class TestParseSettingsFile:
