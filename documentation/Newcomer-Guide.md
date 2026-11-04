@@ -284,7 +284,18 @@ the service if a rule applies, tests for the new behaviour, and the docs.
   the API locally against real sign-in, set `SUPABASE_URL` (see [[Auth Setup]]); without it the
   protected routes answer `503` on purpose.
 
-## 11. Where to go next
+## 11. The optional self-hosted install
+
+Besides the cloud setup (Fly.io, Cloudflare Pages, Supabase), the repo can run on one always-on machine from
+`selfhost/`: Postgres, a self-hosted Supabase Auth server (Google sign-in only), the API, a Caddy web server and a
+Cloudflare Tunnel, as one Docker Compose stack that publishes no port. It has its own data and shares nothing with the
+cloud install, and the cloud code paths only change through opt-in environment variables. You do not need it to
+work on Lineup, but read [[Self-Hosting Reference]] before you touch `selfhost/`, `frontend/Dockerfile` or the
+`AUTH_JWKS_URL` and `DATABASE_TLS` settings. Operators follow [[Self-Hosting Guide]] (or [[Saját gépes telepítés]]
+in Hungarian), which is written for people who have never used a terminal: keep those pages that plain when you change
+them.
+
+## 12. Where to go next
 
 - The code tour: `backend/app.py` → `lineup/api/router.py` → `lineup/water_polo/` →
   `lineup/document/` → `lineup/db/` → `lineup/teams/`.
