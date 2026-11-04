@@ -91,6 +91,13 @@ tasks:
     # scripts/selfhost_e2e.py always runs `down -v` and deletes its throw-away .env, tokens included.
     cmd: uv run python ../scripts/selfhost_e2e.py
 
+  selfhost:lint:
+    desc: ShellCheck every script under selfhost/ with the pinned koalaman/shellcheck image (needs Docker)
+    # find + xargs, so a new script is covered without editing this line. -x follows `source`.
+    cmd: >-
+      find selfhost -name '*.sh' -print0 | xargs -0 docker run --rm -v "{{.ROOT_DIR}}:/mnt:ro" -w /mnt
+      koalaman/shellcheck:v0.10.0@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb -x
+
   build:
     desc: Build the container image
     cmd: docker build -t lineup backend
