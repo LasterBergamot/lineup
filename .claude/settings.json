@@ -17,7 +17,8 @@
       "Read(./frontend/.env)",
       "Read(./frontend/.env.local)",
       "Read(./frontend/.env.production)",
-      "Read(./frontend/.env.development)"
+      "Read(./frontend/.env.development)",
+      "Read(~/.config/lineup/**)"
     ]
   }
 }

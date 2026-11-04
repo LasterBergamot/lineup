@@ -75,6 +75,24 @@ flowchart LR
 The work to get the dev environment running end-to-end (frontend, auth, invitations, CD) is
 planned in `PLAN.md` at the repo root.
 
+## Optional self-hosted install (planned)
+
+Today Lineup runs in the cloud: the API on Fly.io, the web app on Cloudflare Pages, the data and sign-in on
+Supabase. That stays. The planned addition is a **second, separate install** that runs on one always-on
+machine, such as a NAS or small server, with its own data. The reason is practical: no cold starts, no
+free-tier pauses and no hosting bill, for a small group of known users.
+
+It would run as Docker Compose: the API, a small web server for the app, Postgres, the open-source Supabase Auth
+server with Google login, and a Cloudflare Tunnel. The tunnel makes it reachable from the internet while the
+machine opens **no ports**. Updates are pulled by the machine when a person runs one command, because nothing
+outside should be able to connect into it. Backups are a nightly folder on the same machine, unencrypted and
+kept for 30 days, so losing the machine would lose the data.
+
+Self-hosting does not take the app out of GDPR: the rules on the [[Privacy and Security]] page still apply, and
+that page gains a self-hosted section as part of this work.
+
+The decisions and tasks are in `self-host-plan.md` in the repo root (epic #250). Nothing is built yet.
+
 ## Multi-tenancy rollout
 
 Every repository filters on the teams the signed-in user belongs to (`get_current_user_id()` verifies a

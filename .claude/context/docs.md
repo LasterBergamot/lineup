@@ -13,7 +13,7 @@ this file says which docs this repo has and the steps that are specific to it.
 - `CLAUDE.md` is a router (keep it under 100 lines; a test enforces it). The detail lives in
   `.claude/rules/` (one file per area, loaded by path) and `.claude/context/`.
   `.claude/context/claude-code.md` maps "what you changed" to "which file to update".
-- Other standalone docs, e.g. `backend/.env.example`, `PLAN.md`.
+- Other standalone docs, e.g. `backend/.env.example`, `PLAN.md`, `self-host-plan.md`.
 
 ## `documentation/` pages
 

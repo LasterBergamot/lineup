@@ -30,6 +30,7 @@ Water polo lineup document generator. Takes match details and player info, fills
 | Auditing the repo | `.claude/context/audit.md` |
 | Skills, settings, APM, how this context is organised | `.claude/context/claude-code.md` |
 | The dev-preview work (frontend, auth, invitations, dev deploy) | `PLAN.md` |
+| The optional self-hosted install (NAS or small server) | `self-host-plan.md`; the `self-host` skill |
 | Newcomer overview, design rationale, roadmaps | `documentation/Newcomer-Guide.md`, `documentation/Current-State-Backend.md`, `documentation/Roadmap-Backend.md` |
 
 Explore and Plan subagents load neither this file nor the rules: put the rule file's path in their prompt.

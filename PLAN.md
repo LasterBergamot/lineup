@@ -35,7 +35,7 @@ before the public deploy, and the public deploy comes before inviting anyone.
 
 | # | Decision | Status |
 |---|---|---|
-| D1 | **One hosted environment: dev/test.** The app runs as a single deployment for a small group of known users. No prod environment is planned, and no separate staging. *(Amended 2026-10-31; was "dev + prod".)* | Decided |
+| D1 | **One hosted environment: dev/test.** The app runs as a single deployment for a small group of known users. No prod environment is planned, and no separate staging. *(Amended 2026-10-31; was "dev + prod". D15 adds an optional self-hosted install next to it, without changing this one.)* | Decided |
 | D2 | **Branches: `develop` → dev, `main` → releases.** Feature branches PR into `develop` (the default branch). A release is a `develop` → `main` PR, which later tags a version (#17). Hotfixes branch off `main` and are merged back into `develop`. | Decided |
 | D3 | **Monorepo with `backend/` and `frontend/` at the root** (see §4). | Decided |
 | D4 | **FE stack:** React + TypeScript + Vite, Tailwind, shadcn/ui, TanStack Query, React Router, React Hook Form + Zod, react-i18next (D12), client generated from `/openapi.json` (openapi-typescript + openapi-fetch), pdf.js for previews, Vitest + Playwright. | Decided |
@@ -49,6 +49,7 @@ before the public deploy, and the public deploy comes before inviting anyone.
 | D12 | **UI language: Hungarian by default, English selectable** (react-i18next, #155). Done first in Phase 6 so every new screen uses `t()` from the start; the choice is kept in localStorage under `lineup-lang` (disclose in #94). The `.docx` template and the API are unchanged. Server 422 sentences from the API stay English until the backend returns error codes. | Decided |
 | D13 | **Versions: one repo-wide SemVer tag `vX.Y.Z`** for backend and frontend (the FE client is generated from the backend spec, so they move together). A manual `release` workflow bumps `backend/pyproject.toml` and `frontend/package.json`, tags and publishes a GitHub Release; pre-1.0 tags are cut from `develop` when a feature set lands on dev, `v1.0.0`+ from `main`. Images are tagged `lineup:<version>` so an older version can be deployed; going back needs expand/contract migrations (#17). | Decided |
 | D14 | **UI design system: Lineup** replaces Polaris (rounded shapes, soft tokens, a text wordmark with an amber dot, an L-tile favicon). Ported in two PRs (#238 foundation, #239 components and screens); the spec is `frontend/DESIGN.md` (the port plan was deleted once both PRs landed; it is in git history). D11 is kept as history. | Decided |
+| D15 | **Optional self-hosted install, next to the cloud one.** One always-on machine with its own data: Docker Compose, self-hosted Supabase Auth with Google login, Postgres, Cloudflare Tunnel, no open ports. The Fly, Pages and Supabase setup does not change. It has its own plan, `self-host-plan.md`, see §11. | Decided |
 
 ### Supabase JS and the "disabled API"
 The setting turned off on the dev project is the **Data API** (PostgREST: auto-generated
@@ -492,3 +493,22 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-01 | UI redesign (D14) done: the Lineup design system replaced Polaris in two PRs, #240 (tokens, wordmark, favicon, issue #238) and #241 (restyled components, Badge, Tabs, Dialog, Toast, dark-theme e2e checks, issue #239); the port plan file was removed. Follow-up: enlarge the preview (#242). | #240, #241, #243 |
 | 2026-11-01 | #242 (frontend): the preview can be enlarged. `PdfViewer` draws each page at the size it is shown (CSS width × `devicePixelRatio`, redrawn after a resize or zoom, capped for mobile Safari) instead of a fixed bitmap, and `PreviewPanel` gets an Enlarge button opening `EnlargedPreview` (whole screen on a phone) with Fit width, 100 %, 150 % and 200 %. Known, not from this change: the Hungarian creator form is ~1 px wider than a 360 px phone once filled in. | #244 |
 | 2026-11-01 | #245 (backend + frontend): the Team page shows members by name. `team_members.display_name` (migration `a9e3c7d51f28`) is copied from the member's own token when they create a team or accept a link and refreshed on `GET /teams`, so members who joined earlier are filled in the next time they open the app, with no re-invite (`null` until then, shown as "Member N"). | #245, PR #246 |
+| 2026-11-04 | Plan for an optional self-hosted install (D15): `self-host-plan.md` holds the decisions, the owner's manual steps (done first, so the rest can run unattended) and tasks detailed enough for cheaper models. Epic #250 and its sub-issues filed under the new milestone "M4 – Self-hosting", the `self-host` skill added. No implementation yet. | #250, PR #262 |
+
+---
+
+## 11. Self-hosted deployment (D15)
+
+This work has its own plan, **`self-host-plan.md`**, and its own epic (#250). It is separate from this
+file's dev preview: neither blocks the other. Keep its checklist and progress log there, and delete that file
+when its work is done.
+
+**How that plan is executed:**
+- **Where possible, in parallel with subagents.** Its section 3 says which tasks may run side by side.
+- **It is written to be as detailed as possible, so cheaper models can do the work without issues.** A worker
+  that meets a decision the plan does not make stops and asks; it does not improvise.
+- **Models:** the coordinator agent is **Haiku 5.5 at high effort**. The other agents are **Haiku 5.5 at high
+  effort or Sonnet 5.5 at high effort**, as listed per task. **Opus 5.5 is the last resort**, used only under the
+  conditions in its section 2.1.
+- **The owner's manual steps come first** (its part M), so that the implementation after them is automatic. The
+  few that cannot move earlier are listed in its section 7.
