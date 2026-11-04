@@ -164,7 +164,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [x] | **T1** Spike: Auth on plain Postgres | #252 | Sonnet 5.5, high | n/a |
 | [x] | **T2** Backend: self-hosted configuration | #253 | Sonnet 5.5, high (security-sensitive) | #264 |
 | [x] | **T3** Web image | #254 | Sonnet 5.5, high | #263 |
-| [ ] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | |
+| [x] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | #265 |
 | [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
 | [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
 | [ ] | **T7** `task deploy` | #258 | Haiku 5.5, high | |
@@ -1181,3 +1181,4 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T1 spike passed: all 11 checks (Auth `gotrue:v2.197.0` on `postgres:17`, 75 migrations, ES256 key, our verifier and supabase-js accept it, dump and restore work; Auth about 14 MiB, Postgres about 40 MiB idle). Corrections applied in T2: four token tables excluded from backups, T3 allow-list confirmed, key shape recorded. | #252, no PR |
 | 2026-11-04 | T2 landed: `AUTH_JWKS_URL`, `DATABASE_TLS=internal-network`, `lineup.db.selfhost_bootstrap`, `lineup.auth.signing_key`, with tests and docs. | #253, PR #264 |
 | 2026-11-04 | T3 web image: `VITE_AUTH_SAME_ORIGIN`, `frontend/Dockerfile`, Caddyfile, `.dockerignore`, header/route tests. pnpm is installed from `packageManager` with npm because `node:lts` has no corepack. | #254, PR #263 |
+| 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
