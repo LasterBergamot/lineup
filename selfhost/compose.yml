@@ -116,6 +116,30 @@ services:
     networks: [internal, edge]
     logging: *logging
 
+  # Nightly database dump into the backup folder (BACKUP_DIR). The folder is on this same machine and the
+  # dumps are not encrypted: README.md "Self-hosting" states the limits. `lineup.sh install` gives
+  # user 999 (the image's `postgres` user) the folder. `lineup.sh backup` runs `backup --once`.
+  backup:
+    image: postgres:17@sha256:3b0cda93be7c8dba2ed484d19393d93845dc3dafb88973e248ba8e6d99d784e1
+    restart: unless-stopped
+    user: "999:999"
+    entrypoint: ["/backup/backup.sh"]
+    depends_on:
+      db: {condition: service_healthy}
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_RETENTION_DAYS: "30"
+    volumes:
+      - ./backup:/backup:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [internal]
+    logging: *logging
+
   cloudflared:
     image: cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     profiles: [tunnel]

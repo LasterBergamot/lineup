@@ -61,7 +61,15 @@ def services(compose) -> dict[str, str]:
 
 
 def test_the_stack_has_the_services_the_plan_describes(services):
-    assert set(services) == {"db", "migrate", "auth", "api", "web", "cloudflared"}
+    assert set(services) == {
+        "db",
+        "migrate",
+        "auth",
+        "api",
+        "web",
+        "backup",
+        "cloudflared",
+    }
 
 
 class TestNothingIsPublishedOrBuilt:
@@ -159,6 +167,38 @@ class TestNetworks:
         block = services["cloudflared"]
         assert re.search(r"^\s*profiles:\s*\[tunnel\]", block, re.MULTILINE)
         assert re.search(r"^\s*networks:\s*\[edge\]\s*$", block, re.MULTILINE)
+
+
+class TestBackupService:
+    """The nightly backup (T6): same image as the database, an unprivileged user, a read-only script."""
+
+    def test_it_uses_the_database_image_and_the_postgres_user(self, services):
+        image = re.search(r"^\s*image:\s*(\S+)", services["db"], re.MULTILINE).group(1)
+        assert re.search(
+            rf"^\s*image:\s*{re.escape(image)}\s*$", services["backup"], re.MULTILINE
+        )
+        assert re.search(r'^\s*user:\s*"999:999"', services["backup"], re.MULTILINE)
+
+    def test_it_runs_the_mounted_script_and_cannot_change_it(self, services):
+        block = services["backup"]
+        assert 'entrypoint: ["/backup/backup.sh"]' in block
+        assert "- ./backup:/backup:ro" in block
+        assert "- ${BACKUP_DIR:-./backups}:/backups" in block
+
+    def test_it_keeps_the_documented_retention_and_waits_for_the_database(
+        self, services
+    ):
+        block = services["backup"]
+        assert re.search(r'^\s*BACKUP_RETENTION_DAYS:\s*"30"', block, re.MULTILINE)
+        assert re.search(r"db:\s*\{condition:\s*service_healthy\}", block)
+
+    def test_it_has_no_capability_and_only_the_internal_network(self, services):
+        block = services["backup"]
+        assert "cap_add" not in block
+        assert re.search(r"^\s*networks:\s*\[internal\]\s*$", block, re.MULTILINE)
+
+    def test_the_script_is_executable(self):
+        assert (SELFHOST / "backup" / "backup.sh").stat().st_mode & 0o111
 
 
 class TestConfiguration:

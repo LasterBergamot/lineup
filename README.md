@@ -137,6 +137,28 @@ The UI is **Hungarian by default** and English is selectable (`react-i18next`; t
 
 The hosted API is expected to sleep when idle, so the app asks `GET /health` as soon as it loads and, if the answer takes more than ~1.5 s, shows a non-blocking "server is starting up" banner (set `VITE_COLD_START_NOTICE=false` to turn it off on always-on hosting). Data regions show skeletons meanwhile, and failed requests are retried with backoff only when the failure looks temporary. See *Current State: Frontend* on the wiki.
 
+## Self-hosting (optional)
+
+Besides the cloud deployment (Fly.io, Cloudflare Pages, Supabase) Lineup can run on one always-on machine such as a NAS or a small server, reachable only through a Cloudflare Tunnel (the machine opens no ports). It has its own Postgres, its own Supabase Auth with Google sign-in only, and **its data is separate from the cloud deployment's**. The stack is in `selfhost/` (`selfhost/compose.yml`, documented in `.claude/rules/selfhost.md`; the working plan is `self-host-plan.md`). On the machine, everything is done with one script, `selfhost/lineup.sh`, which needs only Docker (Compose 2.20 or newer) and `curl` or `wget`:
+
+| Command | What it does |
+|---|---|
+| `./lineup.sh` | A numbered menu of the commands below |
+| `./lineup.sh doctor` | Checks the machine (processor, memory, disk, Docker, Compose, internet) and changes nothing |
+| `./lineup.sh install` | First-time setup: asks for the address, tunnel token and Google values, creates the passwords, writes the private `.env` (mode 600; it refuses to run if one exists) and starts everything |
+| `./lineup.sh update` | Downloads the newest release, checks its checksum, **backs up first**, installs it and checks that it answers; an update that fails to start is undone when the database was not changed |
+| `./lineup.sh backup` | Makes a backup now |
+| `./lineup.sh restore` | Goes back to an earlier backup (asks you to type a word first, and takes a safety copy of the current state) |
+| `./lineup.sh status` | Shows what runs, the age of the last backup, free disk and whether a newer release exists |
+
+The messages are in Hungarian by default (`LINEUP_LANG=en` for English). Nothing updates by itself: a person runs `update`.
+
+**Backups, and their limits.** Please read this before relying on them:
+
+> Backups run every night and are kept for 30 days, in a folder on this same machine. They are **not encrypted**, and anyone with access to this machine can read them. They protect against mistakes and bad updates. **If this machine is lost or fails, all data is lost**, unless someone has copied the backup folder elsewhere by hand. Also save the `.env` file somewhere safe and private: without it a restore on a new machine means everyone's sign-in and database passwords must be set up again.
+
+The nightly job is the `backup` service in `selfhost/compose.yml` (`selfhost/backup/backup.sh`, 03:00 UTC): one dump of each database, written only when both succeed. The sign-in tokens and sessions are left out of the dumps, so a stolen backup cannot take over a signed-in session, and a restore signs everyone out. The backup folder is owned by the container's database user with mode 700, so copying it by hand needs `sudo`. The operator guides (Hungarian and English) and the reference page are planned in `self-host-plan.md`.
+
 ## Environment variables
 
 Configuration is through environment variables, all optional. `backend/.env.example` documents each one; copy it to `backend/.env` (git-ignored, never commit it) and uncomment what you need.
@@ -336,9 +358,9 @@ lineup/
 ├── Taskfile.yml                     # Task runner commands (Python tasks run with dir: backend)
 ├── compose.yml                      # Docker Compose configuration (reads optional backend/.env)
 ├── compose.e2e.yml                  # Extra Compose file for `task test-e2e`: lets the container trust a throw-away test signing key, moves it to port 8001 and drops `backend/.env`
-├── selfhost/                        # The optional self-hosted stack (planned install on one always-on machine, reachable only through a Cloudflare Tunnel): compose.yml (db, migrate, auth, api, web, cloudflared; publishes no port), postgres-init/ (creates the `lineup` and `auth` databases), .env.example (fake values), compose.test.yml (test overlay used by `task selfhost:test`)
+├── selfhost/                        # The optional self-hosted stack (planned install on one always-on machine, reachable only through a Cloudflare Tunnel): compose.yml (db, migrate, auth, api, web, backup, cloudflared; publishes no port), lineup.sh (the operator tool: doctor, install, update, backup, restore, status), messages/ (its Hungarian and English texts), backup/backup.sh (the nightly dump), postgres-init/ (creates the `lineup` and `auth` databases), .env.example (fake values), compose.test.yml (test overlay used by `task selfhost:test`)
 ├── documentation/                   # Source of the GitHub wiki (mirrored by CI; incl. Setup.md, Newcomer-Guide.md, References.md, Auth-Setup.md, Fly-Setup.md, Pages-Setup.md, Supabase-Admin-Guide.md)
-├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), sync_wiki.py (documentation/ to wiki mirror), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), db_env.py and db_query.py (`task db:*`), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job), selfhost_e2e.py (`task selfhost:test`: starts the self-hosted stack and runs smoke_live.py against it), deploy.py (`task deploy`: the cloud deploy through `gh`, or the self-hosted update over SSH)
+├── scripts/                         # Repo tooling: doctor.sh (`task doctor`: tool check), check_docs_touched.sh (docs gate), docs_references.py (References generator), sync_wiki.py (documentation/ to wiki mirror), dump_openapi.py (spec for the FE client), e2e_keys.py (throw-away signing key for `task test-e2e`), smoke_auth.py (fake Supabase Auth for the smoke test), db_env.py and db_query.py (`task db:*`), smoke_live.py (the live smoke test, shared by the supabase-smoke skill and the post-deploy CI job), selfhost_e2e.py (`task selfhost:test`: starts the self-hosted stack, runs smoke_live.py against it, then backs up, deletes a team, restores with `lineup.sh` and signs in again), deploy.py (`task deploy`: the cloud deploy through `gh`, or the self-hosted update over SSH)
 ├── SECURITY.md                      # Security policy: how to report a vulnerability privately
 ├── .github/                         # CI (ci.yml, codeql.yml, docs-check.yml, wiki-sync.yml), PR template, ISSUE_TEMPLATE/ (bug, feature, chore forms), dependabot.yml
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)

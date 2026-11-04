@@ -177,6 +177,11 @@ and tell the clubs (the terms promise advance notice).
   paid plan, deleted data **survives in backups until they expire** (7 or 14 days) and the notice
   must say so. The notice text already says "up to 30 days" to stay safe.
 - Restore has never been tested. A backup and restore plan is tracked in #164 (parked).
+- **Self-hosted install:** it has its own backups, which are a different thing from the cloud
+  database's: a nightly dump into a folder on the same machine, kept 30 days, not encrypted, with the
+  sign-in token tables left out. `lineup.sh backup` and `lineup.sh restore` (`README.md`,
+  "Self-hosting") run them, and a backup, delete and restore round trip is tested in CI
+  (`task selfhost:test`). The retention, erasure and risk text for it is section 11.5.
 
 ## 8. What is not built yet
 
@@ -318,7 +323,9 @@ record (not in the repo, wiki, issues or PRs):
 - **What:** a nightly dump of both databases into a folder on **the same machine**, kept for **30
   days**, **not encrypted**. The four token-bearing Auth tables (`sessions`, `refresh_tokens`,
   `one_time_tokens`, `flow_state`) are excluded, so a stolen backup cannot be used to take over a
-  signed-in session, and a restore simply signs everyone out.
+  signed-in session, and a restore simply signs everyone out. A fifth table, `mfa_amr_claims`, is
+  left out as well: it holds no secret, but each row points at a session, so a restore fails on its
+  foreign key if the sessions are gone and its rows stay.
 - **Why this choice (deliberate).** The data is lower-risk (ordinary personal data, no special
   categories) but includes **names of minors**, and the install is for a few known people. Off-machine
   or encrypted backups would need a second provider or key management that a non-technical operator

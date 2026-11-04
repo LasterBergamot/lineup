@@ -347,3 +347,205 @@ class TestMain:
         assert e2e.main([]) == 1
         assert "did not become healthy" in capsys.readouterr().err
         assert calls["compose"][-1][-3:] == ["down", "-v", "--remove-orphans"]
+
+
+class TestBackupAndRestoreCheck:
+    """The part of the test that backs up with lineup.sh, deletes a team, restores and signs in again."""
+
+    def test_the_backup_folder_is_part_of_the_env_only_when_given(self):
+        assert "BACKUP_DIR" not in e2e.generate_env(KEYS)
+        values = e2e.generate_env(KEYS, backup_dir="/srv/x/backups")
+        assert values["BACKUP_DIR"] == "/srv/x/backups"
+
+    def test_sign_in_sends_credentials_on_stdin_and_returns_the_token(
+        self, monkeypatch, tmp_path
+    ):
+        seen = {}
+
+        def fake_run(env_file, *args, stdin=None):
+            seen["args"], seen["stdin"] = args, stdin
+            return FakeProcess(0, json.dumps({"access_token": FAKE_JWT}))
+
+        monkeypatch.setattr(e2e, "run_compose", fake_run)
+        assert e2e.sign_in(tmp_path / ".env", 1, "pw-123") == FAKE_JWT
+        assert json.loads(seen["stdin"]) == {
+            "email": "selfhost-test-1@example.com",
+            "password": "pw-123",
+        }
+        assert "pw-123" not in " ".join(seen["args"])
+
+    def test_sign_in_failure_is_reported(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(e2e, "run_compose", lambda *a, **k: FakeProcess(1, ""))
+        with pytest.raises(e2e.E2EFailure, match="sign-in 1 failed"):
+            e2e.sign_in(tmp_path / ".env", 1, "pw")
+
+    def test_sign_up_can_use_a_password_given_to_it(self, monkeypatch, tmp_path):
+        seen = {}
+
+        def fake_run(env_file, *args, stdin=None):
+            seen["stdin"] = stdin
+            return FakeProcess(0, json.dumps({"access_token": FAKE_JWT}))
+
+        monkeypatch.setattr(e2e, "run_compose", fake_run)
+        e2e.sign_up(tmp_path / ".env", 1, "chosen-password")
+        assert json.loads(seen["stdin"])["password"] == "chosen-password"  # noqa: S105
+
+    def test_lineup_sh_is_pointed_at_the_test_stack(self, tmp_path):
+        env = e2e.lineup_sh_environment(tmp_path / ".env")
+        assert env["LINEUP_ENV_FILE"] == str(tmp_path / ".env")
+        assert env["LINEUP_PROJECT"] == "lineup-selfhost-test"
+        assert env["LINEUP_LANG"] == "en"
+        files = env["LINEUP_COMPOSE_FILES"].split()
+        assert [Path(f).relative_to(e2e.ROOT).as_posix() for f in files] == [
+            "selfhost/compose.yml",
+            "selfhost/compose.test.yml",
+        ]
+
+    def test_run_lineup_sh_gives_it_no_input_and_returns_its_exit_code(
+        self, monkeypatch, tmp_path
+    ):
+        seen = {}
+
+        def fake_run(command, **kwargs):
+            seen["command"], seen["kwargs"] = command, kwargs
+            return subprocess.CompletedProcess(command, 7)
+
+        monkeypatch.setattr(e2e.subprocess, "run", fake_run)
+        assert e2e.run_lineup_sh(tmp_path / ".env", "restore", "--yes-restore") == 7
+        assert seen["command"][1:] == [
+            str(e2e.LINEUP_SH),
+            "restore",
+            "--yes-restore",
+        ]
+        assert seen["kwargs"]["stdin"] == subprocess.DEVNULL
+
+    def test_team_names_reads_the_first_page(self, monkeypatch):
+        body = json.dumps({"items": [{"name": "A"}, {"name": "B"}]}).encode()
+        monkeypatch.setattr(e2e, "http", lambda *a, **k: (200, {}, body))
+        assert e2e.team_names(FAKE_JWT) == ["A", "B"]
+
+    def test_team_names_fails_on_a_bad_status(self, monkeypatch):
+        monkeypatch.setattr(e2e, "http", lambda *a, **k: (401, {}, b""))
+        with pytest.raises(e2e.E2EFailure, match="401"):
+            e2e.team_names(FAKE_JWT)
+
+    def test_count_rows_asks_the_database_as_its_owner(self, monkeypatch, tmp_path):
+        seen = {}
+
+        def fake_run(env_file, *args, stdin=None):
+            seen["args"] = args
+            return FakeProcess(0, "3\n")
+
+        monkeypatch.setattr(e2e, "run_compose", fake_run)
+        assert e2e.count_rows(tmp_path / ".env", "refresh_tokens") == 3
+        assert seen["args"][:6] == ("exec", "-T", "db", "psql", "-U", "postgres")
+        assert "auth.refresh_tokens" in seen["args"][-1]
+
+    def test_count_rows_failure(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(e2e, "run_compose", lambda *a, **k: FakeProcess(1, ""))
+        with pytest.raises(e2e.E2EFailure, match="could not count"):
+            e2e.count_rows(tmp_path / ".env", "sessions")
+
+    @pytest.fixture
+    def world(self, monkeypatch):
+        """A pretend stack: teams that can be deleted and restored, and a record of the steps.
+
+        `fail` maps a step ("create", "delete", "backup", "restore", "gone", "listed", "back") to
+        the way it should misbehave.
+        """
+        state = {
+            "teams": [],
+            "backed_up": [],
+            "events": [],
+            "tokens": [2],
+            "fail": {},
+        }
+
+        def http(method, path, token=None, body=None):
+            if method == "POST":
+                state["events"].append("create")
+                if "create" in state["fail"]:
+                    return 500, {}, b""
+                state["teams"].append(body["name"])
+                return 201, {}, json.dumps({"id": "team-1"}).encode()
+            state["events"].append("delete")
+            if "delete" in state["fail"]:
+                return 500, {}, b""
+            if "gone" not in state["fail"]:
+                state["teams"].clear()
+            return 204, {}, b""
+
+        def lineup_sh(env_file, *args):
+            state["events"].append(args[0])
+            if args[0] == "backup":
+                state["backed_up"] = list(state["teams"])
+                return 1 if "backup" in state["fail"] else 0
+            if args[2] == "1999-01-01":
+                return 0 if "no-failure" in state["fail"] else 1
+            state["teams"][:] = [] if "back" in state["fail"] else state["backed_up"]
+            state["tokens"] = [5 if "tokens" in state["fail"] else 0]
+            return 1 if "restore" in state["fail"] else 0
+
+        def team_names(token):
+            if token == "fresh.token.value" and "back" in state["fail"]:  # noqa: S105
+                return []
+            if "listed" in state["fail"] and "create" in state["events"][-1:]:
+                return []
+            return list(state["teams"])
+
+        monkeypatch.setattr(e2e, "http", http)
+        monkeypatch.setattr(e2e, "team_names", team_names)
+        monkeypatch.setattr(e2e, "run_lineup_sh", lineup_sh)
+        monkeypatch.setattr(
+            e2e, "count_rows", lambda env_file, table: state["tokens"][0]
+        )
+        monkeypatch.setattr(e2e, "sign_in", lambda *a: "fresh.token.value")
+        return state
+
+    def check(self, tmp_path):
+        e2e.check_backup_and_restore(tmp_path / ".env", FAKE_JWT, "pw")
+
+    def test_the_whole_sequence(self, world, tmp_path):
+        self.check(tmp_path)
+        assert world["events"] == ["create", "backup", "delete", "restore", "restore"]
+
+    @pytest.mark.parametrize(
+        ("fail", "message"),
+        [
+            ("create", "creating the team answered 500"),
+            ("listed", "not listed"),
+            ("backup", "lineup.sh backup failed"),
+            ("delete", "deleting the team answered 500"),
+            ("gone", "still listed"),
+            ("restore", "lineup.sh restore failed"),
+            ("tokens", "backups must leave them out"),
+            ("no-failure", "did not fail"),
+            ("back", "did not come back"),
+        ],
+    )
+    def test_each_failure_is_named(self, world, tmp_path, fail, message):
+        world["fail"][fail] = True
+        with pytest.raises(e2e.E2EFailure, match=message):
+            self.check(tmp_path)
+
+    def test_there_must_be_sign_in_rows_to_leave_out(self, world, tmp_path):
+        world["tokens"] = [0]
+        with pytest.raises(e2e.E2EFailure, match="no sign-in rows"):
+            self.check(tmp_path)
+
+    def test_the_backup_folder_is_handed_back_before_the_stack_is_removed(
+        self, monkeypatch, tmp_path
+    ):
+        seen = []
+
+        def fake_run(env_file, *args, stdin=None):
+            seen.append(args)
+            return FakeProcess(0, "")
+
+        monkeypatch.setattr(e2e, "run_compose", fake_run)
+        e2e.release_backup_folder(tmp_path / ".env")
+        args = seen[0]
+        assert args[:2] == ("run", "--rm")
+        assert "backup" in args and "chown" in args
+        assert args[-2] == f"{e2e.os.getuid()}:{e2e.os.getgid()}"
+        assert args[-1] == "/backups"
