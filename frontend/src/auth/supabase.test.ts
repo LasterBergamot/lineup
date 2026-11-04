@@ -41,6 +41,18 @@ describe("getSupabase", () => {
     });
   });
 
+  it("signs in against the page's own origin with VITE_AUTH_SAME_ORIGIN=true", async () => {
+    vi.stubEnv("VITE_AUTH_SAME_ORIGIN", "true");
+    vi.stubEnv("VITE_SUPABASE_ANON_KEY", "self-hosted");
+    const { getSupabase } = await load();
+    getSupabase();
+    expect(createClient).toHaveBeenCalledWith(
+      window.location.origin,
+      "self-hosted",
+      expect.anything(),
+    );
+  });
+
   it("throws the configuration error when the build has no settings", async () => {
     const { getSupabase } = await load();
     expect(() => getSupabase()).toThrow("VITE_SUPABASE_URL");

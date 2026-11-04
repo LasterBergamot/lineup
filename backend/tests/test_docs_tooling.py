@@ -241,6 +241,24 @@ class TestCheckDocsTouched:
         assert "no-docs" in result.stderr
 
     @pytest.mark.parametrize(
+        "code_file",
+        [
+            "frontend__src__x.ts",
+            "frontend__Dockerfile",
+            "frontend__docker__Caddyfile",
+        ],
+    )
+    def test_frontend_code_and_image_files_need_docs(self, git_repo, code_file):
+        _commit(git_repo, **{code_file: "x"})
+        result = _run_check(git_repo)
+        assert result.returncode == 1
+        assert code_file.replace("__", "/") in result.stderr
+
+    def test_other_frontend_files_do_not_need_docs(self, git_repo):
+        _commit(git_repo, **{"frontend__Dockerfile.notes": "x", "frontend__.dockerignore": "x"})
+        assert _run_check(git_repo).returncode == 0
+
+    @pytest.mark.parametrize(
         "docs_file",
         [
             "README.md",

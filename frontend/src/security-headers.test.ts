@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import rawCaddyfile from "../docker/Caddyfile?raw";
 import rawHeaders from "../public/_headers?raw";
 
 /** Parses a Cloudflare Pages `_headers` file into `{ path: { header: value } }`. */
@@ -33,5 +34,57 @@ describe("Cloudflare Pages security headers (public/_headers)", () => {
     // Without a top-level 404.html Pages serves index.html for unknown paths, so deep links
     // such as /join/:code reach the router. Adding one silently breaks that.
     expect(Object.keys(import.meta.glob("../public/404.html"))).toEqual([]);
+  });
+});
+
+/** Reads the `header <Name> "<value>"` lines of the Caddyfile (not the `header @matcher ...` ones). */
+function parseCaddyHeaders(text: string): Record<string, string> {
+  const found: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const match = /^\s*header\s+([A-Za-z][A-Za-z-]*)\s+"(.*)"\s*$/.exec(line);
+    if (match) found[match[1] as string] = match[2] as string;
+  }
+  return found;
+}
+
+describe("self-hosted web image headers and routes (docker/Caddyfile)", () => {
+  const caddy = parseCaddyHeaders(rawCaddyfile);
+  const pagesHeaders = parseHeaders(rawHeaders)["/*"] ?? {};
+
+  it("sets every header of public/_headers, with the same value", () => {
+    // Pages and the self-hosted image must send the same baseline, so they cannot drift apart.
+    expect(Object.keys(pagesHeaders).length).toBeGreaterThan(0);
+    for (const [name, value] of Object.entries(pagesHeaders)) {
+      expect(caddy[name], name).toBe(value);
+    }
+  });
+
+  it("has no log directive: invite codes are URL path segments and must not reach a log", () => {
+    expect(rawCaddyfile).not.toMatch(/^\s*log\b/m);
+  });
+
+  it("proxies only the allow-listed Auth paths, none of them an admin path", () => {
+    const line = /^\s*@auth path (.+)$/m.exec(rawCaddyfile)?.[1] ?? "";
+    const paths = line.trim().split(/\s+/);
+    expect(paths).toEqual([
+      "/auth/v1/authorize",
+      "/auth/v1/callback",
+      "/auth/v1/token",
+      "/auth/v1/logout",
+      "/auth/v1/user",
+      "/auth/v1/settings",
+      "/auth/v1/.well-known/jwks.json",
+    ]);
+    for (const path of paths) {
+      expect(path).not.toMatch(/admin|signup|\*/);
+    }
+  });
+
+  it("answers 404 for every other Auth path, after the allow-list has had its turn", () => {
+    const block = /^\s*handle \/auth\/v1\/\* \{\s*respond 404\s*\}/m.exec(rawCaddyfile);
+    expect(block).not.toBeNull();
+    // `handle` blocks are tried in order and the first match wins.
+    expect(rawCaddyfile.indexOf("handle @auth")).toBeGreaterThan(-1);
+    expect(rawCaddyfile.indexOf("handle @auth")).toBeLessThan(block?.index ?? -1);
   });
 });

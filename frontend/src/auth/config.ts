@@ -16,6 +16,7 @@ export interface SupabaseConfig {
 interface SupabaseEnv {
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  readonly VITE_AUTH_SAME_ORIGIN?: string;
 }
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -38,12 +39,20 @@ function isServiceRoleJwt(key: string): boolean {
  * the new `sb_secret_...` keys and legacy `service_role` JWTs are refused outright. The URL must
  * be `https` (plain `http` only for localhost, where the local stand-in for Supabase Auth runs).
  *
+ * With `VITE_AUTH_SAME_ORIGIN=true` (the self-hosted web image, where a reverse proxy serves Auth
+ * under the app's own origin) the auth URL is `origin` and `VITE_SUPABASE_URL` is ignored, so the
+ * build holds no domain. Every other check, https included, still applies to that origin. Unset,
+ * the behaviour is unchanged, which keeps the Cloudflare Pages build as it was.
+ *
+ * @param env The build-time settings; defaults to Vite's `import.meta.env`.
+ * @param origin The page's own origin; defaults to `window.location.origin`. Used only with the flag.
  * @throws {AuthConfigError} when either value is missing, malformed or a secret key.
  */
 export function readSupabaseConfig(
   env: SupabaseEnv = import.meta.env as SupabaseEnv,
+  origin: string = window.location.origin,
 ): SupabaseConfig {
-  const rawUrl = env.VITE_SUPABASE_URL?.trim();
+  const rawUrl = env.VITE_AUTH_SAME_ORIGIN === "true" ? origin : env.VITE_SUPABASE_URL?.trim();
   const key = env.VITE_SUPABASE_ANON_KEY?.trim();
   if (!rawUrl || !key) {
     throw new AuthConfigError(
