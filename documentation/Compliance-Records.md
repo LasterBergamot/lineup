@@ -6,6 +6,7 @@ The written records GDPR asks us to keep (G2, G8, G12), one section each:
 2. [Art. 30 record: the operator as processor (clubs' data)](#2-art-30-record-operator-as-processor)
 3. [Legitimate-interest assessment (Art. 6(1)(f))](#3-legitimate-interest-assessment)
 4. [DPIA screening note (Art. 35)](#4-dpia-screening-note)
+5. [Self-hosted installs: Art. 30 variant and updated DPIA screening](#5-self-hosted-installs)
 
 All facts come from [[Privacy and Security]]; keep them in step. The Art. 30(5) exemption for
 organisations under 250 people **does not apply**, because the processing is not occasional and
@@ -119,5 +120,64 @@ names, team-scoped access).
 **Triggers to re-screen:** a new data field about people (especially a date of birth, photo, health or
 contact data), publishing rosters, analytics or error reporting that can see personal data (Sentry,
 #93), a large increase in the number of clubs, or any use beyond the lineup sheet.
+
+*Screened by: [OPERATOR NAME] on [DATE].*
+
+---
+
+## 5. Self-hosted installs
+
+For an install on one machine behind a Cloudflare Tunnel ([[Privacy and Security]], section 11).
+Self-hosting does not remove GDPR: both Art. 30 records and the screening still apply, and the
+legitimate-interest assessment (section 3) is unchanged because the purpose, the fields and the
+people are the same. Keep **one set of these records per install**, privately, with the install's
+own entries below. Facts that identify the machine (its owner, place, address) stay in the
+operator's private record and never go in this repo. *Last reviewed: [DATE].*
+
+### 5.1 Art. 30 record, operator as controller (variant)
+
+The same as section 1, with these entries changed:
+
+| Item | Entry |
+|---|---|
+| Categories of data | As section 1, but the Google e-mail, name, picture and account id, sessions and the IP address and browser of sign-ins are held in the install's own `auth` database on the machine, not by Supabase |
+| Recipients | Cloudflare (tunnel and DNS; sees all traffic decrypted), the machine's owner if different from the operator (physical custody); Google is a separate controller. **Not used:** Supabase, Fly.io, Cloudflare Pages |
+| Transfers outside the EU/EEA | Possible by Cloudflare (global network, no EU pinning on the free plan) and Google: EU–US Data Privacy Framework, standard contractual clauses as fallback. **Data at rest** stays on the machine, located in the EU/EEA (`[MACHINE LOCATION]`, recorded privately) |
+| Retention | As section 1; backups on the machine hold deleted data for up to 30 days |
+| Security measures (Art. 32) | See 5.2 and [[Privacy and Security]], section 11.7 |
+
+### 5.2 Art. 30 record, operator as processor (variant)
+
+The same as section 2, with these entries changed:
+
+| Item | Entry |
+|---|---|
+| Sub-processors | Cloudflare (tunnel and DNS) and, if different from the operator, the machine's owner (`[MACHINE OWNER NAME]`, agreement dated `[AGREEMENT DATE]`). **Not used:** Supabase, Fly.io, Cloudflare Pages |
+| Transfers outside the EU/EEA | As 5.1 |
+| Security measures (Art. 32) | The measures in section 2 that are application-level (token-checked access, team-scoped queries, hashed invite codes, security headers, rate limits, no personal data in logs, generated files never stored), **plus**: no published port, the only way in is the outbound tunnel; database and API on a network with no internet route; least-privilege database roles; containers with all capabilities dropped and images pinned by digest; secrets in a mode-600 file; no access logs and rotated container logs (3 × 10 MB); a nightly backup, 30 days, same machine, not encrypted, token tables excluded; full-disk encryption on the machine if the hardware supports it; updates are run by hand by a named person |
+
+### 5.3 DPIA screening, updated
+
+Same criteria and conclusion as section 4, re-checked for this variant:
+
+| EDPB criterion | Applies? | Reason for the self-hosted variant |
+|---|---|---|
+| Systematic monitoring | No | Nothing is monitored by the operator. Cloudflare sees traffic as a network provider; the operator keeps no access logs |
+| Large scale | No | Even smaller than the cloud install: a few known people. **Re-screen if that stops being true** |
+| Vulnerable data subjects | **Yes** | Some players are children (unchanged) |
+| Others | No | As section 4 |
+
+**Conclusion.** Still only one criterion applies, so a **full DPIA is not required**. The variant
+changes the *risks*, not the criteria, and these residual risks are accepted knowingly:
+
+| Residual risk | Why accepted | Mitigation |
+|---|---|---|
+| The machine can be lost, stolen or read by whoever holds it, and the backups are on it, unencrypted | Few people, ordinary data, no special categories | Full-disk encryption if supported; a locked room; processor agreement with the machine's owner; backup folder readable only by the install's user |
+| Cloudflare sees the traffic decrypted | Needed for a tunnel with no open port | DPA accepted; named in the notice; no access logs at the origin |
+| Nobody updates the install | No automatic updates by design | A named person and a reminder; the pre-invite checklist ([[Privacy and Security]], 11.8) |
+
+**Extra triggers to re-screen:** more than a few known people use the install, backups move to
+another place or provider, the machine is moved or its owner changes, or a feature beyond the
+lineup sheet is added.
 
 *Screened by: [OPERATOR NAME] on [DATE].*

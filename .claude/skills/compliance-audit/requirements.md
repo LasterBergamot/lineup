@@ -18,6 +18,14 @@ data. We are the club's **processor**, and the **controller** for user accounts.
 **Processors.** Supabase (DB + Auth), Fly.io (API), Cloudflare Pages (FE), Sentry (errors).
 Google acts as an independent controller for sign-in.
 
+**Self-hosted installs.** The optional self-hosted install (`selfhost/`, `self-host-plan.md`) has its
+**own sub-processor list**, in `documentation/Privacy-and-Security.md` section 11.3: Cloudflare
+(Tunnel and DNS, which sees all traffic decrypted), Google, GitHub (images only) and, if different
+from the operator, the machine's owner (an Art. 28 agreement is needed). Supabase, Fly.io and
+Cloudflare Pages are not used there. Check G9, G10 and S15 against that list and against section
+11.5 (backups) for such an install, and never against the cloud list alone. Self-hosting does not
+remove GDPR (G1), and the machine must be in the EU/EEA (G10).
+
 Each item lists:
 - **Level:** MUST (legal duty or strong baseline) or SHOULD.
 - **Check:** where to look in this repo.
