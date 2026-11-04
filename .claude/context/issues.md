@@ -38,6 +38,7 @@ prefer it when Claude files the issue). Keep the section names in step with this
 - `M1 – Hardening`: bugs, data layer, container, CI, tooling.
 - `M3 – Dev preview`: Google sign-in, teams and invitations, the frontend, dev deployment
   (`PLAN.md`).
+- `M4 – Self-hosting`: the optional self-hosted install (`self-host-plan.md`).
 - `Mx – Parked`: deliberately not planned now, prod items included. Issues stay open.
 - `M2 – Prod` is closed: no prod environment is planned (`PLAN.md` D1).
 
@@ -46,7 +47,7 @@ Leave the milestone empty only for true backlog.
 ## Parent epics
 
 #41 API, #42 test/CI, #43 data/Supabase, #44 container/PDF, #45 observability (parked),
-#46 tooling, #20 frontend, #92 privacy & security compliance. (#40 auth is closed.) Check that
+#46 tooling, #20 frontend, #92 privacy & security compliance, #250 self-hosting. (#40 auth is closed.) Check that
 an epic is still open before linking; add new epics if the set changed.
 
 ## Board

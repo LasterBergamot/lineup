@@ -22,7 +22,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 This project uses [Claude Code](https://claude.ai/code) as an AI coding assistant. The `CLAUDE.md` file at the root is a short router that Claude Code reads at the start of every session: what the project is, the always-on rules, and a table that says where the detail for each area lives. That detail sits in `.claude/rules/` (one file per area, loaded automatically when Claude reads or edits a matching file) and `.claude/context/` (workflow, pre-PR checklist and skills, read on demand), so a session on the frontend doesn't carry the database notes. `.claude/context/claude-code.md` explains the layout and says which file to update for which kind of change.
 
-Recurring workflows are packaged as skills in `.claude/skills/`. Two of them are lineup-only (`compliance-audit`, `supabase-smoke`). The others, plus the read-only `convention-reviewer` agent in `.claude/agents/`, are generic and come from the owner's private `ai-common` repo through [APM](https://github.com/microsoft/apm) (`apm.yml` pins the version, `apm.lock.yaml` records exactly what was installed). They hold the procedure; lineup's own values (labels, milestones, gates, doc map, audit scope) are in `.claude/context/`. The installed copies are committed, so you need neither APM nor access to `ai-common` to use them; to change one, see `.claude/context/claude-code.md`. Claude picks one up when a request matches its description, or you can call it directly as `/<name>`. Several pin a model in their frontmatter (`model:`), so heavy analysis runs on a stronger model and mechanical steps on a cheaper one, whatever the session default is. The value is always an alias (`opus`, `sonnet`, `haiku`), which Claude Code resolves to the newest model of that tier (currently Claude 5.5), so the skills follow new releases without edits; a test rejects a full model ID:
+Recurring workflows are packaged as skills in `.claude/skills/`. Three of them are lineup-only (`compliance-audit`, `supabase-smoke`, `self-host`). The others, plus the read-only `convention-reviewer` agent in `.claude/agents/`, are generic and come from the owner's private `ai-common` repo through [APM](https://github.com/microsoft/apm) (`apm.yml` pins the version, `apm.lock.yaml` records exactly what was installed). They hold the procedure; lineup's own values (labels, milestones, gates, doc map, audit scope) are in `.claude/context/`. The installed copies are committed, so you need neither APM nor access to `ai-common` to use them; to change one, see `.claude/context/claude-code.md`. Claude picks one up when a request matches its description, or you can call it directly as `/<name>`. Several pin a model in their frontmatter (`model:`), so heavy analysis runs on a stronger model and mechanical steps on a cheaper one, whatever the session default is. The value is always an alias (`opus`, `sonnet`, `haiku`), which Claude Code resolves to the newest model of that tier (currently Claude 5.5), so the skills follow new releases without edits; a test rejects a full model ID:
 
 | Skill | Model | Use it to |
 |---|---|---|
@@ -32,10 +32,11 @@ Recurring workflows are packaged as skills in `.claude/skills/`. Two of them are
 | `triage-dependabot` | sonnet | check Dependabot alerts and PRs and classify each PR as blocking/non-blocking (the pre-PR rule in `.claude/context/pr-checklist.md`) |
 | `create-pr` | sonnet | get a branch PR-ready (Dependabot triage, lint/test/e2e, docs sync) and open the PR with `Closes`/`Refs` links |
 | `supabase-smoke` | haiku | run the live create/generate/invite/delete smoke test against the dev Supabase project after model or engine changes |
+| `self-host` | haiku (high effort) | prepare, install, update, back up, restore or check the optional self-hosted install, in plain language for non-IT people (planned work, see `self-host-plan.md`; until the tool is built only `prepare` is available) |
 | `update-documentation` | sonnet | sync `README.md`, the `.claude/` rule and context files, `CLAUDE.md` and `documentation/` after a change |
 | `setup-project` | haiku (high effort) | set up a fresh clone by following `documentation/Setup.md` |
 
-Skills that touch GitHub, git or the database still ask before every state-changing command. `.claude/settings.json` is the shared project config: it lets `task lint`/`task test` run without a prompt and blocks Claude from reading `.env` files (at the root and in `backend/`). Personal overrides go in the git-ignored `.claude/settings.local.json`.
+Skills that touch GitHub, git or the database still ask before every state-changing command. `.claude/settings.json` is the shared project config: it lets `task lint`/`task test` run without a prompt and blocks Claude from reading `.env` files (at the root and in `backend/`) and the self-hosted install's private `~/.config/lineup/` folder. Personal overrides go in the git-ignored `.claude/settings.local.json`.
 
 ## Documentation & wiki
 
@@ -340,6 +341,7 @@ lineup/
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
 ├── PLAN.md                          # Working plan: the dev preview
+├── self-host-plan.md                # Working plan: the optional self-hosted install (planned, not built yet)
 ├── CLAUDE.md  README.md             # Assistant router (detail in .claude/rules + .claude/context); this file
 ├── frontend/                        # React + TypeScript + Vite web app (pnpm)
 │   ├── DESIGN.md                    # Design system spec (tokens, shapes, wordmark)
