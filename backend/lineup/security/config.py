@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 _TRUE = frozenset({"1", "true", "yes", "on"})
 _FALSE = frozenset({"0", "false", "no", "off"})
 _ACCEPTED_SSL_MODES = frozenset({"require", "verify-full"})
+_INTERNAL_NETWORK = "internal-network"
 
 
 def read_docs_enabled(raw: str | None, env: str | None) -> bool:
@@ -48,7 +49,11 @@ def validate_production_config(environ: Mapping[str, str] | None = None) -> None
     back to a SQLite file inside the container), must use the `postgresql+asyncpg` driver, and
     must demand TLS with `ssl=require` or `ssl=verify-full` (`sslmode=` is accepted too). A
     `require` only encrypts, it does not check the server certificate, so it logs a warning
-    recommending `verify-full`. `SUPABASE_URL` must be set, or every protected route would answer
+    recommending `verify-full`. The one exception is the self-hosted stack: with
+    `DATABASE_TLS=internal-network` **and** a single-label host (a Compose service name such as
+    `db`, never `localhost`), a missing `ssl` is accepted, because Docker's internal network is
+    not reachable from outside and TLS there would need a private CA on the machine. Any other
+    `DATABASE_TLS` value is refused, so a typo cannot silently switch TLS off. `SUPABASE_URL` must be set, or every protected route would answer
     503. Called from the app's lifespan rather than at import, so tests and
     `scripts/dump_openapi.py` can import the app without a production environment.
     """
@@ -57,6 +62,9 @@ def validate_production_config(environ: Mapping[str, str] | None = None) -> None
         return
 
     problems: list[str] = []
+    database_tls = env.get("DATABASE_TLS", "").strip()
+    if database_tls and database_tls != _INTERNAL_NETWORK:
+        problems.append("DATABASE_TLS must be internal-network")
     database_url = env.get("DATABASE_URL", "").strip()
     if not database_url:
         problems.append("DATABASE_URL is not set")
@@ -69,7 +77,13 @@ def validate_production_config(environ: Mapping[str, str] | None = None) -> None
             if url.drivername != "postgresql+asyncpg":
                 problems.append("DATABASE_URL must use the postgresql+asyncpg driver")
             ssl_mode = url.query.get("ssl") or url.query.get("sslmode")
-            if ssl_mode not in _ACCEPTED_SSL_MODES:
+            internal = (
+                database_tls == _INTERNAL_NETWORK
+                and bool(url.host)
+                and "." not in url.host
+                and url.host != "localhost"
+            )
+            if ssl_mode not in _ACCEPTED_SSL_MODES and not internal:
                 problems.append("DATABASE_URL must set ssl=require or ssl=verify-full")
             elif ssl_mode == "require":
                 logger.warning(

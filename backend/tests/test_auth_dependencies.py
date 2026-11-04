@@ -401,6 +401,66 @@ def test_load_config_rejects_an_unset_variable():
         load_config()
 
 
+# ── AUTH_JWKS_URL (self-hosted installs) ────────────────────────────────────
+
+
+def test_an_unset_jwks_url_keeps_the_issuers_well_known_address(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", PROJECT_URL)
+    monkeypatch.delenv("AUTH_JWKS_URL", raising=False)
+    assert load_config().jwks_url == JWKS_URL
+    monkeypatch.setenv("AUTH_JWKS_URL", "   ")
+    assert load_config().jwks_url == JWKS_URL
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://auth:9999/.well-known/jwks.json",
+        "http://localhost:9999/.well-known/jwks.json",
+        "http://127.0.0.1:9999/.well-known/jwks.json",
+        "https://auth.example.com/auth/v1/.well-known/jwks.json",
+    ],
+)
+def test_a_jwks_url_override_is_used_and_the_issuer_is_unchanged(monkeypatch, value):
+    monkeypatch.setenv("SUPABASE_URL", PROJECT_URL)
+    monkeypatch.setenv("AUTH_JWKS_URL", f"  {value}  ")
+    cfg = load_config()
+    assert cfg.jwks_url == value
+    assert cfg.issuer == ISSUER
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://example.com/jwks.json",
+        "http://auth.internal:9999/jwks.json",
+        "ftp://auth/jwks.json",
+        "http://auth:9999/jwks.json?x=1",
+        "http://auth:9999/jwks.json#frag",
+        "https://auth.example.com/jwks.json?x=1",
+        "https://",
+        "http://",
+        "auth:9999/jwks.json",
+        "not a url",
+    ],
+)
+def test_a_bad_jwks_url_override_is_refused(monkeypatch, value):
+    monkeypatch.setenv("SUPABASE_URL", PROJECT_URL)
+    monkeypatch.setenv("AUTH_JWKS_URL", value)
+    with pytest.raises(AuthConfigError, match="AUTH_JWKS_URL"):
+        load_config()
+
+
+async def test_a_refused_jwks_url_answers_503(monkeypatch, caplog):
+    monkeypatch.setenv("SUPABASE_URL", PROJECT_URL)
+    monkeypatch.setenv("AUTH_JWKS_URL", "http://example.com/jwks.json")
+    with caplog.at_level(logging.ERROR), pytest.raises(HTTPException) as exc:
+        await get_current_user_id(bearer("whatever"))
+    assert exc.value.status_code == 503
+    assert exc.value.detail == "Authentication unavailable"
+    assert "AUTH_JWKS_URL" in caplog.text
+
+
 # ── get_current_user_id (the FastAPI dependency) ────────────────────────────
 
 

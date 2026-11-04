@@ -573,6 +573,57 @@ def test_insecure_production_config_is_refused(overrides, message):
     assert message in str(exc.value)
 
 
+INTERNAL = {"DATABASE_TLS": "internal-network"}
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+asyncpg://u:p@db:5432/lineup",
+        "postgresql+asyncpg://u:p@db/lineup?ssl=require",
+    ],
+)
+def test_plaintext_postgres_is_accepted_on_the_internal_network(url):
+    validate_production_config({**GOOD_ENV, **INTERNAL, "DATABASE_URL": url})
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+asyncpg://u:p@db.example.com:5432/lineup",
+        "postgresql+asyncpg://u:p@localhost:5432/lineup",
+        "postgresql+asyncpg://u:p@/lineup",
+    ],
+)
+def test_the_internal_network_flag_needs_a_single_label_host(url):
+    with pytest.raises(ValueError, match="ssl=require or ssl=verify-full") as exc:
+        validate_production_config({**GOOD_ENV, **INTERNAL, "DATABASE_URL": url})
+    assert "p@" not in str(exc.value)
+
+
+def test_plaintext_postgres_without_the_flag_is_still_refused():
+    url = "postgresql+asyncpg://u:p@db:5432/lineup"
+    with pytest.raises(ValueError, match="ssl=require or ssl=verify-full"):
+        validate_production_config({**GOOD_ENV, "DATABASE_URL": url})
+    with pytest.raises(ValueError, match="ssl=require or ssl=verify-full"):
+        validate_production_config(
+            {**GOOD_ENV, "DATABASE_URL": url, "DATABASE_TLS": "  "}
+        )
+
+
+@pytest.mark.parametrize("flag", ["internal", "true", "Internal-Network", "disable"])
+def test_another_database_tls_value_is_refused(flag):
+    url = "postgresql+asyncpg://u:p@db:5432/lineup"
+    with pytest.raises(ValueError, match="DATABASE_TLS must be internal-network"):
+        validate_production_config(
+            {**GOOD_ENV, "DATABASE_URL": url, "DATABASE_TLS": flag}
+        )
+
+
+def test_the_database_tls_flag_is_ignored_outside_production():
+    validate_production_config({"ENV": "development", "DATABASE_TLS": "nonsense"})
+
+
 def test_all_problems_are_reported_together_without_leaking_the_url():
     env = {
         "ENV": "production",
