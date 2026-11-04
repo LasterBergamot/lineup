@@ -167,7 +167,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [x] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | #265 |
 | [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
 | [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
-| [ ] | **T7** `task deploy` | #258 | Haiku 5.5, high | |
+| [x] | **T7** `task deploy` | #258 | Haiku 5.5, high | #270 |
 | [ ] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | |
 | [ ] | **T9** GDPR documents | #260 | Sonnet 5.5, high | |
 | [ ] | **T10** Real install and verification | #261 | Sonnet 5.5, high, plus the owner's phone checks | |
@@ -1034,8 +1034,8 @@ of `-oProxyCommand=x`. `scripts/` is outside `--cov=lineup`, but test it fully a
 **Verify:** `task lint`, `task test`; `task deploy < /dev/null` exits 2 and does nothing.
 
 **Acceptance:**
-- [ ] Nothing runs without a target and a confirmation.
-- [ ] Host and paths never appear in output or in the repo.
+- [x] Nothing runs without a target and a confirmation.
+- [x] Host and paths never appear in output or in the repo.
 
 ---
 
@@ -1182,3 +1182,4 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T2 landed: `AUTH_JWKS_URL`, `DATABASE_TLS=internal-network`, `lineup.db.selfhost_bootstrap`, `lineup.auth.signing_key`, with tests and docs. | #253, PR #264 |
 | 2026-11-04 | T3 web image: `VITE_AUTH_SAME_ORIGIN`, `frontend/Dockerfile`, Caddyfile, `.dockerignore`, header/route tests. pnpm is installed from `packageManager` with npm because `node:lts` has no corepack. | #254, PR #263 |
 | 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
+| 2026-11-04 | T7 landed: `scripts/deploy.py` and `task deploy` (`--cloud` runs `deploy-dev.yml` through `gh` and watches it; `--local` runs `./lineup.sh update` over SSH; typed `yes` unless `--yes`; settings from the environment or `~/.config/lineup/selfhost.env`, mode 600, never printed), with `backend/tests/test_deploy_script.py`. Change from the plan: ssh gets `--` before the target (BSD `getopt` on macOS would pass a `--` placed after the host to the machine). Extra refusals: `--version` only as `vX.Y.Z`, and not with `--cloud`. | #258, PR #270 |
