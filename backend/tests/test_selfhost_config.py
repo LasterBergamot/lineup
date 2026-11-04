@@ -185,7 +185,9 @@ class TestBackupService:
         assert "- ./backup:/backup:ro" in block
         assert "- ${BACKUP_DIR:-./backups}:/backups" in block
 
-    def test_it_keeps_the_documented_retention_and_waits_for_the_database(self, services):
+    def test_it_keeps_the_documented_retention_and_waits_for_the_database(
+        self, services
+    ):
         block = services["backup"]
         assert re.search(r'^\s*BACKUP_RETENTION_DAYS:\s*"30"', block, re.MULTILINE)
         assert re.search(r"db:\s*\{condition:\s*service_healthy\}", block)

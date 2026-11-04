@@ -29,8 +29,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SELFHOST = ROOT / "selfhost"
 README = ROOT / "README.md"
 
-TUNNEL_TOKEN = "tunnel-token-SECRET123"
-GOOGLE_SECRET = "GOCSPX-google-SECRET-456"
+TUNNEL_TOKEN = "tunnel-token-SECRET123"  # noqa: S105
+GOOGLE_SECRET = "GOCSPX-google-SECRET-456"  # noqa: S105
 KEY_MATERIAL = "FAKE-PRIVATE-KEY-MATERIAL"
 # The fake docker hands out 1001, 1002, ... as 48-digit secrets (the real ones are 48 hex digits).
 GENERATED = [f"{n:048d}" for n in range(1001, 1005)]
@@ -230,10 +230,33 @@ class Box:
         tools = self.tmp / "tools"
         shutil.rmtree(tools, ignore_errors=True)
         tools.mkdir()
-        basics = (
-            "bash grep sed awk tr cat mktemp stat head tail sort fold date dirname mv cp rm mkdir "
-            "chmod tar sleep printf env ls touch sha256sum"
-        ).split()
+        basics = [
+            *(
+                "bash",
+                "grep",
+                "sed",
+                "awk",
+                "tr",
+                "cat",
+                "mktemp",
+                "stat",
+                "head",
+                "tail",
+            ),
+            *(
+                "sort",
+                "fold",
+                "date",
+                "dirname",
+                "mv",
+                "cp",
+                "rm",
+                "mkdir",
+                "chmod",
+                "tar",
+            ),
+            *("sleep", "printf", "env", "ls", "touch", "sha256sum"),
+        ]
         for name in basics:
             found = shutil.which(name)
             if found and name not in missing:
@@ -276,7 +299,7 @@ class Box:
             "AUTH_DB_PASSWORD": "auth-SECRET-2",
             "LINEUP_APP_PASSWORD": "app-SECRET-3",
             "AUTH_JWT_SECRET": "jwt-SECRET-4",
-            "AUTH_JWT_KEYS": f"'[{{\"d\":\"{KEY_MATERIAL}\"}}]'",
+            "AUTH_JWT_KEYS": f'\'[{{"d":"{KEY_MATERIAL}"}}]\'',
             "GOOGLE_CLIENT_ID": "client-id.apps.googleusercontent.com",
             "GOOGLE_SECRET": GOOGLE_SECRET,
             "BACKUP_DIR": str(self.tmp / "backups"),
@@ -311,7 +334,9 @@ class Box:
         path.chmod(mode)
         return path
 
-    def make_bundle(self, tag: str, *, evil: bool = False, bad_checksum: bool = False) -> None:
+    def make_bundle(
+        self, tag: str, *, evil: bool = False, bad_checksum: bool = False
+    ) -> None:
         """Publish `selfhost-<tag>.tar.gz` and its .sha256 on the pretend GitHub."""
         shutil.rmtree(self.tmp / f"bundle-{tag}", ignore_errors=True)
         source = self.tmp / f"bundle-{tag}" / "selfhost"
@@ -345,7 +370,7 @@ class Box:
     def publish_release(self, tag: str) -> None:
         """Make the pretend GitHub list `tag` as the newest release."""
         (self.web / "releases.json").write_text(
-            '[\n  {\n    "url": "x",\n    "tag_name": "%s",\n    "prerelease": true\n  }\n]\n' % tag
+            f'[\n  {{\n    "url": "x",\n    "tag_name": "{tag}",\n    "prerelease": true\n  }}\n]\n'
         )
 
     def seed_backups(self, *ids: str) -> None:
@@ -390,7 +415,9 @@ class TestFiles:
             assert not re.search(r"^\s*set\s+-\w*x", text, re.MULTILINE)
             assert not re.search(r"\bset\s+-o\s+xtrace", text)
         assert (SELFHOST / "lineup.sh").read_text().startswith("#!/usr/bin/env bash\n")
-        assert (SELFHOST / "backup" / "backup.sh").read_text().startswith("#!/bin/bash\n")
+        assert (
+            (SELFHOST / "backup" / "backup.sh").read_text().startswith("#!/bin/bash\n")
+        )
 
     def test_the_script_does_not_depend_on_tools_the_host_may_lack(self):
         code = "\n".join(
@@ -402,8 +429,9 @@ class TestFiles:
             assert not re.search(rf"(^|[\s|;(`$]){tool}\s", code), tool
 
     def test_both_languages_define_exactly_the_same_messages(self):
-        english, hungarian = keys_of(SELFHOST / "messages" / "en.sh"), keys_of(
-            SELFHOST / "messages" / "hu.sh"
+        english, hungarian = (
+            keys_of(SELFHOST / "messages" / "en.sh"),
+            keys_of(SELFHOST / "messages" / "hu.sh"),
         )
         assert english == hungarian
         assert len(english) > 100
@@ -413,12 +441,15 @@ class TestFiles:
         used = set(re.findall(r"\b(?:m|say|say_err|prompt) ([A-Z][A-Z0-9_]+)", script))
         used |= set(re.findall(r"\$\(m ([A-Z][A-Z0-9_]+)", script))
         used |= set(re.findall(r"ask_valid IN_\w+ ([A-Z][A-Z0-9_]+)", script))
-        defined = {key.removeprefix("MSG_") for key in keys_of(SELFHOST / "messages" / "en.sh")}
+        defined = {
+            key.removeprefix("MSG_") for key in keys_of(SELFHOST / "messages" / "en.sh")
+        }
         assert used <= defined
         assert defined <= used, f"unused messages: {sorted(defined - used)}"
 
     def test_messages_are_valid_printf_formats_with_matching_placeholders(self):
         """A message in one language fills as many places as the other: a mismatch shifts arguments."""
+
         def formats(path: Path) -> dict[str, int]:
             result = {}
             for key, value in re.findall(
@@ -428,7 +459,9 @@ class TestFiles:
                 assert not re.search(r"%[^s%]", value), f"{key} has a bad conversion"
             return result
 
-        assert formats(SELFHOST / "messages" / "en.sh") == formats(SELFHOST / "messages" / "hu.sh")
+        assert formats(SELFHOST / "messages" / "en.sh") == formats(
+            SELFHOST / "messages" / "hu.sh"
+        )
 
     @pytest.mark.parametrize("lang", ["en", "hu"])
     def test_the_backup_limits_text_is_the_one_in_the_plan(self, lang):
@@ -483,7 +516,11 @@ class TestDoctor:
 
     @pytest.mark.parametrize(
         ("kb", "code", "word"),
-        [("8000000", 0, "Memory: 7.6 GB"), ("1500000", 0, "WARNING"), ("900000", 1, "PROBLEM")],
+        [
+            ("8000000", 0, "Memory: 7.6 GB"),
+            ("1500000", 0, "WARNING"),
+            ("900000", 1, "PROBLEM"),
+        ],
     )
     def test_memory_thresholds(self, box, kb, code, word):
         (box.tmp / "meminfo").write_text(f"MemTotal: {kb} kB\n")
@@ -572,7 +609,9 @@ class TestInstall:
     def test_it_refuses_to_overwrite_an_existing_env_file(self, box):
         box.write_env()
         before = box.env_file.read_text()
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert "already installed" in result.stderr
         assert box.env_file.read_text() == before
@@ -599,7 +638,7 @@ class TestInstall:
             f"AUTH_DB_PASSWORD={GENERATED[1]}",
             f"LINEUP_APP_PASSWORD={GENERATED[2]}",
             f"AUTH_JWT_SECRET={GENERATED[3]}",
-            "AUTH_JWT_KEYS='[{\"kty\":\"EC\",\"d\":\"FAKE-PRIVATE-KEY-MATERIAL\"}]'",
+            'AUTH_JWT_KEYS=\'[{"kty":"EC","d":"FAKE-PRIVATE-KEY-MATERIAL"}]\'',
             f"BACKUP_DIR={box.tmp}/backups",
             "AUTH_EMAIL_ENABLED=false",
         ):
@@ -609,11 +648,19 @@ class TestInstall:
         assert "https://lineup.example.com" in result.stdout
 
     def test_it_generates_secrets_with_the_api_image_and_starts_the_stack(self, box):
-        box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         image = "ghcr.io/lasterbergamot/lineup-api:v0.1.0"
-        assert box.called(f"run --rm --entrypoint python {image} -c import secrets; print(secrets.token_hex(24))")
-        assert box.called(f"run --rm --entrypoint python {image} -m lineup.auth.signing_key")
-        chown = box.index_of("--user 0 --cap-add CHOWN --entrypoint sh backup -c chown 999:999 /backups")
+        assert box.called(
+            f"run --rm --entrypoint python {image} -c import secrets; print(secrets.token_hex(24))"
+        )
+        assert box.called(
+            f"run --rm --entrypoint python {image} -m lineup.auth.signing_key"
+        )
+        chown = box.index_of(
+            "--user 0 --cap-add CHOWN --entrypoint sh backup -c chown 999:999 /backups"
+        )
         up = box.index_of("up -d --wait")
         health = box.index_of("exec -T api python -c")
         assert box.index_of("secrets.token_hex") < chown < up < health
@@ -628,7 +675,9 @@ class TestInstall:
         assert "LINEUP_LANG=hu" in box.env_file.read_text()
 
     def test_the_backup_limits_must_be_accepted_by_typing_the_word(self, box):
-        result = box.run("install", "--from-file", str(box.install_file()), input="no thanks\n")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), input="no thanks\n"
+        )
         assert result.returncode == 1
         assert "30 days" in result.stdout and "not encrypted" in result.stdout
         assert "YES" in result.stderr
@@ -636,7 +685,9 @@ class TestInstall:
         assert not box.called("up ")
 
     def test_the_typed_word_is_accepted_in_any_case(self, box):
-        result = box.run("install", "--from-file", str(box.install_file()), input="yes\n")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), input="yes\n"
+        )
         assert result.returncode == 0, result.stderr
 
     def test_the_language_in_the_file_wins_over_the_environment(self, box):
@@ -645,18 +696,12 @@ class TestInstall:
         assert result.returncode == 0
         assert "LINEUP_LANG=hu" in box.env_file.read_text()
 
-    def test_interactive_install_asks_in_order_and_hides_nothing_in_the_output(self, box):
-        answers = "\n".join(
-            [
-                "en",
-                "https://lineup.example.com/",
-                TUNNEL_TOKEN,
-                "client-id.apps.googleusercontent.com",
-                GOOGLE_SECRET,
-                "",
-                "YES",
-                "",
-            ]
+    def test_interactive_install_asks_in_order_and_hides_nothing_in_the_output(
+        self, box
+    ):
+        answers = (
+            f"en\nhttps://lineup.example.com/\n{TUNNEL_TOKEN}\n"
+            f"client-id.apps.googleusercontent.com\n{GOOGLE_SECRET}\n\nYES\n"
         )
         result = box.run("install", input=answers, lang=None)
         assert result.returncode == 0, result.stderr
@@ -715,24 +760,42 @@ class TestInstall:
 
     @pytest.mark.parametrize(
         "line",
-        ["TUNNEL_TOKEN=", "GOOGLE_SECRET=has space", "GOOGLE_CLIENT_ID=quo'te", "TUNNEL_TOKEN=a$b"],
+        [
+            "TUNNEL_TOKEN=",
+            "GOOGLE_SECRET=has space",
+            "GOOGLE_CLIENT_ID=quo'te",
+            "TUNNEL_TOKEN=a$b",
+        ],
     )
     def test_a_value_the_env_file_could_not_carry_is_refused(self, box, line):
         text = box.install_file().read_text() + line + "\n"
-        result = box.run("install", "--from-file", str(box.install_file(text)), "--accept-backup-limits")
+        result = box.run(
+            "install",
+            "--from-file",
+            str(box.install_file(text)),
+            "--accept-backup-limits",
+        )
         assert result.returncode == 1
         assert not box.env_file.exists()
         assert_no_secret(result)
 
     def test_the_backup_folder_must_be_an_absolute_plain_path(self, box):
         text = box.install_file().read_text() + "BACKUP_DIR=relative/dir\n"
-        result = box.run("install", "--from-file", str(box.install_file(text)), "--accept-backup-limits")
+        result = box.run(
+            "install",
+            "--from-file",
+            str(box.install_file(text)),
+            "--accept-backup-limits",
+        )
         assert result.returncode == 1
         assert "full path" in result.stderr
 
     def test_a_file_that_others_can_read_is_refused(self, box):
         result = box.run(
-            "install", "--from-file", str(box.install_file(mode=0o644)), "--accept-backup-limits"
+            "install",
+            "--from-file",
+            str(box.install_file(mode=0o644)),
+            "--accept-backup-limits",
         )
         assert result.returncode == 1
         assert "chmod 600" in result.stderr
@@ -741,7 +804,9 @@ class TestInstall:
         assert_no_secret(result)
 
     def test_a_missing_file_is_reported(self, box):
-        result = box.run("install", "--from-file", str(box.tmp / "none"), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.tmp / "none"), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert "does not exist" in result.stderr
 
@@ -755,7 +820,12 @@ class TestInstall:
             f"touch {marker}\n"
             "UNKNOWN_NAME=whatever\n"
         )
-        result = box.run("install", "--from-file", str(box.install_file(text)), "--accept-backup-limits")
+        result = box.run(
+            "install",
+            "--from-file",
+            str(box.install_file(text)),
+            "--accept-backup-limits",
+        )
         assert result.returncode == 1
         assert not marker.exists()
         assert not box.env_file.exists()
@@ -764,19 +834,26 @@ class TestInstall:
 
     def test_a_file_with_quotes_and_windows_line_endings_is_read(self, box):
         text = (
-            "PUBLIC_URL=\"https://lineup.example.com\"\r\n"
+            'PUBLIC_URL="https://lineup.example.com"\r\n'
             f"TUNNEL_TOKEN='{TUNNEL_TOKEN}'\r\n"
             "GOOGLE_CLIENT_ID=client-id\r\n"
             f"GOOGLE_SECRET={GOOGLE_SECRET}\r\n"
         )
-        result = box.run("install", "--from-file", str(box.install_file(text)), "--accept-backup-limits")
+        result = box.run(
+            "install",
+            "--from-file",
+            str(box.install_file(text)),
+            "--accept-backup-limits",
+        )
         assert result.returncode == 0, result.stderr
         assert box.env_value("PUBLIC_URL") == "https://lineup.example.com"
         assert box.env_value("TUNNEL_TOKEN") == TUNNEL_TOKEN
 
     def test_the_doctor_runs_first_and_a_problem_stops_the_install(self, box):
         box.seq("info", "down")
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert "not running" in result.stdout
         assert "Nothing was changed" in result.stderr
@@ -785,27 +862,38 @@ class TestInstall:
 
     def test_a_missing_version_file_stops_the_install(self, box):
         (box.root / "VERSION").unlink()
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert "VERSION" in result.stderr
 
     def test_a_failed_image_download_writes_nothing(self, box):
         box.seq("run_exit", 1)
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert not box.env_file.exists()
         assert_no_secret(result)
 
     def test_a_bad_generated_secret_writes_nothing(self, box):
-        _write_executable(box.bin / "docker", "#!/bin/bash\n[[ \"$1\" == info ]] && exit 0\n"
-                          "[[ \"$*\" == *version* ]] && { echo 2.30.1; exit 0; }\necho not-hex\n")
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        _write_executable(
+            box.bin / "docker",
+            '#!/bin/bash\n[[ "$1" == info ]] && exit 0\n'
+            '[[ "$*" == *version* ]] && { echo 2.30.1; exit 0; }\necho not-hex\n',
+        )
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert not box.env_file.exists()
 
     def test_a_failed_start_keeps_the_settings_and_says_what_to_do(self, box):
         box.seq("up", 1)
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert box.env_file.exists()
         assert "do not run install again" in result.stderr
@@ -814,7 +902,9 @@ class TestInstall:
 
     def test_a_stack_that_never_answers_keeps_the_settings(self, box):
         box.seq("health", 1)
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert "does not answer" in result.stderr
         assert box.env_file.exists()
@@ -825,12 +915,16 @@ class TestInstall:
         # the next `docker compose run` (the chown) fails: a compose run is "compose ... run ... chown"
         _write_executable(
             box.bin / "docker",
-            (box.bin / "docker").read_text().replace(
+            (box.bin / "docker")
+            .read_text()
+            .replace(
                 'if [[ "$args" == *"version --short"* ]]; then',
                 'if [[ "$args" == *"--cap-add CHOWN"* ]]; then exit 1\n    elif [[ "$args" == *"version --short"* ]]; then',
             ),
         )
-        result = box.run("install", "--from-file", str(box.install_file()), "--accept-backup-limits")
+        result = box.run(
+            "install", "--from-file", str(box.install_file()), "--accept-backup-limits"
+        )
         assert result.returncode == 1
         assert "backup folder" in result.stderr
         assert box.env_file.exists()
@@ -912,10 +1006,14 @@ class TestRestore:
         assert not installed.called("pg_restore")
 
     def test_the_typed_word_is_language_specific(self, installed):
-        refused = installed.run("restore", "--date", "2026-11-02", input="RESTORE\n", lang="hu")
+        refused = installed.run(
+            "restore", "--date", "2026-11-02", input="RESTORE\n", lang="hu"
+        )
         assert refused.returncode == 1
         assert not installed.called("pg_restore")
-        accepted = installed.run("restore", "--date", "2026-11-02", input="visszaallit\n", lang="hu")
+        accepted = installed.run(
+            "restore", "--date", "2026-11-02", input="visszaallit\n", lang="hu"
+        )
         assert accepted.returncode == 0, accepted.stderr
         assert installed.called("pg_restore")
 
@@ -926,7 +1024,10 @@ class TestRestore:
         assert "/backups/lineup-2026-11-01.dump" in "\n".join(installed.docker_calls())
 
     def test_an_incomplete_backup_is_not_offered(self, installed):
-        installed.flag("ls", "lineup-2026-11-03.dump\nauth-2026-11-02.dump\nlineup-2026-11-02.dump\n")
+        installed.flag(
+            "ls",
+            "lineup-2026-11-03.dump\nauth-2026-11-02.dump\nlineup-2026-11-02.dump\n",
+        )
         result = installed.run("restore", "--date", "2026-11-03", "--yes-restore")
         assert result.returncode == 1
         assert "    2026-11-02" in result.stderr
@@ -941,7 +1042,9 @@ class TestRestore:
         assert not installed.called("pg_restore")
 
     @pytest.mark.parametrize("date", ["2026-11-0", "*", "../etc", "2026-11-01; id", ""])
-    def test_a_date_that_is_not_a_listed_backup_never_reaches_a_command(self, installed, date):
+    def test_a_date_that_is_not_a_listed_backup_never_reaches_a_command(
+        self, installed, date
+    ):
         result = installed.run("restore", "--date", date, "--yes-restore")
         assert result.returncode == 1
         assert not installed.called("pg_restore")
@@ -955,7 +1058,9 @@ class TestRestore:
     def test_an_unreadable_backup_folder_is_reported(self, installed):
         _write_executable(
             installed.bin / "docker",
-            (installed.bin / "docker").read_text().replace(
+            (installed.bin / "docker")
+            .read_text()
+            .replace(
                 'elif [[ "$args" == *" run "*"--entrypoint ls backup"* ]]; then',
                 'elif [[ "$args" == *" run "*"--entrypoint ls backup"* ]]; then exit 1\n    elif false; then',
             ),
@@ -989,7 +1094,9 @@ class TestRestore:
         assert not installed.called(" stop ")
         assert not installed.called("pg_restore")
 
-    def test_a_failed_restore_leaves_the_website_stopped_and_says_what_to_do(self, installed):
+    def test_a_failed_restore_leaves_the_website_stopped_and_says_what_to_do(
+        self, installed
+    ):
         installed.seq("restore", 1)
         result = installed.run("restore", "--date", "2026-11-02", "--yes-restore")
         assert result.returncode == 1
@@ -1042,29 +1149,54 @@ class TestUpdate:
         assert "Updated to v0.2.0" in result.stdout
         assert (ready.root / "compose.yml").read_text() == "# compose v0.2.0\n"
         assert (ready.root / "VERSION").read_text().strip() == "v0.2.0"
-        assert (ready.root / "postgres-init" / "01-databases.sh").read_text() == "# init v0.2.0\n"
-        assert stat.S_IMODE((ready.root / "backup" / "backup.sh").stat().st_mode) == 0o755
+        assert (
+            ready.root / "postgres-init" / "01-databases.sh"
+        ).read_text() == "# init v0.2.0\n"
+        assert (
+            stat.S_IMODE((ready.root / "backup" / "backup.sh").stat().st_mode) == 0o755
+        )
         assert stat.S_IMODE((ready.root / "lineup.sh").stat().st_mode) == 0o755
         # the old files are kept in previous/, .env and the backups are untouched
-        assert (ready.root / "previous" / "compose.yml").read_bytes() == before["compose.yml"]
-        assert (ready.root / "previous" / "lineup.sh").read_bytes() == before["lineup.sh"]
+        assert (ready.root / "previous" / "compose.yml").read_bytes() == before[
+            "compose.yml"
+        ]
+        assert (ready.root / "previous" / "lineup.sh").read_bytes() == before[
+            "lineup.sh"
+        ]
         assert ready.env_file.read_text() == env_before.replace("v0.1.0", "v0.2.0")
         assert stat.S_IMODE(ready.env_file.stat().st_mode) == 0o600
         assert "evil" not in ready.env_file.read_text()
         assert (ready.tmp / "backups" / "keep.dump").read_text() == "keep"
         assert not [p for p in ready.root.iterdir() if p.name.startswith(".update")]
         assert not [p for p in ready.root.iterdir() if p.name.startswith(".env.")]
-        order = [ready.index_of(t) for t in ("backup --once", "alembic migrate current", " pull", " up -d --wait")]
+        order = [
+            ready.index_of(t)
+            for t in (
+                "backup --once",
+                "alembic migrate current",
+                " pull",
+                " up -d --wait",
+            )
+        ]
         assert order == sorted(order)
         assert_no_secret(result)
 
     def test_the_newest_release_is_read_from_the_releases_list_not_latest(self, ready):
         ready.run("update")
         urls = (ready.state / "curl.log").read_text().splitlines()
-        assert urls[0] == "https://api.github.com/repos/LasterBergamot/lineup/releases?per_page=1"
+        assert (
+            urls[0]
+            == "https://api.github.com/repos/LasterBergamot/lineup/releases?per_page=1"
+        )
         assert not any("/releases/latest" in url for url in urls)
-        assert "https://github.com/LasterBergamot/lineup/releases/download/v0.2.0/selfhost-v0.2.0.tar.gz" in urls
-        assert "https://github.com/LasterBergamot/lineup/releases/download/v0.2.0/selfhost-v0.2.0.tar.gz.sha256" in urls
+        assert (
+            "https://github.com/LasterBergamot/lineup/releases/download/v0.2.0/selfhost-v0.2.0.tar.gz"
+            in urls
+        )
+        assert (
+            "https://github.com/LasterBergamot/lineup/releases/download/v0.2.0/selfhost-v0.2.0.tar.gz.sha256"
+            in urls
+        )
 
     def test_an_explicit_version_skips_the_lookup(self, ready):
         ready.make_bundle("v0.3.0-rc1")
@@ -1081,7 +1213,9 @@ class TestUpdate:
         assert ready.docker_calls() == []
         assert not (ready.root / "previous").exists()
 
-    @pytest.mark.parametrize("version", ["0.2.0", "v0.2", "latest", "v1.0.0; rm -rf /", "../v1.0.0"])
+    @pytest.mark.parametrize(
+        "version", ["0.2.0", "v0.2", "latest", "v1.0.0; rm -rf /", "../v1.0.0"]
+    )
     def test_a_version_that_is_not_a_tag_is_refused(self, ready, version):
         result = ready.run("update", "--version", version)
         assert result.returncode == 1
@@ -1132,7 +1266,9 @@ class TestUpdate:
         archive = ready.web / "selfhost-v0.9.9.tar.gz"
         shutil.copy(ready.web / "selfhost-v0.2.0.tar.gz", archive)
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-        (ready.web / "selfhost-v0.9.9.tar.gz.sha256").write_text(f"{digest}  {archive.name}\n")
+        (ready.web / "selfhost-v0.9.9.tar.gz.sha256").write_text(
+            f"{digest}  {archive.name}\n"
+        )
         result = ready.run("update", "--version", "v0.9.9")
         assert result.returncode == 1
         assert "not a valid Lineup package" in result.stderr
@@ -1160,7 +1296,9 @@ class TestUpdate:
 
     def test_a_failed_start_with_the_database_unchanged_is_undone(self, ready):
         before = self.snapshot(ready)
-        ready.seq("up", 1, 0)  # the new version fails to start; the old one starts again
+        ready.seq(
+            "up", 1, 0
+        )  # the new version fails to start; the old one starts again
         ready.seq("revision", "abc123", "abc123")
         result = ready.run("update")
         assert result.returncode == 1
@@ -1169,9 +1307,12 @@ class TestUpdate:
         assert "nothing was lost" in result.stderr
         assert self.snapshot(ready) == before
         assert ready.env_value("LINEUP_VERSION") == "v0.1.0"
-        assert ready.docker_calls().count(
-            next(c for c in ready.docker_calls() if " up -d" in c)
-        ) == 2
+        assert (
+            ready.docker_calls().count(
+                next(c for c in ready.docker_calls() if " up -d" in c)
+            )
+            == 2
+        )
         assert_no_secret(result)
 
     def test_a_pull_failure_is_undone_without_asking_the_database(self, ready):
@@ -1184,7 +1325,9 @@ class TestUpdate:
         # the database was only asked about once, before the update: `up` never ran, so nothing could change
         assert len([c for c in ready.docker_calls() if "alembic" in c]) == 1
 
-    def test_a_failed_start_after_the_database_changed_is_left_alone_with_instructions(self, ready):
+    def test_a_failed_start_after_the_database_changed_is_left_alone_with_instructions(
+        self, ready
+    ):
         ready.seq("up", 1)
         ready.seq("revision", "abc123", "def456")
         result = ready.run("update")
@@ -1200,7 +1343,9 @@ class TestUpdate:
         assert len([c for c in ready.docker_calls() if " up -d" in c]) == 1
         assert not ready.called("pg_restore")
 
-    def test_an_unreadable_revision_after_a_failed_start_is_treated_as_changed(self, ready):
+    def test_an_unreadable_revision_after_a_failed_start_is_treated_as_changed(
+        self, ready
+    ):
         ready.seq("up", 1)
         ready.seq("revision", "abc123")
         # the first alembic call (before) works; afterwards it fails
@@ -1224,7 +1369,9 @@ class TestUpdate:
         assert "does not answer yet" in result.stderr
         assert "./lineup.sh restore --date" in result.stderr
 
-    def test_the_old_version_is_not_restarted_when_the_health_check_fails_first(self, ready):
+    def test_the_old_version_is_not_restarted_when_the_health_check_fails_first(
+        self, ready
+    ):
         ready.seq("health", 1, 0)
         ready.seq("revision", "abc123", "abc123")
         result = ready.run("update")
@@ -1235,9 +1382,9 @@ class TestUpdate:
         ready.seq("up", 1, 0)
         _write_executable(
             ready.bin / "docker",
-            (ready.bin / "docker").read_text().replace(
-                'echo "$(next revision abc123) (head)"; exit 0', "exit 0"
-            ),
+            (ready.bin / "docker")
+            .read_text()
+            .replace('echo "$(next revision abc123) (head)"; exit 0', "exit 0"),
         )
         result = ready.run("update")
         assert result.returncode == 1
@@ -1421,7 +1568,9 @@ class TestBackupScript:
         assert "-Fc" in lineup_call and "-Fc" in auth_call
 
     @pytest.mark.parametrize("failing", ["lineup", "auth"])
-    def test_a_failure_leaves_no_half_backup_and_older_backups_alone(self, backups, failing):
+    def test_a_failure_leaves_no_half_backup_and_older_backups_alone(
+        self, backups, failing
+    ):
         folder = backups[0]
         (folder / "lineup-2026-01-01.dump").write_text("old lineup")
         (folder / "auth-2026-01-01.dump").write_text("old auth")
@@ -1448,7 +1597,10 @@ class TestBackupScript:
 
     def test_old_dumps_are_deleted_after_a_success_and_recent_ones_kept(self, backups):
         folder = backups[0]
-        old, recent = folder / "lineup-2000-01-01.dump", folder / "lineup-2999-01-01.dump"
+        old, recent = (
+            folder / "lineup-2000-01-01.dump",
+            folder / "lineup-2999-01-01.dump",
+        )
         for path in (old, recent):
             path.write_text("x")
         os.utime(old, (0, 0))
@@ -1465,7 +1617,9 @@ class TestBackupScript:
         self.run(backups, "--once", BACKUP_RETENTION_DAYS="1")
         assert not stale.exists()
 
-    def test_a_safety_backup_has_its_own_name_and_never_replaces_the_daily_one(self, backups):
+    def test_a_safety_backup_has_its_own_name_and_never_replaces_the_daily_one(
+        self, backups
+    ):
         folder = backups[0]
         today = time.strftime("%Y-%m-%d", time.gmtime())
         daily = folder / f"lineup-{today}.dump"

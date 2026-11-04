@@ -397,13 +397,16 @@ def check_backup_and_restore(
         "sign-in tokens were restored, but backups must leave them out",
     )
     expect(
-        run_lineup_sh(env_file, "restore", "--date", "1999-01-01", "--yes-restore") != 0,
+        run_lineup_sh(env_file, "restore", "--date", "1999-01-01", "--yes-restore")
+        != 0,
         "restoring a date that has no backup did not fail",
     )
 
     print("signing in again with the password")
     fresh = sign_in(env_file, member_number, owner_password)
-    expect(team_name in team_names(fresh), "the team did not come back after the restore")
+    expect(
+        team_name in team_names(fresh), "the team did not come back after the restore"
+    )
 
 
 def check_stack(env_file: Path, tmp: Path) -> None:

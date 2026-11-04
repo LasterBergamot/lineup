@@ -354,8 +354,8 @@ class TestBackupAndRestoreCheck:
 
     def test_the_backup_folder_is_part_of_the_env_only_when_given(self):
         assert "BACKUP_DIR" not in e2e.generate_env(KEYS)
-        values = e2e.generate_env(KEYS, backup_dir="/tmp/x/backups")
-        assert values["BACKUP_DIR"] == "/tmp/x/backups"
+        values = e2e.generate_env(KEYS, backup_dir="/srv/x/backups")
+        assert values["BACKUP_DIR"] == "/srv/x/backups"
 
     def test_sign_in_sends_credentials_on_stdin_and_returns_the_token(
         self, monkeypatch, tmp_path
@@ -388,7 +388,7 @@ class TestBackupAndRestoreCheck:
 
         monkeypatch.setattr(e2e, "run_compose", fake_run)
         e2e.sign_up(tmp_path / ".env", 1, "chosen-password")
-        assert json.loads(seen["stdin"])["password"] == "chosen-password"
+        assert json.loads(seen["stdin"])["password"] == "chosen-password"  # noqa: S105
 
     def test_lineup_sh_is_pointed_at_the_test_stack(self, tmp_path):
         env = e2e.lineup_sh_environment(tmp_path / ".env")
@@ -487,7 +487,7 @@ class TestBackupAndRestoreCheck:
             return 1 if "restore" in state["fail"] else 0
 
         def team_names(token):
-            if token == "fresh.token.value" and "back" in state["fail"]:
+            if token == "fresh.token.value" and "back" in state["fail"]:  # noqa: S105
                 return []
             if "listed" in state["fail"] and "create" in state["events"][-1:]:
                 return []
@@ -496,7 +496,9 @@ class TestBackupAndRestoreCheck:
         monkeypatch.setattr(e2e, "http", http)
         monkeypatch.setattr(e2e, "team_names", team_names)
         monkeypatch.setattr(e2e, "run_lineup_sh", lineup_sh)
-        monkeypatch.setattr(e2e, "count_rows", lambda env_file, table: state["tokens"][0])
+        monkeypatch.setattr(
+            e2e, "count_rows", lambda env_file, table: state["tokens"][0]
+        )
         monkeypatch.setattr(e2e, "sign_in", lambda *a: "fresh.token.value")
         return state
 
