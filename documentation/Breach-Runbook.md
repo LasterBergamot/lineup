@@ -8,6 +8,8 @@ promises within 48 hours, [[Terms and Processor Agreement]], 2.11). For user acc
 controller ourselves.
 
 Facts about the data are on [[Privacy and Security]]. Not legal advice. `[…]` marks a placeholder.
+The steps below are written for the cloud install; **self-hosted installs** have their own steps
+in section 8 (a lost or stolen machine, a compromised tunnel token, a leaked `.env`).
 
 ## 1. What counts
 
@@ -125,3 +127,105 @@ closed.
 | Supabase | Dashboard support (ask for their incident report) |
 | Fly.io | Dashboard support, community.fly.io |
 | Clubs | Kept privately, with the Art. 30 processor record |
+| Cloudflare (self-hosted installs) | Dashboard support for the account that owns the tunnel |
+| The machine's owner (self-hosted installs) | `[MACHINE OWNER CONTACT]`, kept privately |
+
+## 8. Self-hosted installs
+
+For an install on one machine behind a Cloudflare Tunnel ([[Privacy and Security]], section 11).
+Sections 1 to 6 apply unchanged (the 72 hours, the risk rating, who to tell). What differs is
+**what can go wrong**, **what to contain** and **what to rotate**. Self-hosting does not remove any
+duty to log or report a breach. Never write the machine's location, owner or domain into an issue,
+PR or the wiki; keep the incident note private (section 5).
+
+Three facts shape every case below:
+
+- **Backups are on the same machine and are not encrypted.** There is **no other copy** of the
+  data. Losing the machine is also a loss of availability, which is a breach (Art. 4(12)) even if
+  nobody read anything.
+- **All secrets are in one file, `selfhost/.env`** on the machine (mode 600).
+- **Cloudflare sees the traffic decrypted** and the tunnel token lets a program act as the machine's
+  connector.
+
+### 8.1 What to rotate, and how
+
+Rotating means: put a new value in `.env`, restart the services that read it, and check the app.
+The exact commands (a restart, an update) are in the operator guide for the install. Which value
+sits where:
+
+| Secret (name in `.env`) | When | How to get a new value | Effect of rotating |
+|---|---|---|---|
+| `TUNNEL_TOKEN` | Token seen by anyone else; machine lost | Cloudflare dashboard, Zero Trust, Networks, Tunnels, the tunnel: refresh its token (or delete the tunnel, create a new one, give it the same public hostname and use the new token) | The old token stops working; the site is down until the new token is in `.env` and the tunnel service is restarted |
+| `GOOGLE_SECRET` (and `GOOGLE_CLIENT_ID`) | Leaked `.env`; machine lost | Google Cloud console, the sign-in project, Clients: add a new client secret, then disable the old one | The old secret stops working; sign-in is down until `.env` has the new one and the Auth service is restarted |
+| `AUTH_JWT_KEYS` (and `AUTH_JWT_SECRET`) | Leaked `.env`; machine lost; traffic exposed | Generate a new signing key with `python -m lineup.auth.signing_key` (from `backend/` in a checkout, on any computer, never pasted into a chat); the value is a JSON array on **one line in single quotes** | Every access token signed with the old key is rejected, so **everyone is signed out** and signs in again. This is also the quickest way to end all sessions |
+| `POSTGRES_PASSWORD`, `AUTH_DB_PASSWORD`, `LINEUP_APP_PASSWORD` | Leaked `.env`; machine lost | Choose new URL-safe values (letters and digits only; two of them sit inside connection URLs) and change the matching database roles to the same values, then restart | The services reconnect with the new passwords. Change a database role's password and `.env` together, or the service cannot connect |
+
+After any rotation: check that sign-in works, that a PDF generates, and write down in the incident
+note what you rotated and when. A rotated secret that was **not** exposed costs nothing, so when
+unsure, rotate.
+
+If invite links might have been exposed too, revoke them (an owner can, section 2).
+
+### 8.2 The machine is lost or stolen
+
+1. **Write down when you became aware** (the 72 hours start). Ask the machine's owner for the facts:
+   when it was last seen, whether it was switched off, whether full-disk encryption was on.
+2. **Cut the access first.** Delete the tunnel in the Cloudflare dashboard, or refresh its token, so
+   a thief who powers the machine on cannot be reached from the internet. Disable the Google client
+   secret in the Google Cloud console.
+3. **Assume the secrets in `.env` are known** unless the disk is encrypted and the machine was off:
+   rotate everything in 8.1 for the *replacement* install. Sessions on the old machine cannot be
+   revoked from outside, but the new signing key and the new Google secret make them useless.
+4. **Rate the risk (section 3).** With full-disk encryption and a machine that was off, the data is
+   likely unreadable, so the risk may be **unlikely** (log it, do not file, ⚖ record the reasoning).
+   Without encryption, treat names and NSSZ numbers of players, some of them children, as exposed:
+   that is a **risk** or **high risk** case, and the unencrypted backups are on the same disk.
+5. **Availability.** There is no off-machine backup. Tell the clubs at once (4.1): they may need to
+   re-enter their rosters. Set up the replacement install with new secrets; a copy of the data exists
+   only if the operator took a backup elsewhere.
+6. If the owner and the operator are different people, the processor agreement requires the owner to
+   report within the agreed time; tell the clubs within 48 hours of the operator becoming aware.
+
+### 8.3 The tunnel token is compromised
+
+Someone with the token can run their own connector for your tunnel, and Cloudflare may send some of
+the site's requests to it. They would see **requests and responses in the clear: tokens, invite
+codes in URLs, lineup data and PDFs**.
+
+1. Note the time. **Refresh the token** in the Cloudflare dashboard (or delete and recreate the
+   tunnel) straight away; this cuts the other connector off.
+2. In the tunnel's page, look at the list of connectors and write down any you do not recognise
+   (address and time; this is evidence).
+3. Update `TUNNEL_TOKEN` in `.env` and restart the tunnel service. Check the site works.
+4. **Sign everyone out** by rotating `AUTH_JWT_KEYS` (8.1): bearer tokens may have been seen. Revoke
+   invite links.
+5. Rate the risk (section 3) for the period between the leak and the refresh: what the connector
+   could have seen. Children's data was inside the traffic, so lean towards notifying.
+6. Check how the token leaked (a pasted command, a screenshot, a chat, a shared screen) and close
+   that hole.
+
+### 8.4 The `.env` file leaked
+
+It holds the database superuser password, the signing key and the Google and tunnel secrets.
+
+1. Note the time and **how far the file went** (a public repo or paste, a chat, a backup, an
+   e-mail attachment, someone's screen share). A copy in a private chat only seen by the operator
+   is a smaller incident than one on a public page.
+2. If the file was public, even briefly, assume it was copied.
+3. Rotate **everything** in 8.1, in this order: the tunnel token and the Google secret (so nobody
+   can impersonate the site or sign in), then the signing key (ends sessions), then the database
+   passwords.
+4. The databases are only reachable from inside the machine's private network (no port is open), so
+   a leaked database password alone does not give outside access. Still rotate it, and check that
+   nobody else has a shell on the machine.
+5. The backups do **not** contain `.env`, but they contain the data. If someone had access to the
+   machine, treat it as 8.2 step 4.
+6. If it was committed to a repo, removing it from history is not enough: the secrets are rotated
+   in step 3 regardless. Tell GitHub support if a public repo held it.
+
+### 8.5 Evidence on the machine
+
+Container logs are small by design (Docker keeps 3 files of 10 MB per service, and there are no
+access logs), so **copy them before restarting the services**, to the private incident folder.
+They hold ids and error messages, not names or tokens. Cloudflare's dashboard shows the tunnel's
+connectors and its own logs for the account.

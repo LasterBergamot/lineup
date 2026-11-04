@@ -1,6 +1,7 @@
 # Terms and Processor Agreement
 
-Two texts that clubs and users accept before they use Lineup (G3, G9):
+Two texts that clubs and users accept before they use Lineup (G3, G9), plus a third, a template for
+self-hosted installs (section 3):
 
 1. **Terms of use** for everyone who signs in.
 2. **Processor agreement** (GDPR Art. 28(3)) between each club (controller) and the operator
@@ -89,7 +90,8 @@ processor binds each to the same obligations by contract, stays responsible for 
 rest in the EU, relies on the EU–US Data Privacy Framework or the standard contractual clauses for
 transfers, and **tells the controller at least 14 days before** adding or replacing one. The
 controller may object on reasonable grounds within that time; if the parties cannot agree, the
-controller may stop using Lineup and have its data deleted. (Art. 28(2), (4))
+controller may stop using Lineup and have its data deleted. (Art. 28(2), (4)) *On a self-hosted
+install the sub-processors are the ones in [[Privacy and Security]], section 11.3, instead.*
 
 **2.8 Assisting the controller.** The processor helps the controller to answer data-subject requests
 (access, correction, erasure, restriction, portability, objection) and to meet its duties on
@@ -119,3 +121,77 @@ controller decides about telling NAIH (72 hours from its own awareness) and the 
 **2.13 Roles of the club.** The club confirms that it has a lawful basis for putting the data into
 Lineup, has given players, staff and parents the information in the club template ([[Privacy Notice]],
 section 3), and only enters the data categories listed in 2.3.
+
+---
+
+## 3. Template: processor agreement with the machine's owner (self-hosted installs)
+
+*Use this only for a self-hosted install ([[Privacy and Security]], section 11), and only when the
+person or organisation that owns and houses the machine is **not** the operator. It is a generic
+template: fill every `[…]` placeholder, have a lawyer read it once (⚖), and sign it **outside the
+repo**. Keep the signed copy and the filled-in details in the operator's private records. Do not
+put names, addresses, hosts or locations into this file.*
+
+*The agreement is needed because the machine's owner can physically reach the data. It does not
+make the owner a decision-maker: the club stays the controller, the operator the processor, and
+the owner a (sub-)processor acting only for the operator.*
+
+**Parties.** [OPERATOR NAME], [OPERATOR ADDRESS] (the *operator*), and [MACHINE OWNER NAME],
+[MACHINE OWNER ADDRESS] (the *machine's owner*). Date: [AGREEMENT DATE].
+
+**3.1 Subject matter and duration.** The machine's owner keeps a computer ("the machine") in
+operation at [MACHINE LOCATION: a place in the EU/EEA] on which the operator runs Lineup. The
+agreement lasts from [START DATE] until [END DATE or "either party ends it in writing"], and then
+as 3.9 says.
+
+**3.2 Nature, purpose and data.** The machine stores the data described on [[Privacy and
+Security]] (sections 2 and 11): players' and staff names, NSSZ numbers and cap numbers, team and
+match details, account holders' sign-in data, and backups of these. The only purpose is to keep the
+machine powered, connected and physically safe so the operator can run Lineup. The data subjects
+include children.
+
+**3.3 Instructions and no access.** The machine's owner acts **only on the operator's documented
+instructions** and does **not open, read, copy, move or change** the data, the backups or the
+settings of the install **unless this is necessary** to keep the machine running and the operator
+has asked for it. If the machine's owner must handle the machine in a way that could reach the
+data (repair, replacing a disk, moving the machine), they tell the operator beforehand, so that the
+operator can take a backup and arrange safe handling.
+
+**3.4 Confidentiality.** Everyone who can reach the machine on the machine's owner's side is bound
+to confidentiality, by contract or by law, and is told that the machine holds personal data.
+
+**3.5 Security.** The machine's owner keeps the machine in a physically safe place at [MACHINE
+LOCATION] (a locked room or similar, with access limited to named people), keeps full-disk
+encryption on [if the hardware supports it, otherwise: "as the parties agreed in writing"], keeps
+the machine's own operating system and local accounts secured and up to date, and does not give
+anyone else access to the install's files. The operator remains responsible for the install itself
+(updates, secrets, backups).
+
+**3.6 Sub-processors.** The machine's owner engages no other party that could reach the data
+(for example a repair service or a hosting company) without the operator's prior written consent,
+and then binds that party to the same obligations.
+
+**3.7 Assistance.** The machine's owner helps the operator to meet its duties on security, data-
+subject requests and breaches, as far as the machine is concerned, taking account of the nature of
+the processing.
+
+**3.8 Personal-data breaches.** The machine's owner tells the operator **without undue delay, and
+in any case within [24] hours**, if the machine is lost, stolen, damaged in a way that could
+expose data, opened by an unauthorised person, or if they suspect anyone has accessed the data.
+They give what they know: what happened, when, and what they have done. The operator then follows
+the [[Breach Runbook]], section 8.
+
+**3.9 Return and deletion.** When the agreement ends, or the operator asks, the machine's owner
+**returns the machine to the operator or securely erases its disks** as the operator chooses
+([erasure method, for example a full overwrite or destruction of the disks]), and confirms in
+writing. The owner keeps no copy of the data. Backups on the machine are erased with it.
+
+**3.10 Audits.** The machine's owner gives the operator the information needed to show that these
+obligations are met, and allows reasonable checks, with notice, of where the machine is and how it
+is kept.
+
+**3.11 Liability and law.** Each party is liable as GDPR Art. 82 provides. [Applicable law and
+courts.] ⚖
+
+**Signatures.** For the operator: [NAME, DATE, SIGNATURE]. For the machine's owner: [NAME, DATE,
+SIGNATURE].

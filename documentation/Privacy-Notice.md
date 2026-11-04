@@ -15,6 +15,8 @@ Contents:
 2. [Tájékoztató felhasználóknak, magyarul (13. cikk)](#2-tájékoztató-felhasználóknak-magyarul-13-cikk)
 3. [Template for clubs to give to players, staff and parents, English (Art. 14)](#3-template-for-clubs-english-art-14)
 4. [Minta sportszervezeteknek játékosok, stábtagok és szülők tájékoztatására, magyarul (14. cikk)](#4-minta-sportszervezeteknek-magyarul-14-cikk)
+5. [Self-hosted installs: replacement paragraphs, English](#5-self-hosted-installs-replacement-paragraphs-english)
+6. [Saját üzemeltetésű telepítés: helyettesítő bekezdések, magyarul](#6-saját-üzemeltetésű-telepítés-helyettesítő-bekezdések-magyarul)
 
 ---
 
@@ -200,3 +202,80 @@ NAME] üzemelteti, a mi adatfeldolgozónkként.
   esetén a szülő is eljárhat. Írj a(z) [EGYESÜLET E-MAIL-CÍME] címre. Panasszal fordulhatsz a NAIH-hoz
   (www.naih.hu, 1055 Budapest, Falk Miksa utca 9-11.), vagy bírósághoz.
 - **A Lineup saját tájékoztatója** (a bejelentkezőknek) itt érhető el: [APP URL].
+
+---
+
+## 5. Self-hosted installs: replacement paragraphs, English
+
+*The machine's exact location is never written in the notice unless the operator chooses to; the EU/EEA statement is what must be true. Use these instead of the matching paragraphs in sections 1 and 3 when the install runs on a
+self-hosted machine rather than on the cloud services (see [[Privacy and Security]], section 11).
+Everything else in the notice stays as it is. Self-hosting does not remove any right or duty:
+the notice must still be given. ⚖ Have a lawyer read the wording once.*
+
+**Replaces "Who receives it" (section 1).**
+
+Lineup runs on a computer that [OPERATOR NAME] operates or has arranged for [MACHINE OWNER: "us" or
+"a service provider"] to host, located in the European Union or the European Economic Area. The database and the sign-in
+service run on that computer; there is no separate cloud database provider. Our service providers
+(processors), under contracts that bind them to our instructions, are:
+
+- **Cloudflare**, which connects the internet to that computer. Cloudflare passes **all traffic
+  between your browser and Lineup through its network and can technically see it**, including the
+  data entered in Lineup and your IP address. Cloudflare is a US company with servers worldwide, so
+  this transfer relies on the EU–US Data Privacy Framework or the standard contractual clauses.
+- [Only if the computer's owner is not the operator:] **the owner of the computer**, who can
+  physically reach it and is bound to confidentiality and to our instructions by a written
+  agreement.
+
+Google is a separate controller for your Google account; its privacy policy applies to the sign-in.
+We store your sign-in data (e-mail address, name, profile picture, account id, and the IP address and
+browser of your sign-ins) in our own database on that computer, not with another provider. The
+current list is on the page *Privacy and Security*.
+
+**Replaces the backup sentence in "How long" (section 1).** The computer keeps a nightly backup of
+the database on the same computer for 30 days; it is not encrypted, and it leaves out sign-in
+sessions. Deleted data can therefore stay in a backup for up to 30 days, then it is removed.
+
+**Replaces "Who sees it" in the club template (section 3).** ...and Lineup's providers: Cloudflare,
+which carries the traffic, and the computer, located in the European Union or the European Economic Area, on which Lineup stores
+the data, as processors.
+
+---
+
+## 6. Saját üzemeltetésű telepítés: helyettesítő bekezdések, magyarul
+
+*Ezeket az 1. és 3. (illetve a magyar 2. és 4.) rész megfelelő bekezdései helyett használd, ha a
+Lineup nem a felhő-szolgáltatásokon, hanem egy saját üzemeltetésű gépen fut (lásd [[Privacy and
+Security]], 11. rész). A többi szöveg változatlan. A saját üzemeltetés egyetlen jogot vagy
+kötelezettséget sem szüntet meg: a tájékoztatót ilyenkor is át kell adni. ⚖ Egy jogász olvassa át
+egyszer a szöveget.*
+
+**Helyettesíti a „Kik kapják meg” bekezdést (2. rész).**
+
+A Lineup egy olyan számítógépen fut, amelyet a(z) [OPERATOR NAME] üzemeltet, illetve amelynek
+tárhelyét [GÉP TULAJDONOSA: „mi” vagy „egy szolgáltató”] biztosítja, az Európai Unió vagy az Európai Gazdasági Térség
+területén. Az adatbázis és a bejelentkeztető szolgáltatás ezen a gépen fut; külön felhőalapú
+adatbázis-szolgáltatót nem használunk. Az adatfeldolgozóink, akiket szerződés köt az
+utasításainkhoz:
+
+- a **Cloudflare**, amely összeköti az internetet ezzel a géppel. A Cloudflare a böngésződ és a
+  Lineup közötti **teljes forgalmat átvezeti a hálózatán, és technikailag láthatja azt**, beleértve a
+  Lineupba bevitt adatokat és az IP-címedet. A Cloudflare amerikai cég, világszerte vannak
+  szervereik, ezért az adattovábbítás az EU–USA adatvédelmi keretrendszerre (DPF) vagy általános
+  szerződési feltételekre (SCC) épül.
+- [Csak ha a gép tulajdonosa nem az üzemeltető:] **a gép tulajdonosa**, aki fizikailag hozzáférhet a
+  géphez, és írásbeli megállapodás köti titoktartásra és az utasításainkhoz.
+
+A Google önálló adatkezelő a Google-fiókod tekintetében; a bejelentkezésre az ő adatvédelmi
+tájékoztatója vonatkozik. A bejelentkezési adataidat (e-mail-cím, név, profilkép, fiókazonosító,
+valamint a bejelentkezéseid IP-címe és böngészője) a saját adatbázisunkban tároljuk ezen a gépen, nem
+másik szolgáltatónál. A mindenkori lista a *Privacy and Security* oldalon található.
+
+**Helyettesíti a „Meddig” bekezdés mentésre vonatkozó mondatát (2. rész).** A gép minden éjjel
+biztonsági mentést készít az adatbázisról ugyanarra a gépre, 30 napig őrzi, a mentés nem titkosított,
+és a bejelentkezési munkameneteket nem tartalmazza. A törölt adat ezért legfeljebb 30 napig
+megmaradhat egy mentésben, utána törlődik.
+
+**Helyettesíti a „Ki látja” pontot az egyesületi mintában (4. rész).** ...valamint a Lineup
+szolgáltatói adatfeldolgozóként: a forgalmat továbbító Cloudflare, és az Európai Unió vagy az Európai Gazdasági Térség
+területén lévő gép, amelyen a Lineup az adatokat tárolja.
