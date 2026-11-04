@@ -39,6 +39,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task migrate:supabase` | Apply migrations to Supabase using `MIGRATE_DATABASE_URL` from `backend/.env.migrate` (owner credentials, kept out of `.env`) |
 | `task db:create-app-role` | Give the `lineup_app` role a generated password (asks for a typed `yes` first, since a re-run rotates it) and point `backend/.env`'s pooler URL at it (password never printed) |
 | `task docs:references` / `task docs:check` | regenerate / verify the dependency block in `documentation/References.md` (`scripts/docs_references.py`) |
+| `task deploy -- --cloud` / `-- --local` | deliberate deploy: `--cloud` starts `deploy-dev.yml` on `develop` with `gh` and waits for it (a normal push to `develop` deploys by itself); `--local` runs `./lineup.sh update` on the self-hosted machine over SSH. No target: a menu on a terminal, exit 2 otherwise. Typed `yes` unless `--yes`. The machine's host and paths are read from the environment or `~/.config/lineup/selfhost.env` (mode 600, parsed as data) and never printed (`scripts/deploy.py`, #258) |
 
 ## Configuration (environment variables)
 

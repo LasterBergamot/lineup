@@ -41,6 +41,7 @@ task fe:api:check # fail if that generated client is stale (CI runs it)
 task fe:check     # lint + coverage + build + api:check, i.e. the CI Frontend job
 task release:bump -- patch|minor|major|X.Y.Z  # bump the version in backend/pyproject.toml + frontend/package.json (scripts/bump_version.py), then task fe:api; commit it in a PR, then run the Release workflow
 task selfhost:test  # build and start the self-hosted stack (selfhost/, Compose project `lineup-selfhost-test`, web on 127.0.0.1:8088), sign in through its real Auth, generate a real PDF, then `down -v` (scripts/selfhost_e2e.py; needs Docker; CI's report-only `Self-hosted stack` job runs it)
+task deploy -- --cloud|--local [--version vX.Y.Z] [--yes]  # cloud: run deploy-dev.yml on develop via gh and watch it; local: run ./lineup.sh update on the self-hosted machine over SSH (settings from LINEUP_SELFHOST_SSH / LINEUP_SELFHOST_DIR or ~/.config/lineup/selfhost.env, mode 600; never printed). Without a target it asks on a terminal and exits 2 otherwise; a typed yes is needed unless --yes (scripts/deploy.py, #258)
 task docs:references  # regenerate the dependency block in documentation/References.md
 task docs:check   # fail if that block is stale (CI runs it)
 ```
