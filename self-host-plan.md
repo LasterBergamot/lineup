@@ -161,8 +161,8 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | | Task | Issue | Worker | PR |
 |---|---|---|---|---|
 | [ ] | **M** Manual preparation (owner) | #251 | the owner, helped by the `self-host` skill | n/a |
-| [ ] | **T1** Spike: Auth on plain Postgres | #252 | Sonnet 5.5, high | n/a |
-| [ ] | **T2** Backend: self-hosted configuration | #253 | Sonnet 5.5, high (security-sensitive) | |
+| [x] | **T1** Spike: Auth on plain Postgres | #252 | Sonnet 5.5, high | n/a |
+| [x] | **T2** Backend: self-hosted configuration | #253 | Sonnet 5.5, high (security-sensitive) | PR_NUMBER |
 | [ ] | **T3** Web image | #254 | Sonnet 5.5, high | |
 | [ ] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | |
 | [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
@@ -305,7 +305,7 @@ GOTRUE_JWT_AUD: authenticated
 GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
 GOTRUE_JWT_EXP: "3600"
 GOTRUE_JWT_SECRET: <random 64 hex>
-GOTRUE_JWT_KEYS: <JSON array, see check 3>
+GOTRUE_JWT_KEYS: <JSON array, see check 3; T1 confirmed one object: kty, crv, x, y, d, kid, alg, use, key_ops, as `signing_key.py` prints it>
 GOTRUE_JWT_ISSUER: http://localhost:8088/auth/v1
 GOTRUE_EXTERNAL_GOOGLE_ENABLED: "true"
 GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID: fake
@@ -501,7 +501,7 @@ origin, unset behaves as before.
 }
 ```
 
-Use the allow-list T1 confirmed if it differs. `/auth/v1/callback` must stay reachable (Google returns to it).
+T1 confirmed this allow-list for a Google-only install (the browser uses `/authorize`, `/logout`, `/token` and `/user`; `/signup` is not needed). Use it as it stands. `/auth/v1/callback` must stay reachable (Google returns to it).
 
 **(c) `frontend/Dockerfile`:** two stages, both pinned by digest (look them up):
 
@@ -964,8 +964,9 @@ success, non-zero with a clear message otherwise.
 
 `selfhost/backup/backup.sh` (mode 755): with `--once` it runs one backup and exits; otherwise it sleeps until the
 next `BACKUP_HOUR` (UTC) in a loop. One backup: `pg_dump -Fc lineup` to `lineup-<date>.dump.tmp`, then
-`pg_dump -Fc auth --exclude-table-data=auth.sessions --exclude-table-data=auth.refresh_tokens` plus any other
-token tables T1 found, to `auth-<date>.dump.tmp`. Only when **both** succeed, `mv` both to their final names and
+`pg_dump -Fc auth --exclude-table-data=auth.sessions --exclude-table-data=auth.refresh_tokens
+--exclude-table-data=auth.one_time_tokens --exclude-table-data=auth.flow_state` (the four token-bearing tables
+T1 found, out of 27 in `auth`), to `auth-<date>.dump.tmp`. Only when **both** succeed, `mv` both to their final names and
 write the current time to `last-success`. Then delete `*.dump` older than `BACKUP_RETENTION_DAYS`. A failure logs
 the fact without any SQL detail, and leaves older backups alone. Excluding token tables means a stolen backup
 cannot be used to take over a signed-in session, and a restore simply signs people out.
@@ -1099,7 +1100,7 @@ source of truth. It must state:
   agreement is needed. Household exemption still does not apply (G1).
 - **Inventory differences.** Same data as 2.1, stored on the machine. **New:** the `auth` database holds what section 2.2
   says Supabase holds: e-mail, name, picture URL, Google id, sessions, refresh tokens, sign-in IP and browser. List its
-  tables (from T1). Backups contain everything except session and token tables.
+  tables (27 in `auth`; the token-bearing ones are `sessions`, `refresh_tokens`, `one_time_tokens`, `flow_state`, from T1). Backups contain everything except session and token tables.
 - **Sub-processors.** Removed: Supabase, Fly.io, Cloudflare Pages. **Cloudflare (Tunnel):** now sees **all traffic
   decrypted, including lineup data and invite codes in URLs**, which is more than it sees in the cloud install; no EU pinning
   on the free plan; DPF + SCCs. **Google:** independent controller for sign-in. **GitHub/GHCR:** images only, no user data.
@@ -1177,3 +1178,5 @@ Everything else is in part M. These need something that only exists later, or a 
 | Date | What | Refs |
 |---|---|---|
 | 2026-11-04 | Plan written after an interview with the owner; epic and tasks filed; `self-host` skill added. No implementation yet. | #250, PR #262 |
+| 2026-11-04 | T1 spike passed: all 11 checks (Auth `gotrue:v2.197.0` on `postgres:17`, 75 migrations, ES256 key, our verifier and supabase-js accept it, dump and restore work; Auth about 14 MiB, Postgres about 40 MiB idle). Corrections applied in T2: four token tables excluded from backups, T3 allow-list confirmed, key shape recorded. | #252, no PR |
+| 2026-11-04 | T2 landed: `AUTH_JWKS_URL`, `DATABASE_TLS=internal-network`, `lineup.db.selfhost_bootstrap`, `lineup.auth.signing_key`, with tests and docs. | #253, PR #PR_NUMBER |

@@ -57,8 +57,20 @@ external services.
 | `RATE_LIMIT_GENERATE_PER_USER` / `RATE_LIMIT_GENERATE_PER_IP` | `10` / `30` | Document generations per minute per signed-in user / per client IP (`429` + `Retry-After`). In-memory, per process |
 | `CLIENT_IP_HEADER` | unset | Header with the real client IP for the per-IP limit (Fly.io: `Fly-Client-IP`); set it only when the proxy overwrites it. Unset = TCP peer address |
 | `SUPABASE_URL` | unset | Supabase project URL; the API derives the token issuer and JWKS address from it. Unset = protected routes answer `503` (see [[Auth Setup]]) |
+| `AUTH_JWKS_URL` | unset | Self-hosted stack only: where the API fetches the signing keys when that differs from the public address (the Auth container, so the API does not go out through the tunnel). `https`, or `http` to `localhost` or a single-label host (a Compose service name). Anything else answers `503`. Tokens still must name `SUPABASE_URL`'s issuer. Unset = `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` |
+| `DATABASE_TLS` | unset | Self-hosted stack only: `internal-network` lets `ENV=production` start with a `DATABASE_URL` that has no `ssl=`, and only when the host is a single-label Compose service name (never `localhost` or a dotted name). Any other value stops startup. Cloud deployments leave it unset |
 | `PDF_MAX_CONCURRENT` | `2` | Max parallel LibreOffice conversions; extra requests wait 10 s, then get `503` + `Retry-After` |
 | `SENTRY_DSN` | unset | Enables Sentry error monitoring (see below) |
+
+**Self-hosted install (optional).** Two small commands exist for the self-hosted stack (planned in
+`self-host-plan.md`, epic #250), which runs Postgres and Supabase Auth in containers instead of Supabase's
+cloud. `python -m lineup.db.selfhost_bootstrap` (the `migrate` service) runs the Alembic migrations as the
+table owner and then gives the `lineup_app` role its password (`MIGRATE_DATABASE_URL` and
+`LINEUP_APP_PASSWORD`), so there is no `.env` rewriting by hand; it is safe to re-run on every start.
+`python -m lineup.auth.signing_key` prints a fresh ES256 key as the JSON array Auth expects in
+`GOTRUE_JWT_KEYS` (it holds the private key, so it goes straight into a secret store and nowhere else).
+`AUTH_JWKS_URL` and `DATABASE_TLS` above exist only for that stack and are refused when they are anything
+but the narrow case they are for; with both unset the cloud path behaves exactly as before.
 
 `task up` (Docker Compose, through `env_file: backend/.env` in the root `compose.yml`) passes these into the container;
 `task serve` sources it too. `task migrate` / `task migrate-new` do not (they target SQLite

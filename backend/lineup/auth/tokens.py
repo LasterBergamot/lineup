@@ -67,7 +67,9 @@ def load_config() -> AuthConfig:
     `SUPABASE_URL` is the project URL (`https://<ref>.supabase.co`), the same value the
     frontend uses. Plain `http` is accepted only for localhost (the Supabase CLI), because keys
     fetched over an unauthenticated connection could be swapped by an attacker on the path.
-    Raises `AuthConfigError` when unset or malformed. Read on every call, so it is testable.
+    The keys are fetched from there too, unless `AUTH_JWKS_URL` overrides the address (self-hosted
+    installs only, see `_read_jwks_url`). Raises `AuthConfigError` when `SUPABASE_URL` is unset or
+    malformed or `AUTH_JWKS_URL` is unusable. Read on every call, so it is testable.
     """
     raw = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
     if not raw:
@@ -79,7 +81,35 @@ def load_config() -> AuthConfig:
     if not secure or not parsed.hostname or parsed.query or parsed.fragment:
         raise AuthConfigError("SUPABASE_URL must be an https URL")
     issuer = f"{raw}/auth/v1"
-    return AuthConfig(issuer=issuer, jwks_url=f"{issuer}/.well-known/jwks.json")
+    return AuthConfig(issuer=issuer, jwks_url=_read_jwks_url(issuer))
+
+
+def _read_jwks_url(issuer: str) -> str:
+    """Where to fetch the signing keys; by default the issuer's own well-known address.
+
+    A self-hosted install sets `AUTH_JWKS_URL` to the Auth container's address, so the API does not
+    go out through the tunnel to reach a neighbour. The public URL stays the issuer, because that is
+    what tokens name. Plain `http` is accepted only for localhost or a single-label host (a Compose
+    service name, which only exists on the private network). Raises `AuthConfigError` otherwise.
+    """
+    raw = os.environ.get("AUTH_JWKS_URL", "").strip()
+    if not raw:
+        return f"{issuer}/.well-known/jwks.json"
+    parsed = urlparse(raw)
+    host = parsed.hostname or ""
+    internal = parsed.scheme == "http" and (
+        host in _LOCAL_HOSTS or (host and "." not in host)
+    )
+    if (
+        (parsed.scheme != "https" and not internal)
+        or not host
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise AuthConfigError(
+            "AUTH_JWKS_URL must be https, or http to an internal host"
+        )
+    return raw
 
 
 async def _http_fetch(url: str) -> Any:
