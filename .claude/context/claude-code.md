@@ -27,6 +27,7 @@ Which file to update when you change something (`update-documentation` and the d
 | test conventions or fixtures | `.claude/rules/backend-tests.md` |
 | ruff `S` ignores, `backend/pyproject.toml` lint config | `.claude/rules/backend-security.md` |
 | `Dockerfile`, fonts, `compose.yml` | `.claude/rules/container.md` |
+| `selfhost/**` (the self-hosted Compose stack), `scripts/selfhost_e2e.py` | `.claude/rules/selfhost.md` |
 | anything in `frontend/` | `.claude/rules/frontend.md` |
 | docs rules, wiki pages | `.claude/rules/documentation.md` |
 | tasks, environment variables, branches, merge rules | `.claude/context/workflow.md` |

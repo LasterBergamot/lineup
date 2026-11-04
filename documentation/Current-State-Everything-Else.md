@@ -8,7 +8,7 @@ across the backend regardless of which module you're touching.
 The repo is split so each side can be built, tested and deployed on its own: **`backend/`**
 holds all the Python (API, Alembic migrations, tests, `Dockerfile`, `pyproject.toml`, the
 `.docx` template), and **`frontend/`** holds the web app (React + TypeScript on Vite, pnpm; see [[Current State: Frontend]]). The repo root keeps only
-what is shared: `Taskfile.yml`, `compose.yml`, `.github/` (CI and Dependabot), `.claude/`,
+what is shared: `Taskfile.yml`, `compose.yml`, `selfhost/` (the optional self-hosted stack, see *Containerization*), `.github/` (CI and Dependabot), `.claude/`,
 `documentation/` and the top-level docs.
 
 The one rule to remember: **Python commands run with `backend/` as the working directory**.
@@ -26,6 +26,7 @@ elsewhere on this page (e.g. `tests/`, `Dockerfile`, `pyproject.toml`) are relat
 | `task doctor` | check the required tools and their minimum versions (`scripts/doctor.sh`); the first step of [[Setup]] |
 | `task test` | pytest with coverage (must pass at 100%; e2e tests excluded) |
 | `task test-e2e` | build image, start a throw-away container (Compose project `lineup-e2e`, port 8001, no `backend/.env`), run real-conversion fidelity tests, tear it down with its volume |
+| `task selfhost:test` | build and start the optional self-hosted stack (`selfhost/`, Compose project `lineup-selfhost-test`, web on `127.0.0.1:8088`), sign in through its real Auth, generate a real PDF, check the public/private paths, then `down -v` (`scripts/selfhost_e2e.py`) |
 | `task lint` / `task format` | `ruff check` / `ruff format` |
 | `task serve` | local uvicorn dev server, loads `backend/.env` (no PDF support — no LibreOffice locally; DB tables auto-created on startup for SQLite via `AUTO_CREATE_SCHEMA=1`) |
 | `task db:status` / `task db:postgres` / `task db:sqlite` | show / switch which database `backend/.env` selects (Supabase pooler vs. local SQLite); `status` also warns when `ENV` doesn't match |
@@ -134,6 +135,26 @@ git-ignored.
   LAN) and the service has `restart: unless-stopped`; the image's own `HEALTHCHECK` on `/health` is
   inherited. Full reset: `task down` → `docker compose down -v` (deletes the volume and with it the
   local data) → `docker rmi lineup` → `docker image prune` → `task rebuild` → `task up`.
+- **The optional self-hosted stack (`selfhost/`, #255).** A second, separate way to run Lineup on one
+  always-on machine, with no Fly, Pages or Supabase project and its own data (the plan is
+  `self-host-plan.md`; the cloud setup above is untouched). `selfhost/compose.yml` (not the repo-root
+  `compose.yml`) describes six services: `db` (Postgres 17 with two databases, `lineup` and `auth`,
+  created by `postgres-init/01-databases.sh` on an empty volume), `migrate` (one shot: Alembic, then the
+  `lineup_app` password, via `python -m lineup.db.selfhost_bootstrap`), `auth` (Supabase Auth, GoTrue,
+  signing ES256 tokens with a key from `python -m lineup.auth.signing_key`; Google sign-in only),
+  `api` (the same image as the cloud, in production mode, reaching Postgres in plain text because the
+  network is private: `DATABASE_TLS=internal-network`, and Auth's keys on `AUTH_JWKS_URL`), `web` (Caddy
+  serving the built app and proxying `/api` and an allow-list of `/auth/v1` paths) and `cloudflared`
+  (the Cloudflare Tunnel, behind a Compose profile). **Nothing publishes a port**; the tunnel is the only
+  way in, which is what makes trusting `Cf-Connecting-IP` safe. The `internal` network has no internet
+  route, every service drops all capabilities, third-party images are pinned by digest, and
+  `.env.example` documents every setting with fake values (the real `selfhost/.env` is git-ignored).
+  Because none of that can be seen at a glance, `backend/tests/test_selfhost_config.py` fails on a
+  published port, an unpinned image, a missing `cap_drop`, a literal secret or a cloud address. The
+  whole stack is tested for real by `task selfhost:test`: a script builds the three images, starts the
+  stack with throw-away secrets, signs users up in the real Auth, runs the live smoke test against it,
+  generates a real PDF, and proves a token signed by another key is refused. CI runs it as a report-only
+  job. Dependabot watches the images in `selfhost/` and the base images in `frontend/`.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
   `task build` + `task up`, not `task serve`.
@@ -212,7 +233,7 @@ Four GitHub Actions workflows (`.github/workflows/`):
   `ci.yml`: re-running the e2e job for a label would be wasteful): runs
   `scripts/check_docs_touched.sh`, which fails when the diff touches code or config paths
   (`backend/lineup/`, `backend/alembic/`, `backend/app.py`, `pyproject.toml`, `Dockerfile`,
-  `.env.example`, `compose.yml`, `Taskfile.yml`, `scripts/`, workflows, `frontend/src/`)
+  `.env.example`, `compose.yml`, `selfhost/`, `Taskfile.yml`, `scripts/`, workflows, `frontend/src/`)
   but none of `README.md`, `CLAUDE.md`, `.claude/rules/`, `.claude/context/` or `documentation/`. The escape hatch for changes that
   genuinely need no documentation is the `no-docs` label together with a
   `No doc impact: <reason>` line in the PR description. Dependabot PRs are skipped. The job
@@ -254,7 +275,7 @@ on `develop` and `main`. **Lint & test** runs ruff, the tests at 100% coverage, 
 a throwaway Postgres 17 service container, migrates it from scratch and asserts what SQLite cannot: RLS
 on every table, the event trigger, the `lineup_app` grants, no access for `anon`/`authenticated`
 (`tests/test_postgres_migrations.py`), then `alembic check` with type comparison and a
-`downgrade base` / `upgrade head` round trip. **Backend tests (Postgres)** runs the whole pytest suite against a throwaway Postgres 17 (`TEST_POSTGRES_URL`, see `tests/conftest.py`): SQLite tolerates things Postgres rejects, and the datetime and NOT NULL bugs found by hand against Supabase would now fail CI. Coverage is gated only on the SQLite run in Lint & test. It is not a required check yet: add it to the branch protection once it has proven stable. A PgBouncer in front was tried and dropped: PgBouncer 1.26 handles asyncpg's prepared statements itself, so it cannot reproduce Supavisor's `DuplicatePreparedStatementError`; the pooler-safe `connect_args` stay guarded by a unit test. **E2E** builds the image and runs the real-conversion tests (no Docker layer cache: tried with buildx and the `gha` cache, it saved no job time because the build takes about 40 s). **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days.
+`downgrade base` / `upgrade head` round trip. **Backend tests (Postgres)** runs the whole pytest suite against a throwaway Postgres 17 (`TEST_POSTGRES_URL`, see `tests/conftest.py`): SQLite tolerates things Postgres rejects, and the datetime and NOT NULL bugs found by hand against Supabase would now fail CI. Coverage is gated only on the SQLite run in Lint & test. It is not a required check yet: add it to the branch protection once it has proven stable. A PgBouncer in front was tried and dropped: PgBouncer 1.26 handles asyncpg's prepared statements itself, so it cannot reproduce Supavisor's `DuplicatePreparedStatementError`; the pooler-safe `connect_args` stay guarded by a unit test. **E2E** builds the image and runs the real-conversion tests (no Docker layer cache: tried with buildx and the `gha` cache, it saved no job time because the build takes about 40 s). **Frontend browser tests** (report only, `continue-on-error`, so it never blocks a PR until it has proven stable) installs Chromium and runs `task fe:e2e`: Playwright against the production build at a phone and a desktop size with the network mocked, uploading the traces of a failed run for 7 days. **Self-hosted stack** (report only too, `continue-on-error`, no path filter) runs `task selfhost:test`: it builds the API and web images, starts `selfhost/compose.yml` with real Supabase Auth and Postgres and throw-away secrets, runs the live smoke test through it and generates a real PDF.
 
 `ci.yml`'s `Lint & test` job also runs `task docs:check`, which fails when the generated block of
 `documentation/References.md` no longer matches `backend/pyproject.toml`, the `Dockerfile` or the
@@ -265,7 +286,7 @@ turn it red; only adding or removing a dependency does, and `task docs:reference
 
 - **Dependency updates**: `.github/dependabot.yml` opens weekly PRs against the `uv`
   ecosystem (`directory: /backend`, i.e. `backend/pyproject.toml`/`backend/uv.lock`), the `docker` ecosystem (`backend/Dockerfile`: the
-  digest-pinned base image and the `uv` image) the `npm` ecosystem (`directory: /frontend`, i.e. `frontend/package.json`/`frontend/pnpm-lock.yaml`, minor and patch updates grouped into one PR) and the `github-actions` ecosystem (the workflow
+  digest-pinned base image and the `uv` image), a second `docker` entry for `frontend/Dockerfile` (the node and Caddy base images), the `docker-compose` ecosystem (`directory: /selfhost`, the digest-pinned images in `selfhost/compose.yml`), the `npm` ecosystem (`directory: /frontend`, i.e. `frontend/package.json`/`frontend/pnpm-lock.yaml`, minor and patch updates grouped into one PR) and the `github-actions` ecosystem (the workflow
   files). Every ecosystem groups its minor and patch updates into one PR; majors stay separate. Security-alert PRs are governed separately by the repo's "Dependabot security
   updates" setting (a GitHub repo setting, not a file in this repo).
 - **Secret scanning**: GitHub secret scanning + push protection are already enabled at the

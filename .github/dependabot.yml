@@ -75,3 +75,32 @@ updates:
       # `uv sync --frozen --no-dev --no-build --python 3.15` works in backend/.
       - dependency-name: "python"
         versions: [">= 3.15"]
+
+  # Base images (node, caddy) in frontend/Dockerfile, the web image of the self-hosted install.
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    groups:
+      docker-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Images in selfhost/compose.yml (postgres, supabase/gotrue, cloudflared), pinned by digest.
+  # Our own lineup-api and lineup-web images use ${LINEUP_VERSION} and are not touched.
+  - package-ecosystem: "docker-compose"
+    directory: "/selfhost"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+    groups:
+      selfhost-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"

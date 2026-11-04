@@ -1,0 +1,22 @@
+# Test overlay for `task selfhost:test` (scripts/selfhost_e2e.py); not part of the release bundle.
+# Layered on compose.yml: `docker compose -f selfhost/compose.yml -f selfhost/compose.test.yml`.
+#   - builds the images from the checked-out code instead of pulling released ones;
+#   - publishes the web port on the loopback address only, so the test can reach the stack (the real
+#     install publishes nothing; the tunnel is the only way in);
+#   - enables password sign-in, so the test gets real Auth tokens without Google.
+services:
+  migrate:
+    build: ../backend
+
+  api:
+    build: ../backend
+
+  web:
+    build: ../frontend
+    ports:
+      - "127.0.0.1:8088:8080"
+
+  auth:
+    environment:
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
