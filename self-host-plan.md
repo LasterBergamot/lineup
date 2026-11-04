@@ -167,7 +167,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [x] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | #265 |
 | [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
 | [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
-| [ ] | **T7** `task deploy` | #258 | Haiku 5.5, high | |
+| [x] | **T7** `task deploy` | #258 | Haiku 5.5, high | #270 |
 | [x] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | #271 |
 | [x] | **T9** GDPR documents | #260 | Sonnet 5.5, high | #269 |
 | [ ] | **T10** Real install and verification | #261 | Sonnet 5.5, high, plus the owner's phone checks | |
@@ -1034,8 +1034,8 @@ of `-oProxyCommand=x`. `scripts/` is outside `--cov=lineup`, but test it fully a
 **Verify:** `task lint`, `task test`; `task deploy < /dev/null` exits 2 and does nothing.
 
 **Acceptance:**
-- [ ] Nothing runs without a target and a confirmation.
-- [ ] Host and paths never appear in output or in the repo.
+- [x] Nothing runs without a target and a confirmation.
+- [x] Host and paths never appear in output or in the repo.
 
 ---
 
@@ -1183,4 +1183,5 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T3 web image: `VITE_AUTH_SAME_ORIGIN`, `frontend/Dockerfile`, Caddyfile, `.dockerignore`, header/route tests. pnpm is installed from `packageManager` with npm because `node:lts` has no corepack. | #254, PR #263 |
 | 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
 | 2026-11-04 | T8 landed: `Self-Hosting-Guide` (EN), `Sajat-Gepes-Telepites` (HU) and `Self-Hosting-Reference`, linked from Home, the doc map, the Newcomer Guide and the roadmap. A simulated non-IT reader found the gaps (terminal and SSH basics, the install folder, Docker permissions, domain wording, tunnel token, Google consent screen, backup folder prompt, domain renewal), now fixed. Written from the plan's text because `lineup.sh`, `task deploy` and the release bundle were not on `develop` yet; the reference page says so. Changes from the plan: the page links use `[[Self Hosting Guide]]` (the Home-link test turns hyphens into spaces); Cloudflare's current documentation gives a 125 s proxy timeout, not 100 s. Open point for T6: how the installer picks English (the guide says it starts in Hungarian and to choose English if offered). | #259, PR #271 |
+| 2026-11-04 | T7 landed: `scripts/deploy.py` and `task deploy` (`--cloud` runs `deploy-dev.yml` through `gh` and watches it; `--local` runs `./lineup.sh update` over SSH; typed `yes` unless `--yes`; settings from the environment or `~/.config/lineup/selfhost.env`, mode 600, never printed), with `backend/tests/test_deploy_script.py`. Change from the plan: ssh gets `--` before the target (BSD `getopt` on macOS would pass a `--` placed after the host to the machine). Extra refusals: `--version` only as `vX.Y.Z`, and not with `--cloud`. | #258, PR #270 |
 | 2026-11-04 | T9 landed: `Privacy-and-Security.md` section 11 (roles, `auth` tables, sub-processors, backups, logs, Art. 32 measures, pre-invite checklist), self-hosted paragraphs in the privacy notice (HU + EN), a processor agreement template for the machine's owner, the Art. 30 variant and DPIA screening, self-hosted breach steps, and a note in `requirements.md` (the skill directory is lineup-owned, so it was edited here). Audit-log table contents on a real install are marked to confirm in T10. | #260, PR #269 |
