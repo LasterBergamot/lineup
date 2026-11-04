@@ -1,0 +1,23 @@
+# The image build needs package.json, the lockfile, the sources and public/. Anything else is either
+# secret (.env), local state or noise. Like backend/.dockerignore this is a security control: the
+# Dockerfile does `COPY . .`, and VITE_* values read from a stray .env would be baked into the bundle.
+
+# Secrets and local settings: never bake these into an image layer
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output (the image installs and builds its own)
+node_modules
+dist
+
+# Tests and reports (the browser tests run from the host against a build)
+e2e
+test-results
+playwright-report
+coverage
+
+# Markdown and the image's own files
+*.md
+Dockerfile
+.dockerignore
