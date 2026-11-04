@@ -645,7 +645,9 @@ class TestInstall:
             assert line in text.splitlines()
         assert stat.S_IMODE((box.tmp / "backups").stat().st_mode) == 0o700
         assert str(box.env_file) in result.stdout
-        assert "https://lineup.example.com" in result.stdout
+        assert "Address: https://lineup.example.com\n" in result.stdout.replace(
+            "\r", ""
+        )
 
     def test_it_generates_secrets_with_the_api_image_and_starts_the_stack(self, box):
         box.run(
