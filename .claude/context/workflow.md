@@ -40,7 +40,8 @@ task fe:api       # regenerate frontend/src/api (openapi.json + schema.d.ts) fro
 task fe:api:check # fail if that generated client is stale (CI runs it)
 task fe:check     # lint + coverage + build + api:check, i.e. the CI Frontend job
 task release:bump -- patch|minor|major|X.Y.Z  # bump the version in backend/pyproject.toml + frontend/package.json (scripts/bump_version.py), then task fe:api; commit it in a PR, then run the Release workflow
-task selfhost:test  # build and start the self-hosted stack (selfhost/, Compose project `lineup-selfhost-test`, web on 127.0.0.1:8088), sign in through its real Auth, generate a real PDF, then `down -v` (scripts/selfhost_e2e.py; needs Docker; CI's report-only `Self-hosted stack` job runs it)
+task selfhost:test  # build and start the self-hosted stack (selfhost/, Compose project `lineup-selfhost-test`, web on 127.0.0.1:8088), sign in through its real Auth, generate a real PDF, back up with `selfhost/lineup.sh`, delete a team, restore, sign in again, then `down -v` (scripts/selfhost_e2e.py; needs Docker; CI's report-only `Self-hosted stack` job runs it)
+task selfhost:lint  # ShellCheck every script under selfhost/ through the pinned koalaman/shellcheck image (needs Docker; the same CI job runs it)
 task deploy -- --cloud|--local [--version vX.Y.Z] [--yes]  # cloud: run deploy-dev.yml on develop via gh and watch it; local: run ./lineup.sh update on the self-hosted machine over SSH (settings from LINEUP_SELFHOST_SSH / LINEUP_SELFHOST_DIR or ~/.config/lineup/selfhost.env, mode 600; never printed). Without a target it asks on a terminal and exits 2 otherwise; a typed yes is needed unless --yes (scripts/deploy.py, #258)
 task docs:references  # regenerate the dependency block in documentation/References.md
 task docs:check   # fail if that block is stale (CI runs it)
@@ -56,7 +57,7 @@ Environment variables (`DATABASE_URL`, `ENV`, `AUTO_CREATE_SCHEMA`, `CORS_ORIGIN
 
 ## The self-hosted stack's CI job
 
-`ci.yml` has a job `selfhost` ("Self-hosted stack (report only)", #255) that runs `task selfhost:test` on every PR, with `continue-on-error: true` and no path filter, so it reports but cannot block until the owner makes it a required check (branch protection is theirs to change). It builds the three images from the checked-out code, so it takes several minutes. Details: `.claude/rules/selfhost.md`.
+`ci.yml` has a job `selfhost` ("Self-hosted stack (report only)", #255) that runs `task selfhost:test` on every PR, with `continue-on-error: true` and no path filter, so it reports but cannot block until the owner makes it a required check (branch protection is theirs to change). It first ShellChecks `selfhost/**/*.sh` (`task selfhost:lint`), then builds the three images from the checked-out code, so it takes several minutes. Details: `.claude/rules/selfhost.md`.
 
 ## Scheduled workflows
 
