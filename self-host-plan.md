@@ -168,7 +168,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
 | [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
 | [ ] | **T7** `task deploy` | #258 | Haiku 5.5, high | |
-| [ ] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | |
+| [x] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | #271 |
 | [ ] | **T9** GDPR documents | #260 | Sonnet 5.5, high | |
 | [ ] | **T10** Real install and verification | #261 | Sonnet 5.5, high, plus the owner's phone checks | |
 
@@ -1182,3 +1182,4 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T2 landed: `AUTH_JWKS_URL`, `DATABASE_TLS=internal-network`, `lineup.db.selfhost_bootstrap`, `lineup.auth.signing_key`, with tests and docs. | #253, PR #264 |
 | 2026-11-04 | T3 web image: `VITE_AUTH_SAME_ORIGIN`, `frontend/Dockerfile`, Caddyfile, `.dockerignore`, header/route tests. pnpm is installed from `packageManager` with npm because `node:lts` has no corepack. | #254, PR #263 |
 | 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
+| 2026-11-04 | T8 landed: `Self-Hosting-Guide` (EN), `Sajat-Gepes-Telepites` (HU) and `Self-Hosting-Reference`, linked from Home, the doc map, the Newcomer Guide and the roadmap. A simulated non-IT reader found the gaps (terminal and SSH basics, the install folder, Docker permissions, domain wording, tunnel token, Google consent screen, backup folder prompt, domain renewal), now fixed. Written from the plan's text because `lineup.sh`, `task deploy` and the release bundle were not on `develop` yet; the reference page says so. Changes from the plan: the page links use `[[Self Hosting Guide]]` (the Home-link test turns hyphens into spaces); Cloudflare's current documentation gives a 125 s proxy timeout, not 100 s. Open point for T6: how the installer picks English (the guide says it starts in Hungarian and to choose English if offered). | #259, PR #271 |
