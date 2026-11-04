@@ -254,6 +254,20 @@ class TestCheckDocsTouched:
         assert result.returncode == 1
         assert code_file.replace("__", "/") in result.stderr
 
+    @pytest.mark.parametrize(
+        "code_file",
+        [
+            "selfhost__compose.yml",
+            "selfhost__.env.example",
+            "selfhost__postgres-init__01-databases.sh",
+        ],
+    )
+    def test_self_hosted_stack_files_need_docs(self, git_repo, code_file):
+        _commit(git_repo, **{code_file: "x"})
+        result = _run_check(git_repo)
+        assert result.returncode == 1
+        assert code_file.replace("__", "/") in result.stderr
+
     def test_other_frontend_files_do_not_need_docs(self, git_repo):
         _commit(
             git_repo,

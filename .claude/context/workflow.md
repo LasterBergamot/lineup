@@ -40,6 +40,7 @@ task fe:api       # regenerate frontend/src/api (openapi.json + schema.d.ts) fro
 task fe:api:check # fail if that generated client is stale (CI runs it)
 task fe:check     # lint + coverage + build + api:check, i.e. the CI Frontend job
 task release:bump -- patch|minor|major|X.Y.Z  # bump the version in backend/pyproject.toml + frontend/package.json (scripts/bump_version.py), then task fe:api; commit it in a PR, then run the Release workflow
+task selfhost:test  # build and start the self-hosted stack (selfhost/, Compose project `lineup-selfhost-test`, web on 127.0.0.1:8088), sign in through its real Auth, generate a real PDF, then `down -v` (scripts/selfhost_e2e.py; needs Docker; CI's report-only `Self-hosted stack` job runs it)
 task docs:references  # regenerate the dependency block in documentation/References.md
 task docs:check   # fail if that block is stale (CI runs it)
 ```
@@ -51,6 +52,10 @@ Environment variables (`DATABASE_URL`, `ENV`, `AUTO_CREATE_SCHEMA`, `CORS_ORIGIN
 `ENV=production` also makes startup fail closed (`validate_production_config()`: needs a `postgresql+asyncpg` `DATABASE_URL` with `ssl=require`/`verify-full` and `SUPABASE_URL`) and turns the API docs off, so health checks and scripts must use `GET /health`, not `/docs`. On Fly.io `CLIENT_IP_HEADER=Fly-Client-IP` is already set in `backend/fly.toml`; `DATABASE_URL`, `SUPABASE_URL` and `CORS_ORIGINS` are Fly secrets (`fly secrets set`), never in `fly.toml`. Setup and deploy steps: `documentation/Fly-Setup.md`. The frontend origin (the Cloudflare Pages URL, `documentation/Pages-Setup.md`) has to be in `CORS_ORIGINS`, exact match.
 
 `SENTRY_DSN` (optional env var, unset by default): when set, `app.py` initializes Sentry error monitoring at import time (errors only, no performance tracing). Never set locally/in CI/tests — leaving it unset means `sentry_sdk.init()` is never called and nothing is sent anywhere.
+
+## The self-hosted stack's CI job
+
+`ci.yml` has a job `selfhost` ("Self-hosted stack (report only)", #255) that runs `task selfhost:test` on every PR, with `continue-on-error: true` and no path filter, so it reports but cannot block until the owner makes it a required check (branch protection is theirs to change). It builds the three images from the checked-out code, so it takes several minutes. Details: `.claude/rules/selfhost.md`.
 
 ## Scheduled workflows
 

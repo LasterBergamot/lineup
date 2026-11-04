@@ -268,6 +268,30 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  selfhost:
+    name: Self-hosted stack (report only)
+    runs-on: ubuntu-latest
+    # Report only at first: must not block a PR until proven stable. No path filter: it is meant to
+    # become a required check, and a filtered job would never report. It builds three images and
+    # starts the whole self-hosted stack (selfhost/) with real Supabase Auth and Postgres.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
+        with:
+          enable-cache: true
+
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52  # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start the stack, sign in through real Auth, generate a PDF
+        run: task selfhost:test
+
   e2e:
     name: E2E (real PDF conversion)
     runs-on: ubuntu-latest
