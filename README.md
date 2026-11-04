@@ -123,7 +123,7 @@ task up           # the API container the app talks to, on :8000
 task fe:dev       # Vite dev server on http://localhost:5173
 ```
 
-In dev the browser calls the same-origin `/api/...` and Vite proxies it to the container (`VITE_DEV_API_TARGET`, default `http://localhost:8000`), so no CORS setup is needed locally. Deployed builds set `VITE_API_URL` instead (the dev site on Cloudflare Pages is set up as described in the [Pages Setup](https://github.com/LasterBergamot/lineup/wiki/Pages-Setup) wiki page; `frontend/public/_headers` holds its security headers); copy `frontend/.env.example` to `frontend/.env` to change any of these (everything `VITE_*` ends up in the public bundle, so never put a secret there).
+In dev the browser calls the same-origin `/api/...` and Vite proxies it to the container (`VITE_DEV_API_TARGET`, default `http://localhost:8000`), so no CORS setup is needed locally. Deployed builds set `VITE_API_URL` instead (the dev site on Cloudflare Pages is set up as described in the [Pages Setup](https://github.com/LasterBergamot/lineup/wiki/Pages-Setup) wiki page; `frontend/public/_headers` holds its security headers); copy `frontend/.env.example` to `frontend/.env` to change any of these (everything `VITE_*` ends up in the public bundle, so never put a secret there). The optional self-hosted install builds the app into its own image (`frontend/Dockerfile`, served by Caddy) with `VITE_AUTH_SAME_ORIGIN=true`, which makes sign-in use the page's own origin, so the image contains no domain; without that flag (local dev, Cloudflare Pages) nothing changes.
 
 The API client in `frontend/src/api/` is **generated** from the backend's OpenAPI spec, so request and response types can't drift from the API. After changing a backend endpoint or schema run `task fe:api` and commit the result; `task fe:api:check` (run by CI) fails when it is stale. `task fe:check` runs everything the CI `Frontend` job does.
 
@@ -352,6 +352,8 @@ lineup/
 │   ├── scripts/make-icons.mjs       # Renders the PNG icons in public/ (pnpm icons)
 │   ├── vite.config.ts               # Vite + Tailwind + Vitest config, /api dev proxy
 │   ├── .env.example                 # VITE_* settings (public values only)
+│   ├── Dockerfile  .dockerignore    # Web image for the optional self-hosted install (built app served by Caddy; no domain inside)
+│   ├── docker/Caddyfile             # That image's Caddy config: static app, /api proxy, allow-listed /auth/v1 paths, security headers
 │   ├── public/                      # Static files (favicon, theme-init.js, manifest.webmanifest, icons, _headers)
 │   └── src/
 │       ├── main.tsx  app.tsx        # Entry point, providers and route table

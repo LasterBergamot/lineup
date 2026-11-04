@@ -1,0 +1,40 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	# No `log` directive, on purpose: invite codes are URL path segments and must not reach any log
+	# (requirements S4, S8). Caddy writes no access log unless told to.
+
+	# Only the Auth paths a Google-only sign-in uses (no /auth/v1/signup). The paths were confirmed
+	# against a real Auth server in the T1 spike (#252). /auth/v1/callback is where Google returns.
+	@auth path /auth/v1/authorize /auth/v1/callback /auth/v1/token /auth/v1/logout /auth/v1/user /auth/v1/settings /auth/v1/.well-known/jwks.json
+	handle @auth {
+		uri strip_prefix /auth/v1
+		reverse_proxy auth:9999
+	}
+	# Everything else under Auth, above all /admin, is never reachable from outside.
+	handle /auth/v1/* {
+		respond 404
+	}
+
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		root * /srv
+		header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		header X-Content-Type-Options "nosniff"
+		header Referrer-Policy "no-referrer"
+		header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+		header Content-Security-Policy "frame-ancestors 'none'"
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

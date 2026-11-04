@@ -7,7 +7,7 @@ set -euo pipefail
 base="${1:-origin/develop}"
 head="${2:-HEAD}"
 
-code_re='^(backend/(lineup/|alembic/|app\.py$|main\.py$|pyproject\.toml$|Dockerfile$|\.env\.example$)|frontend/src/|scripts/|compose\.yml$|Taskfile\.yml$|\.github/workflows/)'
+code_re='^(backend/(lineup/|alembic/|app\.py$|main\.py$|pyproject\.toml$|Dockerfile$|\.env\.example$)|frontend/(src/|docker/|Dockerfile$)|scripts/|compose\.yml$|Taskfile\.yml$|\.github/workflows/)'
 docs_re='^(README\.md$|CLAUDE\.md$|documentation/|\.claude/(rules|context)/)'
 
 if [[ ",${PR_LABELS:-}," == *",no-docs,"* ]]; then

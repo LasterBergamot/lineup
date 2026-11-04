@@ -89,4 +89,48 @@ describe("readSupabaseConfig", () => {
     expect(readSupabaseConfig().publishableKey).toBe("sb_publishable_env");
     vi.unstubAllEnvs();
   });
+
+  describe("with VITE_AUTH_SAME_ORIGIN=true", () => {
+    const key = "sb_publishable_x";
+    const same = { VITE_AUTH_SAME_ORIGIN: "true", VITE_SUPABASE_ANON_KEY: key };
+    const origin = "https://lineup.example.com";
+
+    it("uses the page's own origin, with no VITE_SUPABASE_URL set", () => {
+      expect(readSupabaseConfig(same, origin)).toEqual({ url: origin, publishableKey: key });
+    });
+
+    it("ignores VITE_SUPABASE_URL", () => {
+      expect(readSupabaseConfig({ ...same, VITE_SUPABASE_URL: URL_OK }, origin).url).toBe(origin);
+    });
+
+    it("still refuses a non-local http origin", () => {
+      expect(() => readSupabaseConfig(same, "http://lineup.example.com")).toThrow("https");
+    });
+
+    it("allows http on localhost, as in a local run of the image", () => {
+      expect(readSupabaseConfig(same, "http://localhost:8090").url).toBe("http://localhost:8090");
+    });
+
+    it("still needs the key and still refuses a secret one", () => {
+      expect(() => readSupabaseConfig({ VITE_AUTH_SAME_ORIGIN: "true" }, origin)).toThrow(
+        "not configured",
+      );
+      expect(() =>
+        readSupabaseConfig({ ...same, VITE_SUPABASE_ANON_KEY: "sb_secret_abc" }, origin),
+      ).toThrow(AuthConfigError);
+    });
+
+    it.each(["false", "TRUE", "1", ""])("is off for %j: VITE_SUPABASE_URL is used", (flag) => {
+      expect(
+        readSupabaseConfig(
+          { VITE_AUTH_SAME_ORIGIN: flag, VITE_SUPABASE_URL: URL_OK, VITE_SUPABASE_ANON_KEY: key },
+          origin,
+        ).url,
+      ).toBe(URL_OK);
+    });
+
+    it("defaults the origin to the page's own", () => {
+      expect(readSupabaseConfig(same).url).toBe(window.location.origin);
+    });
+  });
 });

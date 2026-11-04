@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
   /** The Supabase *publishable* key. Public by design; a secret/service-role key is refused at startup. */
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** `"true"` makes sign-in use the page's own origin and ignore `VITE_SUPABASE_URL` (self-hosted web image). */
+  readonly VITE_AUTH_SAME_ORIGIN?: string;
   /** `"false"` hides the "server is waking up" banner. */
   readonly VITE_COLD_START_NOTICE?: string;
 }
