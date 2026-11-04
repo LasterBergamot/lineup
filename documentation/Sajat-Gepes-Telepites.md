@@ -5,7 +5,7 @@ lépésről lépésre, olyanoknak írva, akik még soha nem használtak terminá
 lépésekkel, ugyanabban a sorrendben: [[Self Hosting Guide]]. A fejlesztőknek szóló műszaki leírás (felépítés,
 részletek): [[Self Hosting Reference]].
 
-Ebben az útmutatóban végig a `lineup.example.com` címet használjuk példaként. Ahol ezt látod, a **saját címedet** írd be. Ha például a `myteam.com` domaint vetted meg, a címed `https://myteam.com` (előtte nincs `lineup.`, a végén pedig nincs perjel).
+Ebben az útmutatóban végig a `lineup.example.com` címet használjuk példaként. Ahol ezt látod, a **saját címedet** írd be. Ha például a `example.net` domaint vetted meg, a címed `https://example.net` (előtte nincs `lineup.`, a végén pedig nincs perjel).
 
 Ha egy lépésnél az áll, hogy kérj segítséget, fordulj ahhoz, aki az útmutatót adta. Ha nincs ilyen, nyiss egy hibajegyet (issue) a projekt GitHub-oldalán, és írd le, mit csináltál és mit láttál; jelszót, tokent vagy titkos kulcsot soha ne írj bele.
 
@@ -131,7 +131,7 @@ konténerek táblázata, akár üresen is. Ha a karbantartó mindig a géphez ü
 
 1. Hozz létre egy [Cloudflare](https://dash.cloudflare.com/sign-up)-fiókot. Ha van közös postaládátok
    (például `iroda@egyesulet.example`, nem egy ember privát levelezése), azt add meg. A profilbeállításokban kapcsold be a **kétlépcsős azonosítást** (minden belépésnél kell egy kód a telefonodról): ezen a fiókon keresztül lehet elérni a gépet.
-2. Vegyél egy domaint (egy `myteam.com`-hoz hasonló nevet), nagyjából 10 euró évente, és kapcsold be az **automatikus megújítást** (auto-renew): ha a domain lejár, az oldal szó nélkül leáll. Döntsétek el, ki fizeti és ki újítja meg. A legegyszerűbb a **Cloudflare Registrar**, mert így máshol semmit nem kell intézned. Ha nem kapható nála a kívánt végződés (például `.com` vagy `.hu`), vedd meg máshol, add hozzá a Cloudflare-hez (keresd az "Add a domain"
+2. Vegyél egy domaint (egy `example.net`-hoz hasonló nevet), nagyjából 10 euró évente, és kapcsold be az **automatikus megújítást** (auto-renew): ha a domain lejár, az oldal szó nélkül leáll. Döntsétek el, ki fizeti és ki újítja meg. A legegyszerűbb a **Cloudflare Registrar**, mert így máshol semmit nem kell intézned. Ha nem kapható nála a kívánt végződés (például `.com` vagy `.hu`), vedd meg máshol, add hozzá a Cloudflare-hez (keresd az "Add a domain"
    gombot), és az eladónál írd át a névszervereket (nameserver) arra a kettőre, amelyet a Cloudflare mutat (úgy néznek ki, mint `xxx.ns.cloudflare.com`; az eladó DNS-beállító oldalán kell beírnod őket). Olyan nevet
    válassz, amelyből nem derül ki, hol van a gép (ne legyen benne utca vagy lakóhely neve).
 3. Írd a privát jegyzetedbe: `PUBLIC_URL=https://lineup.example.com`, a saját domainaddal és **perjel nélkül a végén**.

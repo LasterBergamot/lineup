@@ -5,7 +5,7 @@ written for people who have never used a terminal. The Hungarian version, with t
 same order, is [[Saját gépes telepítés]]. Developers who want the architecture and the details should read
 [[Self Hosting Reference]].
 
-This guide uses `lineup.example.com` everywhere as an example. Wherever you see it, type **your own address**. If you bought the domain `myteam.com`, your address is `https://myteam.com` (no `lineup.` in front, and no slash at the end).
+This guide uses `lineup.example.com` everywhere as an example. Wherever you see it, type **your own address**. If you bought the domain `example.net`, your address is `https://example.net` (no `lineup.` in front, and no slash at the end).
 
 If a step says "ask for help", ask the person who gave you this guide. If there is nobody, open an issue on the project's GitHub page and describe what you did and what you saw; never include a password, token or secret.
 
@@ -134,7 +134,7 @@ of containers, or an empty one. Skip this test if the caretaker will always sit 
 
 1. Create a [Cloudflare](https://dash.cloudflare.com/sign-up) account. If you have a shared mailbox (an address such as `office@yourclub.example`, not one person's private mail), use that. Turn on **two-factor authentication** (a code from your phone each time you sign in) in the profile
    settings: this account will control the way into the machine.
-2. Buy a domain (a name like `myteam.com`), about EUR 10 a year, and turn on **auto-renew**: if the domain expires, the site silently stops working. Decide who pays and renews it. **Cloudflare Registrar** is the simplest, as nothing else is needed. If it
+2. Buy a domain (a name like `example.net`), about EUR 10 a year, and turn on **auto-renew**: if the domain expires, the site silently stops working. Decide who pays and renews it. **Cloudflare Registrar** is the simplest, as nothing else is needed. If it
    does not sell the ending you want (such as `.com` or `.hu`), buy the domain elsewhere, add it to Cloudflare (look for "Add a domain") and
    change the nameservers at the seller to the two names Cloudflare shows you (they look like `xxx.ns.cloudflare.com`; you type them into the seller's DNS settings page). Choose a name that does not reveal where
    the machine is (no street or home town in it).
