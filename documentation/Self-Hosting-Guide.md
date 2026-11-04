@@ -3,7 +3,7 @@
 How to run your own copy of Lineup on one always-on machine (a NAS or a small server), step by step,
 written for people who have never used a terminal. The Hungarian version, with the same steps in the
 same order, is [[Saját gépes telepítés]]. Developers who want the architecture and the details should read
-[[Self-Hosting Reference]].
+[[Self Hosting Reference]].
 
 This guide uses `lineup.example.com` everywhere. Replace it with your own domain.
 
@@ -395,7 +395,7 @@ To go to a specific version instead, add it: `./lineup.sh update --version v0.2.
 
 Do not improvise. If neither message is shown, ask for help.
 
-Developers can run the same update from their own computer; see [[Self-Hosting Reference]].
+Developers can run the same update from their own computer; see [[Self Hosting Reference]].
 
 ---
 

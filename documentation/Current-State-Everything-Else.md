@@ -155,8 +155,8 @@ git-ignored.
   stack with throw-away secrets, signs users up in the real Auth, runs the live smoke test against it,
   generates a real PDF, and proves a token signed by another key is refused. CI runs it as a report-only
   job. Dependabot watches the images in `selfhost/` and the base images in `frontend/`.
-  The operator guides ([[Self-Hosting Guide]], and [[Saját gépes telepítés]] in Hungarian) and the developer
-  [[Self-Hosting Reference]] describe how it is meant to be installed, updated, backed up and restored.
+  The operator guides ([[Self Hosting Guide]], and [[Saját gépes telepítés]] in Hungarian) and the developer
+  [[Self Hosting Reference]] describe how it is meant to be installed, updated, backed up and restored.
 - Containers can be monitored with `lazydocker`.
 - PDF conversion **only works inside the container** — it's why the API must be run via
   `task build` + `task up`, not `task serve`.

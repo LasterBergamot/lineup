@@ -290,8 +290,8 @@ Besides the cloud setup (Fly.io, Cloudflare Pages, Supabase), the repo can run o
 `selfhost/`: Postgres, a self-hosted Supabase Auth server (Google sign-in only), the API, a Caddy web server and a
 Cloudflare Tunnel, as one Docker Compose stack that publishes no port. It has its own data and shares nothing with the
 cloud install, and the cloud code paths only change through opt-in environment variables. You do not need it to
-work on Lineup, but read [[Self-Hosting Reference]] before you touch `selfhost/`, `frontend/Dockerfile` or the
-`AUTH_JWKS_URL` and `DATABASE_TLS` settings. Operators follow [[Self-Hosting Guide]] (or [[Saját gépes telepítés]]
+work on Lineup, but read [[Self Hosting Reference]] before you touch `selfhost/`, `frontend/Dockerfile` or the
+`AUTH_JWKS_URL` and `DATABASE_TLS` settings. Operators follow [[Self Hosting Guide]] (or [[Saját gépes telepítés]]
 in Hungarian), which is written for people who have never used a terminal: keep those pages that plain when you change
 them.
 

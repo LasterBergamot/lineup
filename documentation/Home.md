@@ -35,9 +35,9 @@ saved roster instead of a one-off request payload.
   [[Privacy Notice]] (Hungarian + English, with the Art. 14 template for clubs),
   [[Terms and Processor Agreement]], [[Compliance Records]] (Art. 30, legitimate-interest
   assessment, DPIA screening) and [[Breach Runbook]]
-- [[Self-Hosting Guide]] — running your own copy of Lineup on one always-on machine (NAS or small server), step by
+- [[Self Hosting Guide]] — running your own copy of Lineup on one always-on machine (NAS or small server), step by
   step, for people who have never used a terminal: preparation, install, updates, backups, restore and troubleshooting.
-  [[Saját gépes telepítés]] is the same guide in Hungarian, and [[Self-Hosting Reference]] is the technical side
+  [[Saját gépes telepítés]] is the same guide in Hungarian, and [[Self Hosting Reference]] is the technical side
   (architecture, services, settings, upgrades, backup format, how CI tests it)
 - [[References]] — official docs and links for every library, tool, service, spec and regulation
   we use (the dependency tables are generated from the repo)

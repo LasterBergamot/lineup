@@ -2,7 +2,7 @@
 
 The technical reference for the optional self-hosted install (`selfhost/`): how it is built, why, what every
 service and setting does, how updates, backups and restores work, and how CI tests it. For the step-by-step
-operator instructions read [[Self-Hosting Guide]] (English) or [[Saját gépes telepítés]] (Hungarian). The
+operator instructions read [[Self Hosting Guide]] (English) or [[Saját gépes telepítés]] (Hungarian). The
 working plan is `self-host-plan.md` in the repo root (epic #250) while it exists; the rules for working in
 `selfhost/` are in `.claude/rules/selfhost.md`.
 

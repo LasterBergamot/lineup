@@ -2,8 +2,8 @@
 
 Hogyan futtasd a Lineup saját példányát egyetlen, folyamatosan bekapcsolt gépen (NAS-on vagy kis szerveren),
 lépésről lépésre, olyanoknak írva, akik még soha nem használtak terminált. Az angol változat, ugyanazokkal a
-lépésekkel, ugyanabban a sorrendben: [[Self-Hosting Guide]]. A fejlesztőknek szóló műszaki leírás (felépítés,
-részletek): [[Self-Hosting Reference]].
+lépésekkel, ugyanabban a sorrendben: [[Self Hosting Guide]]. A fejlesztőknek szóló műszaki leírás (felépítés,
+részletek): [[Self Hosting Reference]].
 
 Ebben az útmutatóban végig a `lineup.example.com` címet használjuk. Cseréld a saját domainedre.
 
@@ -399,7 +399,7 @@ parancsot.
 
 Ne próbálkozz saját megoldással. Ha egyik üzenet sem jelenik meg, kérj segítséget.
 
-A fejlesztők ugyanezt a frissítést a saját számítógépükről is el tudják indítani; lásd [[Self-Hosting Reference]].
+A fejlesztők ugyanezt a frissítést a saját számítógépükről is el tudják indítani; lásd [[Self Hosting Reference]].
 
 ---
 
