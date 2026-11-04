@@ -166,7 +166,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [x] | **T3** Web image | #254 | Sonnet 5.5, high | #263 |
 | [x] | **T4** Compose stack and CI job | #255 | Sonnet 5.5, high | #265 |
 | [ ] | **T5** Release publishing | #256 | Haiku 5.5, high | |
-| [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
+| [x] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | #272 |
 | [x] | **T7** `task deploy` | #258 | Haiku 5.5, high | #270 |
 | [ ] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | |
 | [x] | **T9** GDPR documents | #260 | Sonnet 5.5, high | #269 |
@@ -966,7 +966,7 @@ success, non-zero with a clear message otherwise.
 next `BACKUP_HOUR` (UTC) in a loop. One backup: `pg_dump -Fc lineup` to `lineup-<date>.dump.tmp`, then
 `pg_dump -Fc auth --exclude-table-data=auth.sessions --exclude-table-data=auth.refresh_tokens
 --exclude-table-data=auth.one_time_tokens --exclude-table-data=auth.flow_state` (the four token-bearing tables
-T1 found, out of 27 in `auth`), to `auth-<date>.dump.tmp`. Only when **both** succeed, `mv` both to their final names and
+T1 found, out of 27 in `auth`), **plus `--exclude-table-data=auth.mfa_amr_claims`** (added in #272: its rows reference `sessions`, so without it `pg_restore` fails on that foreign key), to `auth-<date>.dump.tmp`. Only when **both** succeed, `mv` both to their final names and
 write the current time to `last-success`. Then delete `*.dump` older than `BACKUP_RETENTION_DAYS`. A failure logs
 the fact without any SQL detail, and leaves older backups alone. Excluding token tables means a stolen backup
 cannot be used to take over a signed-in session, and a restore simply signs people out.
@@ -1184,3 +1184,4 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
 | 2026-11-04 | T7 landed: `scripts/deploy.py` and `task deploy` (`--cloud` runs `deploy-dev.yml` through `gh` and watches it; `--local` runs `./lineup.sh update` over SSH; typed `yes` unless `--yes`; settings from the environment or `~/.config/lineup/selfhost.env`, mode 600, never printed), with `backend/tests/test_deploy_script.py`. Change from the plan: ssh gets `--` before the target (BSD `getopt` on macOS would pass a `--` placed after the host to the machine). Extra refusals: `--version` only as `vX.Y.Z`, and not with `--cloud`. | #258, PR #270 |
 | 2026-11-04 | T9 landed: `Privacy-and-Security.md` section 11 (roles, `auth` tables, sub-processors, backups, logs, Art. 32 measures, pre-invite checklist), self-hosted paragraphs in the privacy notice (HU + EN), a processor agreement template for the machine's owner, the Art. 30 variant and DPIA screening, self-hosted breach steps, and a note in `requirements.md` (the skill directory is lineup-owned, so it was edited here). Audit-log table contents on a real install are marked to confirm in T10. | #260, PR #269 |
+| 2026-11-04 | T6 landed: `selfhost/lineup.sh` (doctor, install, update, backup, restore, status, menu), `selfhost/messages/{hu,en}.sh`, the `backup` service and `selfhost/backup/backup.sh`, `backend/tests/test_selfhost_script.py` (fake docker and curl), the backup, wipe, restore and sign-in round trip in `scripts/selfhost_e2e.py`, ShellCheck in the `selfhost` CI job (`task selfhost:lint`), README "Self-hosting" with the backup limits. Changes from the plan: `auth.mfa_amr_claims` data is excluded too (the restore test showed it breaks `pg_restore` otherwise); the host sets the backup folder mode and the container gets only `CHOWN` (a `chmod` there would need `FOWNER`), so copying the folder by hand needs `sudo`; `backup.sh --safety` names the pre-restore copy `safety-<timestamp>` so it cannot replace the day's backup; test-only environment settings in `lineup.sh` (`LINEUP_ENV_FILE`, `LINEUP_COMPOSE_FILES`, `LINEUP_PROJECT`, health-check settings). | #257, PR #272 |
