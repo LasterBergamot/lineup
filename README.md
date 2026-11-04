@@ -344,7 +344,7 @@ lineup/
 ├── .claude/                         # settings.json; skills/ and agents/ (generic ones installed from ai-common); rules/ (path-scoped, auto-loaded); context/ (read on demand)
 ├── apm.yml  apm.lock.yaml           # APM: pins the ai-common version the generic skills come from (apm_modules/ is git-ignored)
 ├── PLAN.md                          # Working plan: the dev preview
-├── self-host-plan.md                # Working plan: the optional self-hosted install (in progress: the stack and its test exist, the installer and guides do not yet)
+├── self-host-plan.md                # Working plan: the optional self-hosted install (in progress: the stack, its test and the operator guides exist, the installer does not yet)
 ├── CLAUDE.md  README.md             # Assistant router (detail in .claude/rules + .claude/context); this file
 ├── frontend/                        # React + TypeScript + Vite web app (pnpm)
 │   ├── DESIGN.md                    # Design system spec (tokens, shapes, wordmark)

@@ -75,7 +75,7 @@ flowchart LR
 The work to get the dev environment running end-to-end (frontend, auth, invitations, CD) is
 planned in `PLAN.md` at the repo root.
 
-## Optional self-hosted install (planned)
+## Optional self-hosted install (in progress)
 
 Today Lineup runs in the cloud: the API on Fly.io, the web app on Cloudflare Pages, the data and sign-in on
 Supabase. That stays. The planned addition is a **second, separate install** that runs on one always-on
@@ -91,7 +91,14 @@ kept for 30 days, so losing the machine would lose the data.
 Self-hosting does not take the app out of GDPR: the rules on the [[Privacy and Security]] page still apply, and
 that page gains a self-hosted section as part of this work.
 
-The decisions and tasks are in `self-host-plan.md` in the repo root (epic #250). Nothing is built yet.
+The decisions and tasks are in `self-host-plan.md` in the repo root (epic #250).
+
+**Done:** the backend settings, the web image, the Compose stack with its end-to-end CI test, `task deploy`, the GDPR documents for self-hosted installs, and the operator
+documentation: [[Self Hosting Guide]] and [[Saját gépes telepítés]] (step-by-step, for non-IT readers, English and
+Hungarian) and [[Self Hosting Reference]] (for developers). **Still planned:** the installer and backup tool
+(`selfhost/lineup.sh`), publishing the images and the bundle with a release, and
+a real install with verification. The Self-Hosting Reference ends with a list of what is
+not built yet.
 
 ## Multi-tenancy rollout
 
