@@ -12,6 +12,8 @@ docs/
 # Self-hosted install: its secrets and the nightly backups (database dumps = personal data)
 selfhost/.env
 selfhost/backups/
+# Written by the release workflow's publish job into the bundle; never committed
+selfhost/VERSION
 
 # Throw-away signing key made by `task test-e2e`
 .e2e-auth/

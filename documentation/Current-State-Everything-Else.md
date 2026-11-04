@@ -254,7 +254,9 @@ Four GitHub Actions workflows (`.github/workflows/`):
   that every page is linked from `Home.md`; the workflow itself only runs on `develop`.
 - **`release.yml`** — by hand (#17): checks that `backend/pyproject.toml` and `frontend/package.json` carry the same
   untagged `MAJOR.MINOR.PATCH` version, then creates the `vX.Y.Z` tag and a GitHub Release (pre-release below 1.0)
-  with generated notes and the Alembic migrations added since the last tag. It needs only `contents: write`, no
+  with generated notes and the Alembic migrations added since the last tag. Its `publish` job (#256, `packages: write`
+  only there) pushes `ghcr.io/lasterbergamot/lineup-api:vX.Y.Z` and `lineup-web:vX.Y.Z` (amd64 only) and attaches the
+  self-hosted bundle `selfhost-vX.Y.Z.tar.gz` with its `.sha256`. The release job needs only `contents: write`, no
   secrets, and runs from `develop` or `main`. The bump itself is `task release:bump` in a normal PR.
 - **`keepalive.yml`** — on Mondays and Thursdays (and by hand): runs `SELECT 1` through the Supabase
   transaction pooler with the `KEEPALIVE_DATABASE_URL` Actions secret (a plain `postgresql://…?sslmode=require`
