@@ -255,7 +255,10 @@ class TestCheckDocsTouched:
         assert code_file.replace("__", "/") in result.stderr
 
     def test_other_frontend_files_do_not_need_docs(self, git_repo):
-        _commit(git_repo, **{"frontend__Dockerfile.notes": "x", "frontend__.dockerignore": "x"})
+        _commit(
+            git_repo,
+            **{"frontend__Dockerfile.notes": "x", "frontend__.dockerignore": "x"},
+        )
         assert _run_check(git_repo).returncode == 0
 
     @pytest.mark.parametrize(
