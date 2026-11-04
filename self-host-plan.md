@@ -169,7 +169,7 @@ Part M (owner) can start right away and runs alongside T1 to T9. Only T10 needs 
 | [ ] | **T6** `lineup.sh` and backups | #257 | Sonnet 5.5, high | |
 | [ ] | **T7** `task deploy` | #258 | Haiku 5.5, high | |
 | [ ] | **T8** Operator guides (HU + EN) and reference | #259 | Sonnet 5.5, high (Hungarian text) | |
-| [ ] | **T9** GDPR documents | #260 | Sonnet 5.5, high | |
+| [x] | **T9** GDPR documents | #260 | Sonnet 5.5, high | #269 |
 | [ ] | **T10** Real install and verification | #261 | Sonnet 5.5, high, plus the owner's phone checks | |
 
 ---
@@ -1182,3 +1182,4 @@ Everything else is in part M. These need something that only exists later, or a 
 | 2026-11-04 | T2 landed: `AUTH_JWKS_URL`, `DATABASE_TLS=internal-network`, `lineup.db.selfhost_bootstrap`, `lineup.auth.signing_key`, with tests and docs. | #253, PR #264 |
 | 2026-11-04 | T3 web image: `VITE_AUTH_SAME_ORIGIN`, `frontend/Dockerfile`, Caddyfile, `.dockerignore`, header/route tests. pnpm is installed from `packageManager` with npm because `node:lts` has no corepack. | #254, PR #263 |
 | 2026-11-04 | T4 landed: `selfhost/compose.yml` (no published port), Postgres init script, `.env.example`, test overlay, `task selfhost:test` (real Auth tokens, real PDF, reuses `smoke_live.py`), guard test, report-only `selfhost` CI job, Dependabot entries. Changes from the plan: `web` needs `cap_add: [NET_BIND_SERVICE]` (the Caddy binary's file capability); `GOTRUE_JWT_DEFAULT_GROUP_NAME` dropped (unsupported, tokens unchanged); test users sign up straight against Auth from inside the `api` container, because the Caddy allow-list has no `/signup`. | #255, PR #265 |
+| 2026-11-04 | T9 landed: `Privacy-and-Security.md` section 11 (roles, `auth` tables, sub-processors, backups, logs, Art. 32 measures, pre-invite checklist), self-hosted paragraphs in the privacy notice (HU + EN), a processor agreement template for the machine's owner, the Art. 30 variant and DPIA screening, self-hosted breach steps, and a note in `requirements.md` (the skill directory is lineup-owned, so it was edited here). Audit-log table contents on a real install are marked to confirm in T10. | #260, PR #269 |
