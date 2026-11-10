@@ -15,7 +15,7 @@ ENV VITE_AUTH_SAME_ORIGIN=true \
     VITE_COLD_START_NOTICE=false
 RUN pnpm build
 
-FROM caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5 AS runtime
+FROM caddy:2-alpine@sha256:78bd35025c7ba85961dd149ae670315129954e77abe2383ac47c89106b35ade9 AS runtime
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 COPY --from=builder /app/dist /srv
 # `_headers` is Cloudflare Pages syntax; Caddy sets the same headers itself. Caddy keeps its state
