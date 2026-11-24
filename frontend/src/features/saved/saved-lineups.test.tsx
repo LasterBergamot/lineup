@@ -44,6 +44,7 @@ function lineup(n: number, overrides: Partial<SavedLineup> = {}): SavedLineup {
     date: `2026. 10. ${n}.`,
     match_date: null,
     match_time: null,
+    location: null,
     coach: "Coach",
     doctor: null,
     assistant_coach: null,
