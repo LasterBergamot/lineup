@@ -63,6 +63,23 @@ describe("emptyValues with a team default division", () => {
   });
 });
 
+describe("emptyValues with staff defaults", () => {
+  it("pre-fills each role that has a default and leaves the doctor empty", () => {
+    expect(emptyValues("", { coach: "Edző Ede", team_leader: "Vezető Vera" })).toEqual({
+      ...emptyValues(),
+      coach: "Edző Ede",
+      team_leader: "Vezető Vera",
+    });
+    expect(emptyValues()).toMatchObject({
+      coach: "",
+      doctor: "",
+      assistant_coach: "",
+      team_leader: "",
+      ball_thrower: "",
+    });
+  });
+});
+
 describe("toLineupRequest", () => {
   it("names the match after the teams and prints only the filled rows", () => {
     const body = toLineupRequest(values(), "SZVTK");

@@ -1,13 +1,14 @@
 import { useTranslation } from "react-i18next";
 import { DirectoryCard } from "@/features/directory/directory-card";
 import { PlayersCard } from "@/features/players/players-card";
+import { StaffCard } from "@/features/staff/staff-card";
 import { useTeams } from "@/features/teams/context";
 import { TeamSettingsCard } from "@/features/teams/team-settings-card";
 
 /**
- * The current team's roster: its players (everyone in the team can edit them), the team settings
- * (owners only) and a search over the shared opponent directory. The settings card is hidden from
- * members as a courtesy; the server answers 403 to them regardless.
+ * The current team's roster: its players and its staff (everyone in the team can edit both), the
+ * team settings (owners only) and a search over the shared opponent directory. The settings card
+ * is hidden from members as a courtesy; the server answers 403 to them regardless.
  */
 export function RosterPage() {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ export function RosterPage() {
       </div>
       <div className="grid max-w-3xl gap-6">
         <PlayersCard team={current} />
+        <StaffCard team={current} />
         {current.role === "owner" && <TeamSettingsCard team={current} />}
         <DirectoryCard />
       </div>

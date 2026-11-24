@@ -133,12 +133,25 @@ describe("emptyQuickSheetValues", () => {
   it("opens with white caps and the 15 empty cap rows", () => {
     vi.useFakeTimers({ now: new Date(2026, 10, 24, 18, 30) });
     expect(emptyQuickSheetValues()).toEqual({
+      coach: "",
+      assistant_coach: "",
+      team_leader: "",
+      ball_thrower: "",
       cap: "Fehér",
       match_date: "2026-11-24",
       match_time: "",
       players: rows(),
     });
     vi.useRealTimers();
+  });
+
+  it("starts each staff field with the role's default", () => {
+    expect(emptyQuickSheetValues({ coach: "Edző Ede", ball_thrower: "Dobó Dóra" })).toMatchObject({
+      coach: "Edző Ede",
+      assistant_coach: "",
+      team_leader: "",
+      ball_thrower: "Dobó Dóra",
+    });
   });
 });
 

@@ -10,6 +10,7 @@ import { LineupCreator } from "@/features/creator/lineup-creator";
 import { emptyValues } from "@/features/creator/resolve";
 import { SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
 import type { Player } from "@/features/players/api";
+import type { Staff } from "@/features/staff/api";
 import type { Team } from "@/features/teams/api";
 import { fakeAuthClient, fakeSession, teamsPage, testQueryClient } from "@/test/auth";
 import { unsavedProbe } from "@/test/unsaved";
@@ -75,6 +76,7 @@ function SignedIn(props: Parameters<typeof LineupCreator>[0]) {
 function renderCreator(
   props: {
     roster?: Player[];
+    staff?: Staff[];
     initialValues?: ReturnType<typeof emptyValues>;
     division?: string | null;
   } = {},
@@ -96,6 +98,7 @@ function renderCreator(
               <SignedIn
                 team={team}
                 roster={props.roster ?? [ANN, BEN]}
+                staff={props.staff}
                 initialValues={props.initialValues}
               />
             </unsaved.Wrapper>
@@ -297,6 +300,80 @@ describe("LineupCreator form", () => {
     await fillMatch(user);
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
+  });
+});
+
+function staffEntry(name: string, role: Staff["role"], is_default = false): Staff {
+  return {
+    id: `st-${name}`,
+    team_id: TEAM_ID,
+    role,
+    name,
+    source_player_id: null,
+    is_default,
+    created_at: "",
+  };
+}
+
+const STAFF = [
+  staffEntry("Zala Zoltán", "coach"),
+  staffEntry("Edző Ede", "coach", true),
+  staffEntry("Ács Ádám", "coach"),
+  staffEntry("Vezető Vera", "team_leader", true),
+  staffEntry("Dobó Dóra", "ball_thrower"),
+];
+
+describe("LineupCreator staff pickers", () => {
+  it("starts a new lineup with each role's default, not dirty, and leaves the doctor empty", async () => {
+    const { isDirty } = renderCreator({ staff: STAFF });
+    expect(await screen.findByRole("combobox", { name: "Coach" })).toHaveValue("Edző Ede");
+    expect(screen.getByRole("combobox", { name: "Team leader (optional)" })).toHaveValue(
+      "Vezető Vera",
+    );
+    // A role without a default starts empty; the doctor stays a plain input.
+    expect(screen.getByRole("combobox", { name: "Ball thrower (optional)" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Assistant coach (optional)" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Doctor (optional)" })).toHaveValue("");
+    expect(isDirty()).toBe(false);
+  });
+
+  it("offers the role's entries, default first, and saves the picked or typed name", async () => {
+    const user = userEvent.setup();
+    mocks.createSavedLineup.mockResolvedValue(SAVED);
+    const { isDirty } = renderCreator({ staff: STAFF });
+    const coach = await screen.findByRole("combobox", { name: "Coach" });
+    await user.click(coach);
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "Edző Ede",
+      "Ács Ádám",
+      "Zala Zoltán",
+    ]);
+    await user.click(screen.getByRole("option", { name: "Ács Ádám" }));
+    expect(coach).toHaveValue("Ács Ádám");
+    expect(isDirty()).toBe(true);
+    // Free text still works, for a name that is not on the staff list.
+    const thrower = screen.getByRole("combobox", { name: "Ball thrower (optional)" });
+    await user.type(thrower, "Új Dobó");
+    await user.type(screen.getByLabelText("Opponent"), "Csongrád");
+    await user.type(screen.getByLabelText("Division"), "OB I.");
+    await pick(1, "Kovács Anna");
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    await waitFor(() => expect(mocks.createSavedLineup).toHaveBeenCalledOnce());
+    expect(mocks.createSavedLineup.mock.calls[0]![0]).toMatchObject({
+      coach: "Ács Ádám",
+      team_leader: "Vezető Vera",
+      ball_thrower: "Új Dobó",
+    });
+    expect(mocks.createSavedLineup.mock.calls[0]![0].assistant_coach).toBeUndefined();
+  });
+
+  it("keeps a cloned lineup's own staff over the defaults", async () => {
+    renderCreator({
+      staff: STAFF,
+      initialValues: { ...emptyValues(), coach: "Klón Edző", team_leader: "" },
+    });
+    expect(await screen.findByRole("combobox", { name: "Coach" })).toHaveValue("Klón Edző");
+    expect(screen.getByRole("combobox", { name: "Team leader (optional)" })).toHaveValue("");
   });
 });
 

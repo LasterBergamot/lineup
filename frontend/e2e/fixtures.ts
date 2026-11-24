@@ -26,6 +26,16 @@ interface Player {
   created_at: string;
 }
 
+interface Staff {
+  id: string;
+  team_id: string;
+  role: "coach" | "assistant_coach" | "team_leader" | "ball_thrower";
+  name: string;
+  source_player_id: string | null;
+  is_default: boolean;
+  created_at: string;
+}
+
 interface Saved {
   id: string;
   team_id: string;
@@ -50,6 +60,8 @@ interface Saved {
 export interface FakeApi {
   teams: Team[];
   players: Player[];
+  /** The team staff (#289); a new default clears the role's old one, as the API does. */
+  staff: Staff[];
   saved: Saved[];
   /** Every `POST /lineups` body, so a test can check what the preview was asked to render. */
   previews: unknown[];
@@ -94,6 +106,37 @@ export const team = (name: string, role: Team["role"] = "owner"): Team => ({
   created_at: NOW,
   role,
 });
+
+/** Made-up staff: a default coach, a second coach and a team leader picked from the roster. */
+export const makeStaff = (teamId: string): Staff[] => [
+  {
+    id: "st-1",
+    team_id: teamId,
+    role: "coach",
+    name: "Coach Default",
+    source_player_id: null,
+    is_default: true,
+    created_at: NOW,
+  },
+  {
+    id: "st-2",
+    team_id: teamId,
+    role: "coach",
+    name: "Coach Second",
+    source_player_id: null,
+    is_default: false,
+    created_at: NOW,
+  },
+  {
+    id: "st-3",
+    team_id: teamId,
+    role: "team_leader",
+    name: "Player 02",
+    source_player_id: "p-2",
+    is_default: false,
+    created_at: NOW,
+  },
+];
 
 /** Fifteen made-up players, enough to fill a lineup. */
 export const makePlayers = (teamId: string): Player[] =>
@@ -203,6 +246,39 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
           return json(route, joined);
         }
       }
+      const staff = /^\/teams\/([^/]+)\/staff(?:\/([^/]+))?$/.exec(path);
+      if (staff) {
+        const [, staffTeam, staffId] = staff;
+        if (method === "GET" && !staffId) {
+          return json(
+            route,
+            api.staff.filter((s) => s.team_id === staffTeam),
+          );
+        }
+        if (method === "DELETE" && staffId) {
+          api.staff = api.staff.filter((s) => s.id !== staffId);
+          return route.fulfill({ status: 204 });
+        }
+        if ((method === "POST" && !staffId) || (method === "PUT" && staffId)) {
+          const body = request.postDataJSON() as Omit<Staff, "id" | "team_id" | "created_at">;
+          const saved: Staff = {
+            id: staffId ?? `st-${api.staff.length + 1}-${Date.now()}`,
+            team_id: staffTeam!,
+            created_at: NOW,
+            ...body,
+            source_player_id: body.source_player_id ?? null,
+          };
+          if (saved.is_default) {
+            for (const s of api.staff) {
+              if (s.team_id === saved.team_id && s.role === saved.role) s.is_default = false;
+            }
+          }
+          api.staff = staffId
+            ? api.staff.map((s) => (s.id === staffId ? saved : s))
+            : [...api.staff, saved];
+          return json(route, saved, staffId ? 200 : 201);
+        }
+      }
       if (method === "GET" && path === "/teams/pool") return json(route, []);
       if (method === "GET" && /^\/teams\/[^/]+\/opponents\/recent$/.test(path)) {
         return json(route, ["Opponent 1"]);
@@ -253,6 +329,7 @@ export const test = base.extend<Fixtures>({
     await use({
       teams: [t],
       players: makePlayers(t.id),
+      staff: makeStaff(t.id),
       saved: [makeSaved(t, 1), makeSaved(t, 2), makeSaved(t, 3)],
       previews: [],
       invites: {},

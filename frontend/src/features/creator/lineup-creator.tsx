@@ -31,6 +31,8 @@ import { filledRows, isEmptyRow } from "@/features/lineup/cap-rows";
 import { CAP_COLOURS, MAX_PLAYERS } from "@/features/lineup/schema";
 import { SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
 import type { Player } from "@/features/players/api";
+import { staffDefaults, type Staff } from "@/features/staff/api";
+import { StaffCombobox } from "@/features/staff/staff-combobox";
 import { PdfViewer } from "@/features/preview/pdf-viewer";
 import { PreviewPanel } from "@/features/preview/preview-panel";
 import type { Team } from "@/features/teams/api";
@@ -48,8 +50,8 @@ const DOWNLOADS = [
   ["docx", "lineup.downloadDocx"],
 ] as const;
 
+/** The optional staff fields with a staff picker (#289); the doctor stays a plain input. */
 const STAFF_FIELDS = [
-  ["doctor", "fields.doctor"],
   ["assistant_coach", "fields.assistantCoach"],
   ["team_leader", "fields.teamLeader"],
   ["ball_thrower", "fields.ballThrower"],
@@ -62,6 +64,9 @@ const STAFF_FIELDS = [
  * it. Empty rows are left out of the sheet. A saved lineup can be downloaded right away and is
  * kept in the team's workspace.
  *
+ * The coach, assistant coach, team leader and ball thrower are free text with the team's `staff`
+ * as suggestions (#289); a new lineup starts with each role's default, a clone keeps its own.
+ *
  * The form values include players' names and NSSZ numbers: they live in component state only (no
  * storage, no logging), the preview file is a `Blob` that is dropped when the panel closes, and
  * "Save" sends the roster ids so the server freezes the current values itself.
@@ -69,10 +74,13 @@ const STAFF_FIELDS = [
 export function LineupCreator({
   team,
   roster,
+  staff = [],
   initialValues,
 }: {
   team: Team;
   roster: readonly Player[];
+  /** The team's staff entries: the staff fields' suggestions and a new lineup's defaults. */
+  staff?: readonly Staff[];
   initialValues?: CreatorValues;
 }) {
   const { t } = useTranslation();
@@ -91,13 +99,17 @@ export function LineupCreator({
     formState: { errors, isDirty },
   } = useForm<CreatorValues>({
     resolver: zodResolver(creatorSchema),
-    defaultValues: initialValues ?? emptyValues(team.division ?? ""),
+    defaultValues: initialValues ?? emptyValues(team.division ?? "", staffDefaults(staff)),
   });
   // Leaving with unsaved input asks first; the save's `reset(values)` turns the guard off.
   useUnsavedChangesGuard(isDirty);
   const players = useWatch({ control, name: "players" });
   const opponent = useWatch({ control, name: "opponent" });
   const cap = useWatch({ control, name: "cap" });
+  const staffValues = useWatch({
+    control,
+    name: ["coach", "assistant_coach", "team_leader", "ball_thrower"],
+  });
 
   function showServerErrors(error: unknown, sent: CreatorValues) {
     for (const { path, message } of fieldErrors(error)) {
@@ -241,15 +253,37 @@ export function LineupCreator({
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <Field label={t("fields.coach")} error={errors.coach?.message}>
-              {(props) => <Input {...props} {...register("coach")} />}
+              {(props) => (
+                <StaffCombobox
+                  {...props}
+                  staff={staff}
+                  role="coach"
+                  value={staffValues[0]}
+                  onChange={(name) => setValue("coach", name, { shouldDirty: true })}
+                />
+              )}
             </Field>
-            {STAFF_FIELDS.map(([name, labelKey]) => (
+            <Field
+              label={`${t("fields.doctor")} (${t("creator.optional")})`}
+              error={errors.doctor?.message}
+            >
+              {(props) => <Input {...props} {...register("doctor")} />}
+            </Field>
+            {STAFF_FIELDS.map(([name, labelKey], index) => (
               <Field
                 key={name}
                 label={`${t(labelKey)} (${t("creator.optional")})`}
                 error={errors[name]?.message}
               >
-                {(props) => <Input {...props} {...register(name)} />}
+                {(props) => (
+                  <StaffCombobox
+                    {...props}
+                    staff={staff}
+                    role={name}
+                    value={staffValues[index + 1]!}
+                    onChange={(text) => setValue(name, text, { shouldDirty: true })}
+                  />
+                )}
               </Field>
             ))}
           </CardContent>

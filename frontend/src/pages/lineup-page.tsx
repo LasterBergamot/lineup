@@ -11,6 +11,7 @@ import { getSavedLineup } from "@/features/creator/api";
 import { valuesFromSaved } from "@/features/creator/resolve";
 import { LineupForm } from "@/features/lineup/lineup-form";
 import { listPlayers, playersKey } from "@/features/players/api";
+import { listStaff, staffKey } from "@/features/staff/api";
 import { useTeams } from "@/features/teams/context";
 
 /**
@@ -18,8 +19,11 @@ import { useTeams } from "@/features/teams/context";
  * saves it; "Quick sheet" is the one-off form for a lineup nobody needs to keep. When the Saved
  * page sends the id of a lineup to clone (`location.state.cloneFromId`), the page fetches it and the
  * creator starts from it. Both modes stay mounted and the inactive one is hidden, so switching
- * keeps what was typed in either (the values live in component state only, never in storage). Only the id travels in the router state: the lineup itself holds players'
- * names and NSSZ numbers, which must not end up in the browser's history entries.
+ * keeps what was typed in either (the values live in component state only, never in storage).
+ * Only the id travels in the router state: the lineup itself holds players' names and NSSZ
+ * numbers, which must not end up in the browser's history entries. Both forms wait for the team's
+ * staff (#289), since a new lineup starts with each role's default and those are read only once,
+ * when the form mounts.
  */
 export function LineupPage() {
   const { t } = useTranslation();
@@ -30,6 +34,11 @@ export function LineupPage() {
   const roster = useQuery({
     queryKey: playersKey(userId, current?.id ?? ""),
     queryFn: () => listPlayers(current!.id),
+    enabled: Boolean(current),
+  });
+  const staff = useQuery({
+    queryKey: staffKey(userId, current?.id ?? ""),
+    queryFn: () => listStaff(current!.id),
     enabled: Boolean(current),
   });
   const requested = (location.state as { cloneFromId?: unknown } | null)?.cloneFromId;
@@ -70,26 +79,33 @@ export function LineupPage() {
             The `hidden` goes on a wrapper without a display class: `flex` would override it. */}
         <div hidden={quick}>
           <QueryBoundary query={roster} skeleton={<CreatorSkeleton />}>
-            {(players) =>
-              cloneId === undefined ? (
-                <LineupCreator key="new" team={current} roster={players} />
-              ) : (
-                <QueryBoundary query={clone} skeleton={<CreatorSkeleton />}>
-                  {(saved) => (
-                    <LineupCreator
-                      key={saved.id}
-                      team={current}
-                      roster={players}
-                      initialValues={valuesFromSaved(saved, players)}
-                    />
-                  )}
-                </QueryBoundary>
-              )
-            }
+            {(players) => (
+              <QueryBoundary query={staff} skeleton={<CreatorSkeleton />}>
+                {(entries) =>
+                  cloneId === undefined ? (
+                    <LineupCreator key="new" team={current} roster={players} staff={entries} />
+                  ) : (
+                    <QueryBoundary query={clone} skeleton={<CreatorSkeleton />}>
+                      {(saved) => (
+                        <LineupCreator
+                          key={saved.id}
+                          team={current}
+                          roster={players}
+                          staff={entries}
+                          initialValues={valuesFromSaved(saved, players)}
+                        />
+                      )}
+                    </QueryBoundary>
+                  )
+                }
+              </QueryBoundary>
+            )}
           </QueryBoundary>
         </div>
         <div hidden={!quick}>
-          <LineupForm />
+          <QueryBoundary query={staff} skeleton={<CreatorSkeleton />}>
+            {(entries) => <LineupForm staff={entries} />}
+          </QueryBoundary>
         </div>
       </div>
     </div>

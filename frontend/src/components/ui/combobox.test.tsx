@@ -150,3 +150,111 @@ describe("Combobox", () => {
     expect(combobox()).toHaveAttribute("aria-expanded", "false");
   });
 });
+
+const SUGGESTIONS: ComboboxOption[] = [
+  { value: "Kiss Edit", label: "Kiss Edit" },
+  { value: "Szabó Ödön", label: "Szabó Ödön" },
+];
+
+function FreeTextHarness({ initial = "", onSubmit }: { initial?: string; onSubmit?: () => void }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit?.();
+      }}
+    >
+      <label htmlFor="coach">Coach</label>
+      <Combobox
+        id="coach"
+        freeText
+        options={SUGGESTIONS}
+        value={value}
+        onChange={setValue}
+        emptyLabel="Type or pick"
+      />
+      <output aria-label="value">{value}</output>
+    </form>
+  );
+}
+
+const coachBox = () => screen.getByRole("combobox", { name: "Coach" });
+const typedValue = () => screen.getByRole("status", { name: "value" }).textContent;
+
+describe("Combobox in free-text mode", () => {
+  it("shows the value as text and suggests without an empty choice", async () => {
+    const user = userEvent.setup();
+    render(<FreeTextHarness initial="Kiss Edit" />);
+    expect(coachBox()).toHaveValue("Kiss Edit");
+    expect(coachBox()).toHaveAttribute("placeholder", "Type or pick");
+    await user.click(coachBox());
+    expect(optionNames()).toEqual(["Kiss Edit", "Szabó Ödön"]);
+    // The current text matches a suggestion, so the list opens on it.
+    expect(coachBox()).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: "Kiss Edit" }).id,
+    );
+  });
+
+  it("keeps any typed text as the value and filters the suggestions by it", async () => {
+    const user = userEvent.setup();
+    render(<FreeTextHarness />);
+    await user.type(coachBox(), "szabo");
+    expect(typedValue()).toBe("szabo");
+    expect(optionNames()).toEqual(["Szabó Ödön"]);
+    // Nothing is highlighted while typing, so Enter keeps the typed text (and never submits).
+    expect(coachBox()).not.toHaveAttribute("aria-activedescendant");
+    await user.keyboard("{Enter}");
+    expect(typedValue()).toBe("szabo");
+    expect(coachBox()).toHaveAttribute("aria-expanded", "false");
+    // A text no suggestion matches closes the list instead of saying "no matches".
+    await user.clear(coachBox());
+    await user.type(coachBox(), "Új Edző");
+    expect(typedValue()).toBe("Új Edző");
+    expect(coachBox()).toHaveAttribute("aria-expanded", "false");
+    // Esc keeps the text.
+    await user.clear(coachBox());
+    await user.type(coachBox(), "Ki");
+    expect(coachBox()).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Escape}");
+    expect(coachBox()).toHaveAttribute("aria-expanded", "false");
+    expect(typedValue()).toBe("Ki");
+  });
+
+  it("picks a suggestion with the arrow keys, starting at either end", async () => {
+    const user = userEvent.setup();
+    render(<FreeTextHarness />);
+    await user.type(coachBox(), "i");
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(typedValue()).toBe("Kiss Edit");
+    await user.clear(coachBox());
+    await user.type(coachBox(), "d");
+    await user.keyboard("{ArrowUp}{Enter}");
+    expect(typedValue()).toBe("Szabó Ödön");
+    // Closed, with a text no suggestion equals: Down opens on the first, Up on the last, and the
+    // reopened list suggests everything again.
+    await user.clear(coachBox());
+    await user.type(coachBox(), "x");
+    await user.keyboard("{Escape}{ArrowDown}");
+    expect(coachBox()).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: "Kiss Edit" }).id,
+    );
+    await user.keyboard("{Escape}{ArrowUp}");
+    expect(coachBox()).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: "Szabó Ödön" }).id,
+    );
+    await user.click(screen.getByRole("option", { name: "Szabó Ödön" }));
+    expect(typedValue()).toBe("Szabó Ödön");
+  });
+
+  it("does not submit the form on Enter while the list is closed", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<FreeTextHarness onSubmit={onSubmit} />);
+    await user.type(coachBox(), "Kiss{Escape}{Enter}");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});

@@ -1,6 +1,7 @@
 import type { components } from "@/api/schema";
 import type { CreatorValues } from "@/features/creator/schema";
 import type { Player } from "@/features/players/api";
+import type { StaffRole } from "@/features/staff/api";
 import type { Team } from "@/features/teams/api";
 import { composeMatchDate, todayIso } from "@/lib/match-date";
 import { capRows, filledRows, requestPlayers, rowPath } from "@/features/lineup/cap-rows";
@@ -17,10 +18,14 @@ const optional = (value: string) => value || undefined;
 
 /**
  * The empty creator: the 15 empty cap rows, white caps, nothing else filled in except the
- * team's default division (`division`, when it has one; still editable per lineup), and the
- * match date set to today (the browser's local day, read on each call) with no start time.
+ * team's default division (`division`, when it has one; still editable per lineup), each staff
+ * role's default name (`staff`, #289; a role without one stays empty), and the match date set to
+ * today (the browser's local day, read on each call) with no start time.
  */
-export function emptyValues(division = ""): CreatorValues {
+export function emptyValues(
+  division = "",
+  staff: Partial<Record<StaffRole, string>> = {},
+): CreatorValues {
   return {
     match_name: "",
     opponent: "",
@@ -29,11 +34,11 @@ export function emptyValues(division = ""): CreatorValues {
     cap: "Fehér",
     match_date: todayIso(),
     match_time: "",
-    coach: "",
+    coach: staff.coach ?? "",
     doctor: "",
-    assistant_coach: "",
-    team_leader: "",
-    ball_thrower: "",
+    assistant_coach: staff.assistant_coach ?? "",
+    team_leader: staff.team_leader ?? "",
+    ball_thrower: staff.ball_thrower ?? "",
     players: capRows((cap_number) => ({ cap_number, playerId: "", name: "", nssz_number: "" })),
   };
 }
