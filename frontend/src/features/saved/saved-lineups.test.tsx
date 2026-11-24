@@ -6,7 +6,7 @@ import { ApiError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
 import type { SavedLineup } from "@/features/saved/api";
-import { HOVER_INTENT_MS, SavedLineups } from "@/features/saved/saved-lineups";
+import { SavedLineups } from "@/features/saved/saved-lineups";
 import type { Team } from "@/features/teams/api";
 import { fakeAuthClient, fakeSession, teamsPage, testQueryClient } from "@/test/auth";
 
@@ -161,28 +161,22 @@ describe("SavedLineups", () => {
     expect(mocks.generateSavedLineup).toHaveBeenCalledTimes(2);
   });
 
-  it("previews a row the pointer rests on, but not one it only passes over", async () => {
+  it("never starts a preview from hovering, however long the pointer rests on a row", async () => {
     mocks.generateSavedLineup.mockImplementation(async (id: string) => pdfFile(id));
     renderList();
     const first = await rowOf("SZVTK - Opponent 2");
     vi.useFakeTimers();
     try {
       fireEvent.mouseEnter(first);
-      act(() => vi.advanceTimersByTime(HOVER_INTENT_MS - 50));
+      act(() => vi.advanceTimersByTime(60_000));
       fireEvent.mouseLeave(first);
-      act(() => vi.advanceTimersByTime(HOVER_INTENT_MS));
-      expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
-
-      fireEvent.mouseEnter(first);
       fireEvent.mouseEnter(row("SZVTK - Opponent 1"));
-      act(() => vi.advanceTimersByTime(HOVER_INTENT_MS));
+      act(() => vi.advanceTimersByTime(60_000));
     } finally {
       vi.useRealTimers();
     }
-    expect(
-      screen.getByRole("complementary", { name: "Preview: SZVTK - Opponent 1" }),
-    ).toBeInTheDocument();
-    expect(await screen.findByText("pdf: l-1")).toBeInTheDocument();
+    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    expect(mocks.generateSavedLineup).not.toHaveBeenCalled();
   });
 
   it("says a previewed lineup is gone when the server answers 404", async () => {

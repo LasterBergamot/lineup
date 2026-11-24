@@ -312,9 +312,9 @@ name, date, division, cap colour and opponent. Every member sees and manages the
 has:
 
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
-  a side panel on a desktop and a full-screen modal dialog on a phone. It loads on a tap of the button, or
-  when the mouse rests on a row for 300 ms (passing over the list does not start a PDF for every row,
-  because each one runs LibreOffice and counts against the generate rate limit). A saved lineup is a
+  a side panel on a desktop and a full-screen modal dialog on a phone. It loads only when the Preview
+  button is pressed; resting the mouse on a row does nothing (each PDF runs LibreOffice and counts
+  against the generate rate limit). A saved lineup is a
   frozen snapshot that never changes, so each preview is kept in the in-memory query cache while the
   page is open and opening it again costs nothing. The file is never given a URL or stored. After 5 s
   the usual "the first PDF after a break takes longer" note appears. Once it is shown, an **Enlarge**

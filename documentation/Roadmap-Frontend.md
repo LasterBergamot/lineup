@@ -64,7 +64,7 @@ there:
   old one-off form stays as "Quick sheet".
 - **Roster management** — **built** (#197): players CRUD, team settings (owners), opponent directory search. The opponent combobox of the lineup creator reuses `GET /teams/pool`.
 - **Saved lineups list / "Clone to New Match"** — the list is **built** (#204): `/lineups/saved`
-  newest first, PDF preview (hover intent or tap, cached in memory), PDF/DOCX download, delete,
+  newest first, PDF preview (on the Preview button only, cached in memory), PDF/DOCX download, delete,
   and "Clone to new match", which opens the Lineup page with only the lineup id in the router state
   (`cloneFromId`); the Lineup page fetches the lineup. The creator side of the clone (#203) matches each player's `source_player_id`
   against the current roster: still-present players get pre-selected, deleted ones fall back to
