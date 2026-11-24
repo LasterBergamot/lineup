@@ -264,16 +264,16 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [x] #284 No duplicate roster players: same NSSZ in a team → 409 + DB constraint, warning on a repeated
       name (Sonnet 5.5 · high · M)
 - [x] #293 Unsaved-changes warning: data router, `useBlocker` + `beforeunload` (Opus 5.5 · medium · M)
-- [ ] #288 Default division per team, pre-filled in the creator (Sonnet 5.5 · medium · M)
-- [ ] #285 Creator and Quick sheet: 15 fixed cap rows in cap order (Opus 5.5 · medium · M)
-- [ ] #286 Searchable roster picker, a hand-written ARIA combobox (Sonnet 5.5 · medium · M)
-- [ ] #287 Today as the default date, optional time, `match_date`/`match_time` stored (Sonnet 5.5 · medium · M)
-- [ ] #294 Optional match location, not printed (Sonnet 5.5 · medium · S)
-- [ ] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
+- [x] #288 Default division per team, pre-filled in the creator (Sonnet 5.5 · medium · M)
+- [x] #285 Creator and Quick sheet: 15 fixed cap rows in cap order (Opus 5.5 · medium · M)
+- [x] #286 Searchable roster picker, a hand-written ARIA combobox (Sonnet 5.5 · medium · M)
+- [x] #287 Today as the default date, optional time, `match_date`/`match_time` stored (Sonnet 5.5 · medium · M)
+- [ ] #294 Optional match location, not printed (Sonnet 5.5 · medium · S; backend PR #310, frontend in Wave C)
+- [x] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
 - [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
 - [ ] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L)
 - [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M)
-- [ ] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
+- [x] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
 - [ ] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M)
 - [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
 - Parked, not part of this phase: #291 waterpolo.hu fixtures spike (Opus 5.5 · high).
@@ -578,6 +578,7 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-04 | Plan for an optional self-hosted install (D15): `self-host-plan.md` holds the decisions, the owner's manual steps (done first, so the rest can run unattended) and tasks detailed enough for cheaper models. Epic #250 and its sub-issues filed under the new milestone "M4 – Self-hosting", the `self-host` skill added. No implementation yet. | #250, PR #262 |
 | 2026-11-24 | Phase 7 planned from the first round of dev-preview feedback. Issues #281–#296 filed and revised with the maintainer's decisions. Each one is self-contained and lists its wiki pages and the recommended model and effort. The waves, the serial migration order and the conflict hotspots are recorded above. #281 turned out not to be a bug (the official form has the same cropped logo): wiki note only. #291 (waterpolo.hu spike) parked. No implementation yet. | #20, #281–#296, PR #297 |
 | 2026-11-24 | Wave A merged: #282 (preview on the button only), #283 (Hungarian roster sort), #284 (duplicate NSSZ per team, migration `c8f3a1d6e472`), #293 (unsaved-changes guard on a data router). #302 filed from the #293 review: the mode switch drops typed input. The dev Supabase migration for #284 is pending a run. | #282, #283, #284, #293, #302, PRs #299, #300, #301, #303 |
+| 2026-11-24 | Wave B merged: #285 (15 fixed cap rows), #286 (searchable roster picker), #287 (today as the default date, optional time), #288 (team default division), #292 (team staff entity), #302 (the mode switch keeps typed input), and the backend of #294 (match location, not printed). Stray merge marker in the frontend rules removed. Still in Wave B: #289 (staff UI), #290 and #296 (backend). #294's frontend is Wave C. | #285, #286, #287, #288, #292, #294 (backend), #302; PRs #305–#314 |
 
 ---
 
