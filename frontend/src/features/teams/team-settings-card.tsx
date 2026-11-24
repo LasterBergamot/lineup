@@ -11,6 +11,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { teamsKey, updateTeam, type Team } from "@/features/teams/api";
 import { teamFormSchema, type TeamFormValues } from "@/features/teams/schema";
+import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /**
  * The owner's settings for a team: its name and whether that name is listed in the shared
@@ -43,6 +44,7 @@ function TeamSettingsForm({ team }: { team: Team }) {
     resolver: zodResolver(teamFormSchema),
     defaultValues: savedValues(team),
   });
+  useUnsavedChangesGuard(isDirty);
 
   // The prop is the source of truth: when the teams query brings new values (after a save, or
   // another owner's change), they become the form's new baseline, so "nothing changed" holds.

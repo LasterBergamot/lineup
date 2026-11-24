@@ -35,6 +35,7 @@ import type { Team } from "@/features/teams/api";
 import { translateError } from "@/i18n/error-key";
 import { sortByName } from "@/lib/sort-by-name";
 import { useAfterDelay } from "@/lib/use-after-delay";
+import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /** Sample values for the placeholders: real Hungarian data formats, the same in both languages. */
 const EXAMPLES = { match: "SZVTK - Csongrád", division: "OB II.", date: "2024. 12. 21." };
@@ -88,6 +89,8 @@ export function LineupCreator({
     resolver: zodResolver(creatorSchema),
     defaultValues: initialValues ?? emptyValues(),
   });
+  // Leaving with unsaved input asks first; the save's `reset(values)` turns the guard off.
+  useUnsavedChangesGuard(isDirty);
   const { fields, append, remove } = useFieldArray({ control, name: "players" });
   const players = useWatch({ control, name: "players" });
   const opponent = useWatch({ control, name: "opponent" });

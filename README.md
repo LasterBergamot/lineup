@@ -381,12 +381,13 @@ lineup/
 │   ├── docker/Caddyfile             # That image's Caddy config: static app, /api proxy, allow-listed /auth/v1 paths, security headers
 │   ├── public/                      # Static files (favicon, theme-init.js, manifest.webmanifest, icons, _headers)
 │   └── src/
-│       ├── main.tsx  app.tsx        # Entry point, providers and route table
+│       ├── main.tsx  app.tsx        # Entry point; providers and the data router (createBrowserRouter)
+│       ├── routes.tsx               # The route table (RequireAuth, AppShell, the pages, /join/:code, 404)
 │       ├── index.css                # Tailwind + design tokens (light/dark)
 │       ├── api/                     # client.ts, errors.ts, query-client.ts, auth-middleware.ts + generated openapi.json / schema.d.ts
 │       ├── auth/                    # Google sign-in: config.ts (env check), supabase.ts (sign-in-only client), provider/context, require-auth, return-path, events
 │       ├── backend-status/          # Cold-start handling: /health polling, provider, banner
-│       ├── components/              # app-shell (sidebar / bottom nav), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, ui/ (Button, Card, Input, Badge, Tabs, Dialog, Toast, ...), confirm-button (two-step confirm), ui/ (shadcn-style)
+│       ├── components/              # app-shell (sidebar / bottom nav), unsaved-changes-guard ("Discard changes?" + beforeunload), account-panel (team + sign out), language-switch (HU/EN), brand, theme-toggle, nav-items, query-boundary, ui/ (Button, Card, Input, Badge, Tabs, Dialog, Toast, ...), confirm-button (two-step confirm), ui/ (shadcn-style)
 │       ├── features/lineup/         # One-off lineup form ("Quick sheet"): schema.ts (Zod), generate.ts, download.ts, lineup-form.tsx
 │       ├── features/creator/        # Lineup creator: schema.ts (Zod), resolve.ts (form values -> requests), api.ts, lineup-creator.tsx, opponent/ (combobox over directory + recent opponents)
 │       ├── features/preview/        # PDF preview: pdfjs.ts (lazy loader, bundled worker), pdf-viewer.tsx (sharp at any size), preview-panel.tsx (side panel / modal dialog on a phone), enlarged-preview.tsx (full-size view with zoom)
@@ -397,8 +398,8 @@ lineup/
 │       ├── features/invitations/    # Invite links: api.ts, code.ts (parse a pasted link), invite-panel (owner tools), invite-link-form (onboarding)
 │       ├── i18n/                    # react-i18next setup (index.ts), error-key.ts (translated form errors), locales/hu.json + en.json
 │       ├── pages/                   # One file per route
-│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, use-debounced-value.ts, use-media-query.ts, clean-text.ts (shared Zod text rule), format-date.ts
-│       └── test/                    # setup.ts (Vitest + Testing Library), auth.tsx (fake auth client, renderApp)
+│       ├── lib/                     # utils.ts (cn), theme.ts, use-after-delay.ts, use-debounced-value.ts, use-media-query.ts, clean-text.ts (shared Zod text rule), format-date.ts, unsaved-changes.ts (useUnsavedChangesGuard)
+│       └── test/                    # setup.ts (Vitest + Testing Library), auth.tsx (fake auth client, testRouter, renderApp), unsaved.tsx (unsavedProbe)
 └── backend/                         # All Python; the working directory for Python commands
     ├── main.py                          # CLI entry point
     ├── app.py                           # FastAPI application entry point

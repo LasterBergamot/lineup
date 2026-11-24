@@ -12,6 +12,7 @@ import { SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
 import type { Player } from "@/features/players/api";
 import type { Team } from "@/features/teams/api";
 import { fakeAuthClient, fakeSession, teamsPage, testQueryClient } from "@/test/auth";
+import { unsavedProbe } from "@/test/unsaved";
 
 const mocks = vi.hoisted(() => ({
   createSavedLineup: vi.fn(),
@@ -77,22 +78,25 @@ function renderCreator(
   const team = { ...teamsPage("SZVTK").items[0]!, id: TEAM_ID } as Team;
   const queryClient = testQueryClient();
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+  const unsaved = unsavedProbe();
   render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider client={fakeAuthClient(fakeSession()).client}>
         <ToastProvider>
           <MemoryRouter>
-            <SignedIn
-              team={team}
-              roster={props.roster ?? [ANN, BEN]}
-              initialValues={props.initialValues}
-            />
+            <unsaved.Wrapper>
+              <SignedIn
+                team={team}
+                roster={props.roster ?? [ANN, BEN]}
+                initialValues={props.initialValues}
+              />
+            </unsaved.Wrapper>
           </MemoryRouter>
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>,
   );
-  return { invalidate };
+  return { invalidate, isDirty: unsaved.isDirty };
 }
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -207,6 +211,40 @@ describe("LineupCreator form", () => {
     await fillMatch(user);
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
+  });
+});
+
+describe("LineupCreator unsaved changes", () => {
+  it("guards the page from the first edit until the lineup is saved", async () => {
+    const user = userEvent.setup();
+    const { isDirty } = renderCreator();
+    await screen.findByLabelText("Opponent");
+    expect(isDirty()).toBe(false);
+    await fillMatch(user);
+    await pick(1, "Nagy Bence");
+    expect(isDirty()).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    await screen.findByText(/Saved\./);
+    expect(isDirty()).toBe(false);
+    await user.type(screen.getByLabelText("Match name (optional)"), "Final");
+    expect(isDirty()).toBe(true);
+  });
+
+  it("keeps guarding when the save fails", async () => {
+    mocks.createSavedLineup.mockRejectedValueOnce(new ApiError(503));
+    const user = userEvent.setup();
+    const { isDirty } = renderCreator();
+    await fillMatch(user);
+    await pick(1, "Nagy Bence");
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(isDirty()).toBe(true);
+  });
+
+  it("does not guard a clone that nobody has changed yet", async () => {
+    const { isDirty } = renderCreator({ initialValues: { ...emptyValues(), division: "OB I." } });
+    expect(await screen.findByLabelText("Division")).toHaveValue("OB I.");
+    expect(isDirty()).toBe(false);
   });
 });
 

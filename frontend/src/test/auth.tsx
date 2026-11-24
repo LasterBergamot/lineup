@@ -2,9 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@supabase/supabase-js";
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, Outlet } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { ToastProvider } from "@/components/ui/toast";
-import { AppRoutes } from "@/app";
+import { routes } from "@/routes";
 import type { AuthClient } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
 import { BackendStatusProvider } from "@/backend-status/provider";
@@ -54,27 +55,51 @@ export function testQueryClient(): QueryClient {
 }
 
 /**
+ * The app's route table in a memory data router starting at `path` (or a location with `state`),
+ * the way `App` mounts it in the browser. `extra` is rendered next to every page, inside the router
+ * (a test can put a location probe there).
+ */
+export function testRouter(
+  path: string | { pathname: string; state?: unknown },
+  extra?: ReactNode,
+) {
+  return createMemoryRouter(
+    [
+      {
+        element: (
+          <>
+            <Outlet />
+            {extra}
+          </>
+        ),
+        children: routes,
+      },
+    ],
+    { initialEntries: [path] },
+  );
+}
+
+/**
  * Renders the whole route table at `path` with a fake auth client and a healthy backend. `extra`
  * is rendered next to the routes, inside the router (a test can put a location probe there).
+ * `router` is returned so a test can navigate the way a link would (`router.navigate`).
  */
 export function renderApp(path: string, session: Session | null, extra?: ReactNode) {
   const auth = fakeAuthClient(session);
+  const router = testRouter(path, extra);
   const queryClient = testQueryClient();
   const view = render(
     <BackendStatusProvider probe={async () => "ok"}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider client={auth.client}>
           <ToastProvider>
-            <MemoryRouter initialEntries={[path]}>
-              <AppRoutes />
-              {extra}
-            </MemoryRouter>
+            <RouterProvider router={router} />
           </ToastProvider>
         </AuthProvider>
       </QueryClientProvider>
     </BackendStatusProvider>,
   );
-  return { ...view, auth, queryClient };
+  return { ...view, auth, queryClient, router };
 }
 
 /** Builds the JSON a `GET /teams` answers with. */

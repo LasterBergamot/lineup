@@ -19,6 +19,7 @@ import {
 } from "@/features/lineup/schema";
 import { translateError } from "@/i18n/error-key";
 import { useAfterDelay } from "@/lib/use-after-delay";
+import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /** How long a PDF may take before we explain that the first one after a break is slower. */
 export const SLOW_PDF_NOTICE_MS = 5000;
@@ -52,7 +53,8 @@ export function LineupForm() {
     control,
     setError,
     getValues,
-    formState: { errors },
+    reset,
+    formState: { errors, isDirty },
   } = useForm<LineupFormValues>({
     resolver: zodResolver(lineupSchema),
     defaultValues: {
@@ -61,11 +63,17 @@ export function LineupForm() {
     },
   });
   const { fields, append, remove } = useFieldArray({ control, name: "players" });
+  // Nothing is saved here, so a finished download counts as done: it makes the downloaded values
+  // the new baseline (the guard turns off until the next edit).
+  useUnsavedChangesGuard(isDirty);
 
   const generate = useMutation({
     mutationFn: ({ values, format }: { values: LineupFormValues; format: LineupFormat }) =>
       generateLineup(values, format),
-    onSuccess: (file) => saveFile(file),
+    onSuccess: (file, { values }) => {
+      saveFile(file);
+      reset(values);
+    },
     onError: (error) => {
       for (const { path, message } of fieldErrors(error)) {
         const target = path === "players" ? "players.root" : path;
