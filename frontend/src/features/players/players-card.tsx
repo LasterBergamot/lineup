@@ -18,12 +18,14 @@ import {
 } from "@/features/players/api";
 import { PlayerForm } from "@/features/players/player-form";
 import type { Team } from "@/features/teams/api";
+import { sortByName } from "@/lib/sort-by-name";
 
 /**
  * A team's roster: add a player, then edit or delete each one in place. Every member may do all
- * of it (the API allows it; there is no role check here on purpose). Players are listed in the
- * API's order (oldest first), so a row does not jump after an edit. Each change reloads the list,
- * also after a failure: a 404 usually means another member deleted the player meanwhile. Deleting
+ * of it (the API allows it; there is no role check here on purpose). Players are listed
+ * alphabetically in Hungarian order (`sortByName`, #283); the API's order is kept, so the sort
+ * happens here. A renamed player moves to its new place once the list reloads. Each change reloads
+ * the list, also after a failure: a 404 usually means another member deleted the player meanwhile. Deleting
  * asks to confirm first and leaves saved lineups as they are (they keep their own copy), which the
  * card says next to the list so nobody expects a deletion to reach old lineups.
  */
@@ -75,7 +77,7 @@ export function PlayersCard({ team }: { team: Team }) {
                   aria-label={t("players.listLabel", { team: team.name })}
                   className="flex flex-col divide-y overflow-hidden rounded-lg border"
                 >
-                  {rows.map((player) => (
+                  {sortByName(rows).map((player) => (
                     <li key={player.id} className="p-3">
                       {editing === player.id ? (
                         <PlayerForm
