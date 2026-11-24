@@ -39,6 +39,26 @@ async def create_player(
     return player
 
 
+async def nssz_taken(
+    session: AsyncSession,
+    team_id: uuid.UUID,
+    nssz_number: str,
+    exclude_player_id: uuid.UUID | None = None,
+) -> bool:
+    """True if `team_id`'s roster already holds `nssz_number`, ignoring case, optionally not
+    counting the player `exclude_player_id` (the one being edited). Uses SQL `lower()` on both
+    sides, exactly like the unique index `ux_players_team_nssz`, so the check and the index never
+    disagree about what "the same" means. Only a boolean leaves this function: the other player's
+    record is never returned, let alone logged."""
+    query = select(Player.id).where(
+        Player.team_id == team_id,
+        func.lower(Player.nssz_number) == func.lower(nssz_number),
+    )
+    if exclude_player_id is not None:
+        query = query.where(Player.id != exclude_player_id)
+    return (await session.execute(query.limit(1))).first() is not None
+
+
 async def get_player(
     session: AsyncSession,
     player_id: uuid.UUID,

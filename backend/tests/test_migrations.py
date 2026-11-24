@@ -1,4 +1,4 @@
-"""The data-changing migrations `a3d5f7c91e26` and `e5b8c2d41f70`, run for real against a
+"""The data-changing migrations `a3d5f7c91e26`, `e5b8c2d41f70` and `c8f3a1d6e472`, run for real against a
 throw-away SQLite file.
 
 Schema drift is checked by `task migrate-check`; this proves what happens to *existing rows*:
@@ -238,3 +238,91 @@ def test_the_workspace_migration_can_be_undone(workspace_database):
         lineups = {r[1] for r in db.execute("PRAGMA table_info(saved_lineups)")}
     assert "owner_id" in teams
     assert "user_id" in lineups and "team_id" not in lineups
+
+
+# --- c8f3a1d6e472: unique NSSZ number per team (#284) -----------------------------------------
+
+BEFORE_NSSZ = "a9e3c7d51f28"
+AFTER_NSSZ = "c8f3a1d6e472"
+
+
+@pytest.fixture
+def roster_database(tmp_path):
+    path = tmp_path / "roster.db"
+    alembic(path, "upgrade", BEFORE_NSSZ)
+    return path
+
+
+def _seed_roster(path, players: list[tuple[str, str]]) -> dict[str, str]:
+    """One user, two teams ('A', 'B'); `players` are (team key, NSSZ number) pairs."""
+    ids = {"U": _id(), "A": _id(), "B": _id()}
+    now = "2026-11-01 10:00:00"
+    with closing(sqlite3.connect(path)) as db:
+        for team in ("A", "B"):
+            db.execute(
+                "INSERT INTO teams VALUES (?, ?, ?, 1, ?)",
+                (ids[team], team, ids["U"], now),
+            )
+        for team, number in players:
+            db.execute(
+                "INSERT INTO players VALUES (?, 'Name', ?, ?, ?, ?)",
+                (_id(), number, ids[team], ids["U"], now),
+            )
+        db.commit()
+    return ids
+
+
+def _indexes(path) -> set[str]:
+    with closing(sqlite3.connect(path)) as db:
+        return {
+            r[1] for r in db.execute("SELECT * FROM sqlite_master WHERE type='index'")
+        }
+
+
+def test_a_clean_roster_gets_the_unique_index_and_it_is_enforced(roster_database):
+    ids = _seed_roster(roster_database, [("A", "N1"), ("B", "N1"), ("A", "N2")])
+    alembic(roster_database, "upgrade", AFTER_NSSZ)
+    assert "ux_players_team_nssz" in _indexes(roster_database)
+    assert (
+        _count(roster_database, "SELECT count(*) FROM players") == 3
+    )  # nothing deleted
+    with (
+        closing(sqlite3.connect(roster_database)) as db,
+        pytest.raises(sqlite3.IntegrityError),
+    ):
+        db.execute(
+            "INSERT INTO players VALUES (?, 'X', 'n1', ?, ?, '2026-11-01 10:00:00')",
+            (_id(), ids["A"], ids["U"]),
+        )
+
+
+def test_existing_duplicates_stop_the_upgrade_without_leaking_numbers(roster_database):
+    ids = _seed_roster(
+        roster_database, [("A", "SECRET-7"), ("A", "secret-7"), ("B", "SECRET-7")]
+    )
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        alembic(roster_database, "upgrade", AFTER_NSSZ)
+    output = failure.value.stderr.decode()
+    assert "appear more than once" in output
+    assert ids["A"] in output and ids["B"] not in output
+    assert "SECRET" not in output.upper()
+    assert "ux_players_team_nssz" not in _indexes(roster_database)
+    assert (
+        _count(roster_database, "SELECT count(*) FROM players") == 3
+    )  # nothing deleted
+
+
+def test_the_nssz_migration_can_be_undone(roster_database):
+    _seed_roster(roster_database, [("A", "N1")])
+    alembic(roster_database, "upgrade", AFTER_NSSZ)
+    alembic(roster_database, "downgrade", BEFORE_NSSZ)
+    assert "ux_players_team_nssz" not in _indexes(roster_database)
+    assert _count(roster_database, "SELECT count(*) FROM players") == 1
+    # and the duplicates it used to forbid are allowed again
+    with closing(sqlite3.connect(roster_database)) as db:
+        team, user = db.execute("SELECT team_id, created_by FROM players").fetchone()
+        db.execute(
+            "INSERT INTO players VALUES (?, 'X', 'N1', ?, ?, '2026-11-01 10:00:00')",
+            (_id(), team, user),
+        )
+        db.commit()

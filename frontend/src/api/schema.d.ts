@@ -193,7 +193,8 @@ export interface paths {
         /**
          * Create Player
          * @description Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a
-         *     member of it.
+         *     member of it. 409 if that roster already has a player with the same NSSZ number (the NSSZ
+         *     number identifies a person; the same name with a different number is allowed).
          */
         post: operations["create_player_players_post"];
         delete?: never;
@@ -217,7 +218,8 @@ export interface paths {
         /**
          * Update Player
          * @description Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is
-         *     unknown or not yours.
+         *     unknown or not yours. 409 if another player on the target team's roster already has this
+         *     NSSZ number (keeping the player's own number is fine).
          */
         put: operations["update_player_players__player_id__put"];
         post?: never;
@@ -1385,6 +1387,13 @@ export interface operations {
                     "application/json": components["schemas"]["PlayerResponse"];
                 };
             };
+            /** @description The team's roster already has a player with this NSSZ number (compared ignoring case). The body is the fixed sentence `A player with this NSSZ number is already on this team` and never describes the other player. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1450,6 +1459,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PlayerResponse"];
                 };
+            };
+            /** @description The team's roster already has a player with this NSSZ number (compared ignoring case). The body is the fixed sentence `A player with this NSSZ number is already on this team` and never describes the other player. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

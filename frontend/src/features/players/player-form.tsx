@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { describeError, fieldErrors } from "@/api/errors";
+import { ApiError, describeError, fieldErrors } from "@/api/errors";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -12,14 +13,24 @@ import { playerFormSchema, type PlayerFormValues } from "@/features/players/sche
 /** API body field -> form field, for mapping a server 422 onto the right input. */
 const SERVER_FIELDS = { name: "name", nssz_number: "nsszNumber" } as const;
 
+/** A name compared the way a person would: ignoring case and surrounding or doubled spaces. */
+const nameKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
+
 /**
  * The add and the edit player form (name + NSSZ number, nothing more: data minimisation). It owns
  * its mutation so each form shows its own pending state and errors: `save` makes the request and
  * `onSettled` runs after it either way, which is where the caller refreshes the roster (a 404
  * means someone else deleted the player, so the list must be reloaded then too). A server 422 is
- * shown on the field it names; any other failure as a generic sentence. With `resetOnSuccess`
- * the fields empty after a save, ready for the next player. The values live in this form's state
- * only: never in storage, a query key or a log.
+ * shown on the field it names, a 409 (the NSSZ number is already on the roster) on the NSSZ
+ * field in our own translated words; any other failure as a generic sentence. With
+ * `resetOnSuccess` the fields empty after a save, ready for the next player.
+ *
+ * A name that another player on the roster already has is allowed (namesakes exist), but the
+ * first submit only shows a warning and turns the button into "save anyway"; the second one
+ * saves. Changing the name takes the warning back. `otherPlayers` is the rest of the roster (not
+ * the player being edited); the check runs here, on data the page already loaded.
+ *
+ * The values live in this form's state only: never in storage, a query key or a log.
  */
 export function PlayerForm({
   label,
@@ -30,6 +41,7 @@ export function PlayerForm({
   onSuccess,
   onCancel,
   resetOnSuccess = false,
+  otherPlayers = [],
 }: {
   /** Accessible name of the form, so several forms on one page can be told apart. */
   label: string;
@@ -41,6 +53,8 @@ export function PlayerForm({
   /** Shows a Cancel button (the inline edit form) that calls this. */
   onCancel?: () => void;
   resetOnSuccess?: boolean;
+  /** The rest of the roster, to warn about a repeated name. */
+  otherPlayers?: Pick<Player, "name">[];
 }) {
   const { t } = useTranslation();
   const {
@@ -48,16 +62,26 @@ export function PlayerForm({
     handleSubmit,
     setError,
     reset,
+    control,
     formState: { errors },
   } = useForm<PlayerFormValues>({ resolver: zodResolver(playerFormSchema), defaultValues });
+
+  // The name key the user has already been warned about (and so may now confirm), if any.
+  const [warnedKey, setWarnedKey] = useState<string | null>(null);
+  const currentKey = nameKey(useWatch({ control, name: "name" }));
+  const warning = warnedKey !== null && warnedKey === currentKey;
 
   const mutation = useMutation({
     mutationFn: save,
     onSuccess: () => {
       if (resetOnSuccess) reset({ name: "", nsszNumber: "" });
+      setWarnedKey(null);
       onSuccess?.();
     },
     onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        setError("nsszNumber", { type: "server", message: t("players.nsszTaken") });
+      }
       for (const { path, message } of fieldErrors(error)) {
         if (path in SERVER_FIELDS) {
           setError(SERVER_FIELDS[path as keyof typeof SERVER_FIELDS], { type: "server", message });
@@ -66,13 +90,24 @@ export function PlayerForm({
     },
     onSettled,
   });
-  const shownOnFields = fieldErrors(mutation.error).some(({ path }) => path in SERVER_FIELDS);
+  const duplicateNssz = mutation.error instanceof ApiError && mutation.error.status === 409;
+  const shownOnFields =
+    duplicateNssz || fieldErrors(mutation.error).some(({ path }) => path in SERVER_FIELDS);
+
+  const submit = (values: PlayerFormValues) => {
+    const key = nameKey(values.name);
+    if (warnedKey !== key && otherPlayers.some((player) => nameKey(player.name) === key)) {
+      setWarnedKey(key);
+      return;
+    }
+    mutation.mutate(values);
+  };
 
   return (
     <form
       noValidate
       aria-label={label}
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
+      onSubmit={handleSubmit(submit)}
       className="flex flex-col gap-3"
     >
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
@@ -83,6 +118,14 @@ export function PlayerForm({
           {(props) => <Input {...props} autoComplete="off" {...register("nsszNumber")} />}
         </Field>
       </div>
+      {warning && (
+        <p
+          role="status"
+          className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-soft-foreground"
+        >
+          {t("players.sameName")}
+        </p>
+      )}
       {mutation.isError && !shownOnFields && (
         <p role="alert" className="text-sm text-destructive">
           {describeError(mutation.error, t)}
@@ -90,7 +133,7 @@ export function PlayerForm({
       )}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" loading={mutation.isPending}>
-          {submitLabel}
+          {warning ? t("players.saveAnyway") : submitLabel}
         </Button>
         {onCancel && (
           <Button type="button" size="sm" variant="ghost" onClick={onCancel}>

@@ -52,7 +52,7 @@ choice). Every column of the data model is listed; a new column needs a row here
 | Data | Table.column | Subject | Purpose | Basis | Retention |
 |---|---|---|---|---|---|
 | Player name | `players.name`, `lineup_player_snapshots.name` | Players (some minors), entered by the club | Fill the lineup sheet | Art. 6(1)(f) (club's legitimate interest; ⚖ H4 may allow 6(1)(c)) | Until the club deletes the player; snapshots until the saved lineup or its team is deleted |
-| NSSZ number (federation registration id) | `players.nssz_number`, `lineup_player_snapshots.nssz_number` | Players | Identify the player on the official sheet | as above | as above |
+| NSSZ number (federation registration id) | `players.nssz_number`, `lineup_player_snapshots.nssz_number` | Players | Identify the player on the official sheet; also the roster's identity key: one per team, ignoring case, enforced by a unique index on `lower(nssz_number)` (#284; the index copy goes with the row, and neither the 409 nor any log carries the number) | as above | as above |
 | Cap number | `lineup_player_snapshots.cap_number` | Players | Appear on the sheet | as above | with the saved lineup |
 | Staff names (coach, doctor, assistant coach, team leader, ball thrower) | `saved_lineups.coach`, `.doctor`, `.assistant_coach`, `.team_leader`, `.ball_thrower` | Club staff | Appear on the sheet. The "doctor" field is a name only, never medical notes | as above | with the saved lineup |
 | Team, opponent, match, division, cap colour, date | `teams.name`, `saved_lineups.team_name`, `.opponent_name`, `.match_name`, `.division`, `.cap`, `.date` | Mostly clubs, not people; can identify a team's members | Describe the match | as above | with the saved lineup or team |

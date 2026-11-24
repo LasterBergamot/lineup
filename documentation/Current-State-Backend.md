@@ -134,7 +134,7 @@ so rendering, headers and error handling live in one place:
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/players` | `GET` lists the players of all your teams (filterable by `team_id`; a team you're not in gives an empty page). `POST`/`PUT` require `team_id`, which must be a team you belong to, otherwise **404** `Team not found` (unknown and foreign ids look the same) |
+| `GET`/`POST` | `/players` | `GET` lists the players of all your teams (filterable by `team_id`; a team you're not in gives an empty page). `POST`/`PUT` require `team_id`, which must be a team you belong to, otherwise **404** `Team not found` (unknown and foreign ids look the same). The NSSZ number is a player's identity within a team (#284): `POST`/`PUT` answer **409** `A player with this NSSZ number is already on this team` when the roster already has it (compared trimmed and case-insensitively; keeping a player's own number on `PUT` is fine, the same number in another team is allowed, and the same name with a different number is allowed). The body is fixed and never describes the other player; nothing logs the number. Two concurrent requests are decided by the unique index `ux_players_team_nssz`, and the loser gets the same 409 |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | `DELETE` is **unconditionally safe (204)** — saved lineups are frozen snapshots, not live references, so deleting a player never blocks or breaks anything |
 
 ### Saved Lineups
@@ -233,7 +233,7 @@ erDiagram
     PLAYERS {
         uuid id PK
         string name
-        string nssz_number
+        string nssz_number "unique per team, ignoring case"
         uuid team_id FK "required, ondelete RESTRICT"
         uuid created_by "audit only"
     }
@@ -260,7 +260,7 @@ erDiagram
 `opponent_name`/`match_name` as plain text plus nullable soft FKs `source_team_id`/
 `source_opponent_id` → `teams.id` (`ondelete="SET NULL"`); each `LineupPlayerSnapshot`
 freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player_id` →
-`players.id` (`ondelete="SET NULL"`). A cap number can appear once per lineup (a unique index on
+`players.id` (`ondelete="SET NULL"`). An NSSZ number can appear once per team's roster (#284): a unique expression index `ux_players_team_nssz` on `(team_id, lower(nssz_number))`, which works on SQLite and Postgres alike; `players/service.py` checks first for the friendly 409 and turns the index's `IntegrityError` into the same 409 when a concurrent request wins. Migration `c8f3a1d6e472` stops with a message (team ids and counts, never NSSZ numbers) if a database already holds a duplicate, and deletes nothing. A cap number can appear once per lineup (a unique index on
 `(saved_lineup_id, cap_number)`: Pydantic gives the friendly 422, the database is the guarantee), and the
 three soft-reference columns are indexed, because Postgres does not index foreign keys by itself and
 each `SET NULL` would otherwise scan the table. Rendering a lineup relies **only** on the frozen

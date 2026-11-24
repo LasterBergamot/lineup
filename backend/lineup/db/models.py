@@ -166,10 +166,22 @@ class Player(Base):
 
     Deleting a player is always safe: saved lineups hold copies, not references.
 
+    The NSSZ number is the player's identity within a team: the unique index
+    `ux_players_team_nssz` on `(team_id, lower(nssz_number))` (#284) is the database's guard behind
+    the service's friendly 409, so two concurrent requests cannot both insert the same licence.
+    It is an expression index (case-insensitive) and works on SQLite and Postgres alike; `team_id`
+    is its first column, so it also serves lookups by team and `ix_players_team_id` stays for
+    clarity. The same name with a different NSSZ number is allowed (namesakes exist).
+
     """
 
     __tablename__ = "players"
-    __table_args__ = (Index("ix_players_team_id", "team_id"),)
+    __table_args__ = (
+        Index("ix_players_team_id", "team_id"),
+        Index(
+            "ux_players_team_nssz", "team_id", text("lower(nssz_number)"), unique=True
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), nullable=False)

@@ -283,8 +283,8 @@ Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup
 | `DELETE` | `/teams/{id}/members/{member_id}` | Owner removes a member, or a member removes themselves (leave). **409** for the last owner |
 | `POST` | `/teams/{id}/transfer-ownership` | Owner-only: `{"user_id"}` becomes the owner, you become a member |
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename and list-or-unlist (`is_public`) / delete a team. Update and delete are owner-only (**403** for other members). Delete returns **409** while the team has players or saved lineups |
-| `GET`/`POST` | `/players` | List the players of your teams (optionally `?team_id=`) / add a player to a team's roster (`team_id` is required and must be a team you belong to, else **404** `Team not found`) |
-| `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (moving to a team you're not in is a **404**) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
+| `GET`/`POST` | `/players` | List the players of your teams (optionally `?team_id=`) / add a player to a team's roster (`team_id` is required and must be a team you belong to, else **404** `Team not found`; **409** if the team's roster already has that NSSZ number, compared ignoring case) |
+| `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (moving to a team you're not in is a **404**; an NSSZ number already on the target roster is a **409**) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
 | `GET`/`POST` | `/lineups/saved` | List the saved lineups of your teams (optionally `?team_id=` or `?source_team_id=`) / create one in a team's workspace (`team_id`, required) |
 | `GET`/`DELETE` | `/lineups/saved/{id}` | Get / delete a saved lineup |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Generate a PDF/DOCX from a previously saved lineup |
@@ -419,7 +419,8 @@ lineup/
     │       ├── b7d2e9a41c53_invitation_inviter_name.py  # team_invitations.invited_by_name
     │       ├── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
     │       ├── f2c8a5d7e931_timestamptz_and_server_defaults.py  # Postgres: timestamptz columns + server defaults
-    │       └── a9e3c7d51f28_member_display_name.py  # team_members.display_name (#245)
+    │       ├── a9e3c7d51f28_member_display_name.py  # team_members.display_name (#245)
+    │       └── c8f3a1d6e472_players_unique_nssz_per_team.py  # unique (team_id, lower(nssz_number)) on players (#284)
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)

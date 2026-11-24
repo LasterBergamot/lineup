@@ -20,6 +20,14 @@ from lineup.players.schemas import (
 
 router = APIRouter(prefix="/players", tags=["players"])
 
+DUPLICATE_NSSZ_RESPONSE = {
+    "description": (
+        "The team's roster already has a player with this NSSZ number (compared ignoring case). "
+        "The body is the fixed sentence `A player with this NSSZ number is already on this "
+        "team` and never describes the other player."
+    )
+}
+
 
 @router.get("", response_model=PaginatedPlayers)
 async def list_players(
@@ -46,14 +54,20 @@ async def list_players(
     )
 
 
-@router.post("", response_model=PlayerResponse, status_code=201)
+@router.post(
+    "",
+    response_model=PlayerResponse,
+    status_code=201,
+    responses={409: DUPLICATE_NSSZ_RESPONSE},
+)
 async def create_player(
     body: PlayerCreate,
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
     """Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a
-    member of it."""
+    member of it. 409 if that roster already has a player with the same NSSZ number (the NSSZ
+    number identifies a person; the same name with a different number is allowed)."""
     player = await service.create_player(
         session,
         name=body.name,
@@ -77,7 +91,11 @@ async def get_player(
     return PlayerResponse.model_validate(player)
 
 
-@router.put("/{player_id}", response_model=PlayerResponse)
+@router.put(
+    "/{player_id}",
+    response_model=PlayerResponse,
+    responses={409: DUPLICATE_NSSZ_RESPONSE},
+)
 async def update_player(
     player_id: uuid.UUID,
     body: PlayerUpdate,
@@ -85,7 +103,8 @@ async def update_player(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PlayerResponse:
     """Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is
-    unknown or not yours."""
+    unknown or not yours. 409 if another player on the target team's roster already has this
+    NSSZ number (keeping the player's own number is fine)."""
     player = await service.update_player(
         session,
         player_id=player_id,

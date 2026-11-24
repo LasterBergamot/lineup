@@ -27,7 +27,9 @@ import { sortByName } from "@/lib/sort-by-name";
  * happens here. A renamed player moves to its new place once the list reloads. Each change reloads
  * the list, also after a failure: a 404 usually means another member deleted the player meanwhile. Deleting
  * asks to confirm first and leaves saved lineups as they are (they keep their own copy), which the
- * card says next to the list so nobody expects a deletion to reach old lineups.
+ * card says next to the list so nobody expects a deletion to reach old lineups. The forms get the
+ * rest of the roster so they can warn about a repeated name (the NSSZ number itself is checked by
+ * the API, which answers 409).
  */
 export function PlayersCard({ team }: { team: Team }) {
   const { t } = useTranslation();
@@ -56,6 +58,7 @@ export function PlayersCard({ team }: { team: Team }) {
           submitLabel={t("players.add")}
           save={(values) => createPlayer(team.id, values)}
           onSettled={refresh}
+          otherPlayers={players.data}
           resetOnSuccess
         />
         <QueryBoundary
@@ -85,6 +88,7 @@ export function PlayersCard({ team }: { team: Team }) {
                           submitLabel={t("players.save")}
                           defaultValues={{ name: player.name, nsszNumber: player.nssz_number }}
                           save={(values) => updatePlayer(player, values)}
+                          otherPlayers={rows.filter((other) => other.id !== player.id)}
                           onSuccess={() => setEditing(null)}
                           onSettled={refresh}
                           onCancel={() => setEditing(null)}
