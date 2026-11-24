@@ -242,7 +242,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
   the issue doesn't make stops and asks; it doesn't improvise.
 
 **Waves**
-1. **Wave A**, three agents in parallel:
+1. **Wave A**, done (PRs #299, #300, #301, #303). It had three agents in parallel:
    - **#293** alone on the app shell. It moves to a data router, which touches `app.tsx` and every page test.
    - **#282**, then **#283** (small, separate folders).
    - **#284** (backend, the first migration, then its roster-form part).
@@ -251,6 +251,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
      → #296 (backend).
    - **Creator sequence** (one agent, in order): #285 → #286 → #287 (frontend) → #289. #289 waits for #292.
    - **Team settings:** the #288 frontend part, as soon as the #288 backend has merged.
+   - **Mode switch** (#302, its own agent): it touches `lineup-page.tsx` and no migration, so it runs beside the sequences.
 3. **Wave C:**
    - #290 (frontend: Edit), #294 (frontend: location) and #296 (frontend: Home/Away), each once its backend
      and blockers have merged.
@@ -258,11 +259,11 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
    - #281 (a wiki note only) goes into any PR that edits `documentation/Current-State-Backend.md`.
 
 **Checklist** (model · effort · size)
-- [ ] #282 Saved lineups: preview only on the Preview button, no hover (Haiku 5.5 · low · S)
-- [ ] #283 Roster players in alphabetical order, Hungarian collation (Haiku 5.5 · medium · S)
-- [ ] #284 No duplicate roster players: same NSSZ in a team → 409 + DB constraint, warning on a repeated
+- [x] #282 Saved lineups: preview only on the Preview button, no hover (Haiku 5.5 · low · S)
+- [x] #283 Roster players in alphabetical order, Hungarian collation (Haiku 5.5 · medium · S)
+- [x] #284 No duplicate roster players: same NSSZ in a team → 409 + DB constraint, warning on a repeated
       name (Sonnet 5.5 · high · M)
-- [ ] #293 Unsaved-changes warning: data router, `useBlocker` + `beforeunload` (Opus 5.5 · medium · M)
+- [x] #293 Unsaved-changes warning: data router, `useBlocker` + `beforeunload` (Opus 5.5 · medium · M)
 - [ ] #288 Default division per team, pre-filled in the creator (Sonnet 5.5 · medium · M)
 - [ ] #285 Creator and Quick sheet: 15 fixed cap rows in cap order (Opus 5.5 · medium · M)
 - [ ] #286 Searchable roster picker, a hand-written ARIA combobox (Sonnet 5.5 · medium · M)
@@ -272,6 +273,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
 - [ ] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L)
 - [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M)
+- [ ] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
 - [ ] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M)
 - [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
 - Parked, not part of this phase: #291 waterpolo.hu fixtures spike (Opus 5.5 · high).
@@ -283,6 +285,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - **#289/#292:** staff is a separate team entity, picked from the roster or typed in, with one default per role.
 - **#295:** filters are AND-combinable query parameters, so more can be added later.
 - **#296:** home plays in Fehér, away in Kék.
+- **#302** (filed while reviewing #293): the mode switch must not drop typed input. Take the issue's option 1, both modes stay mounted, so the #293 guard keeps covering both.
 - **#291:** parked.
 
 **Exit criteria:** every box above is ticked, the wiki pages named in the issues are current, and a
@@ -574,6 +577,7 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-01 | #245 (backend + frontend): the Team page shows members by name. `team_members.display_name` (migration `a9e3c7d51f28`) is copied from the member's own token when they create a team or accept a link and refreshed on `GET /teams`, so members who joined earlier are filled in the next time they open the app, with no re-invite (`null` until then, shown as "Member N"). | #245, PR #246 |
 | 2026-11-04 | Plan for an optional self-hosted install (D15): `self-host-plan.md` holds the decisions, the owner's manual steps (done first, so the rest can run unattended) and tasks detailed enough for cheaper models. Epic #250 and its sub-issues filed under the new milestone "M4 – Self-hosting", the `self-host` skill added. No implementation yet. | #250, PR #262 |
 | 2026-11-24 | Phase 7 planned from the first round of dev-preview feedback. Issues #281–#296 filed and revised with the maintainer's decisions. Each one is self-contained and lists its wiki pages and the recommended model and effort. The waves, the serial migration order and the conflict hotspots are recorded above. #281 turned out not to be a bug (the official form has the same cropped logo): wiki note only. #291 (waterpolo.hu spike) parked. No implementation yet. | #20, #281–#296, PR #297 |
+| 2026-11-24 | Wave A merged: #282 (preview on the button only), #283 (Hungarian roster sort), #284 (duplicate NSSZ per team, migration `c8f3a1d6e472`), #293 (unsaved-changes guard on a data router). #302 filed from the #293 review: the mode switch drops typed input. The dev Supabase migration for #284 is pending a run. | #282, #283, #284, #293, #302, PRs #299, #300, #301, #303 |
 
 ---
 
