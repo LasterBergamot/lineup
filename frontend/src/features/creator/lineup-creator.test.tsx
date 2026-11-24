@@ -110,7 +110,8 @@ async function fillMatch(user: User, opponent = "Csongrád") {
   await user.type(screen.getByLabelText("Coach"), "Kovács Béla");
 }
 
-const slot = (n: number) => screen.getByRole("group", { name: `Player ${n}` });
+/** The row of one cap number. */
+const slot = (n: number) => screen.getByLabelText(`Cap no. ${n}`);
 const pick = (n: number, name: string) =>
   userEvent.selectOptions(within(slot(n)).getByLabelText("Player from the roster"), name);
 
@@ -123,12 +124,19 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("LineupCreator form", () => {
-  it("starts with one typed-in slot and says when the roster is empty", async () => {
+  it("starts with the 15 empty cap rows in cap order and says when the roster is empty", async () => {
     renderCreator({ roster: [] });
     expect(await screen.findByText(/The roster is empty/)).toBeInTheDocument();
-    expect(within(slot(1)).getByLabelText("Cap no.")).toHaveValue(1);
+    const rows = screen.getAllByRole("group", { name: /^Cap no\./ });
+    expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual(
+      Array.from({ length: 15 }, (_, i) => `Cap no. ${i + 1}`),
+    );
+    expect(within(slot(9)).getByText("9")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add player/ })).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "White" })).toBeChecked();
-    expect(screen.getByRole("button", { name: "Remove player 1" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clear row 1" })).toBeDisabled();
+    expect(screen.getByText("(0 of 15)")).toBeInTheDocument();
   });
 
   it("shows the errors and sends nothing when the form is empty", async () => {
@@ -136,7 +144,8 @@ describe("LineupCreator form", () => {
     renderCreator();
     await user.click(await screen.findByRole("button", { name: "Save lineup" }));
     expect(await screen.findByText("Opponent is required")).toBeInTheDocument();
-    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(screen.getByText("Add at least one player")).toBeInTheDocument();
+    expect(screen.queryByText("Name is required")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Preview" }));
     expect(await screen.findAllByText("Opponent is required")).not.toHaveLength(0);
     expect(mocks.createSavedLineup).not.toHaveBeenCalled();
@@ -153,7 +162,7 @@ describe("LineupCreator form", () => {
     expect(options.slice(-2)).toEqual(["Kovács Anna", "Nagy Bence"]);
   });
 
-  it("fills a slot from the roster, locks it, and leaves the player out of the other slots", async () => {
+  it("fills a row from the roster, locks it, and leaves the player out of the other rows", async () => {
     const user = userEvent.setup();
     renderCreator();
     await screen.findByLabelText("Opponent");
@@ -162,31 +171,38 @@ describe("LineupCreator form", () => {
     expect(within(slot(1)).getByLabelText("NSSZ number")).toHaveValue("MVLSZ1");
     expect(within(slot(1)).getByLabelText("Name")).toHaveAttribute("readonly");
 
-    await user.click(screen.getByRole("button", { name: /Add player/ }));
     expect(within(slot(2)).getByRole("option", { name: "Kovács Anna" })).toBeDisabled();
     expect(within(slot(2)).getByRole("option", { name: "Nagy Bence" })).toBeEnabled();
     expect(within(slot(1)).getByRole("option", { name: "Kovács Anna" })).toBeEnabled();
 
-    await pick(1, "Type in by hand");
+    await user.click(screen.getByRole("button", { name: "Clear row 1" }));
     expect(within(slot(1)).getByLabelText("Name")).toHaveValue("");
     expect(within(slot(1)).getByLabelText("Name")).not.toHaveAttribute("readonly");
     expect(within(slot(2)).getByRole("option", { name: "Kovács Anna" })).toBeEnabled();
+
+    // Switching a row back to "type in by hand" empties it as well.
+    await pick(1, "Nagy Bence");
+    await pick(1, "Type in by hand");
+    expect(within(slot(1)).getByLabelText("NSSZ number")).toHaveValue("");
   });
 
-  it("adds players with the next free cap number, up to 15, and removes them", async () => {
+  it("flags a half-filled row, and Clear empties it and drops its error", async () => {
     const user = userEvent.setup();
     renderCreator();
-    const add = await screen.findByRole("button", { name: /Add player/ });
-    await user.click(add);
-    await user.click(add);
-    await user.click(screen.getByRole("button", { name: "Remove player 2" }));
-    await user.click(add);
-    expect(screen.getAllByLabelText("Cap no.").map((el) => (el as HTMLInputElement).value)).toEqual(
-      ["1", "3", "2"],
-    );
-    for (let i = 0; i < 12; i++) await user.click(add);
-    expect(screen.getAllByRole("group", { name: /^Player/ })).toHaveLength(15);
-    expect(add).toBeDisabled();
+    await fillMatch(user);
+    await pick(1, "Nagy Bence");
+    await user.type(within(slot(3)).getByLabelText("NSSZ number"), "MVLSZ7");
+    expect(screen.getByText("(2 of 15)")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    expect(await within(slot(3)).findByText("Name is required")).toBeInTheDocument();
+    expect(mocks.createSavedLineup).not.toHaveBeenCalled();
+
+    const clear = screen.getByRole("button", { name: "Clear row 3" });
+    await user.click(clear);
+    expect(within(slot(3)).getByLabelText("NSSZ number")).toHaveValue("");
+    expect(within(slot(3)).queryByText("Name is required")).not.toBeInTheDocument();
+    expect(clear).toBeDisabled();
+    expect(screen.getByText("(1 of 15)")).toBeInTheDocument();
   });
 
   it("starts from the given values, as when cloning a saved lineup", async () => {
@@ -195,13 +211,17 @@ describe("LineupCreator form", () => {
         ...emptyValues(),
         division: "OB II.",
         coach: "Klón Edző",
-        players: [{ cap_number: 4, playerId: "p-ben", name: "Nagy Bence", nssz_number: "MVLSZ2" }],
+        players: emptyValues().players.map((row) =>
+          row.cap_number === 4
+            ? { ...row, playerId: "p-ben", name: "Nagy Bence", nssz_number: "MVLSZ2" }
+            : row,
+        ),
       },
     });
     expect(await screen.findByLabelText("Division")).toHaveValue("OB II.");
     expect(screen.getByLabelText("Coach")).toHaveValue("Klón Edző");
-    expect(within(slot(1)).getByLabelText("Cap no.")).toHaveValue(4);
-    expect(within(slot(1)).getByLabelText("Player from the roster")).toHaveValue("p-ben");
+    expect(within(slot(4)).getByLabelText("Player from the roster")).toHaveValue("p-ben");
+    expect(within(slot(1)).getByLabelText("Player from the roster")).toHaveValue("");
     expect(screen.getByLabelText("Opponent")).toHaveValue("");
   });
 
@@ -254,9 +274,8 @@ describe("LineupCreator save", () => {
     const { invalidate } = renderCreator();
     await fillMatch(user, "Listed FC");
     await pick(1, "Kovács Anna");
-    await user.click(screen.getByRole("button", { name: /Add player/ }));
-    await user.type(within(slot(2)).getByLabelText("Name"), "Kiss Ádám");
-    await user.type(within(slot(2)).getByLabelText("NSSZ number"), "MVLSZ9");
+    await user.type(within(slot(6)).getByLabelText("Name"), "Kiss Ádám");
+    await user.type(within(slot(6)).getByLabelText("NSSZ number"), "MVLSZ9");
     await user.type(screen.getByLabelText("Doctor (optional)"), "Dr. Kis");
     await user.click(screen.getByRole("radio", { name: "Blue" }));
     expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
@@ -279,9 +298,10 @@ describe("LineupCreator save", () => {
       doctor: "Dr. Kis",
       players: [
         { source_player_id: "p-ann", cap_number: 1 },
-        { name: "Kiss Ádám", nssz_number: "MVLSZ9", cap_number: 2 },
+        { name: "Kiss Ádám", nssz_number: "MVLSZ9", cap_number: 6 },
       ],
     });
+    expect(mocks.createSavedLineup.mock.calls[0]![0].players).toHaveLength(2);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["saved"] });
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: expect.arrayContaining(["recent-opponents"]),
@@ -346,13 +366,13 @@ describe("LineupCreator save", () => {
     expect(await screen.findByText(/too long/i)).toBeInTheDocument();
   });
 
-  it("maps a 422 onto the fields it names", async () => {
+  it("maps a 422 onto the fields it names, players by their cap row", async () => {
     const user = userEvent.setup();
     mocks.createSavedLineup.mockRejectedValue(
       new ApiError(422, {
         detail: [
           { loc: ["body", "opponent_name"], msg: "String should have at most 120 characters" },
-          { loc: ["body", "players", 0, "source_player_id"], msg: "Value error, twice" },
+          { loc: ["body", "players", 1, "source_player_id"], msg: "Value error, twice" },
           { loc: ["body", "players"], msg: "Value error, Cap numbers must be unique" },
           { loc: ["body", "cap"], msg: "Input should be 'Fehér' or 'Kék'" },
         ],
@@ -361,12 +381,14 @@ describe("LineupCreator save", () => {
     renderCreator();
     await fillMatch(user);
     await pick(1, "Nagy Bence");
+    await pick(9, "Kovács Anna");
     await user.click(screen.getByRole("button", { name: "Save lineup" }));
 
     expect(
       await screen.findByText("String should have at most 120 characters"),
     ).toBeInTheDocument();
-    expect(within(slot(1)).getByText("twice")).toBeInTheDocument();
+    // The second player sent is the one in cap row 9.
+    expect(within(slot(9)).getByText("twice")).toBeInTheDocument();
     expect(screen.getByText("Cap numbers must be unique")).toBeInTheDocument();
     expect(screen.getByText("Input should be 'Fehér' or 'Kék'")).toBeInTheDocument();
     expect(screen.getByText(/server rejected some of the details/i)).toBeInTheDocument();

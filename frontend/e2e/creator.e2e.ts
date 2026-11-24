@@ -16,6 +16,33 @@ test("the player row keeps the roster picker wide enough to read on a phone", as
   expect(pickerBox!.width).toBeGreaterThan(150);
 });
 
+const CAP_ROWS = {
+  en: { label: /^Cap no\. \d+$/, quick: "Quick sheet (not saved)" },
+  hu: { label: /^Sapkaszám: \d+$/, quick: "Gyors lap (nem mentődik)" },
+} as const;
+
+for (const lang of ["en", "hu"] as const) {
+  test(`the creator and the Quick sheet show the 15 cap rows without sideways scrolling (${lang})`, async ({
+    app,
+    expectAccessible,
+    expectNoHorizontalScroll,
+  }) => {
+    // Runs after the fixture's English default, so this one wins.
+    await app.addInitScript((value) => localStorage.setItem("lineup-lang", value), lang);
+    await app.goto("/");
+    const rows = app.getByRole("group", { name: CAP_ROWS[lang].label });
+    await expect(rows).toHaveCount(15);
+    await expect(rows.nth(14)).toContainText("15");
+    await expectNoHorizontalScroll(app);
+    await expectAccessible(app);
+
+    await app.getByRole("tab", { name: CAP_ROWS[lang].quick }).click();
+    await expect(rows).toHaveCount(15);
+    await expectNoHorizontalScroll(app);
+    await expectAccessible(app);
+  });
+}
+
 for (const theme of ["light", "dark"] as const) {
   test(`fill in a lineup from the roster, preview it and close the preview (${theme} theme)`, async ({
     app,
