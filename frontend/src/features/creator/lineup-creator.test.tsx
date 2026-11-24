@@ -120,8 +120,12 @@ async function fillMatch(user: User, opponent = "Csongrád") {
 
 /** The row of one cap number. */
 const slot = (n: number) => screen.getByLabelText(`Cap no. ${n}`);
-const pick = (n: number, name: string) =>
-  userEvent.selectOptions(within(slot(n)).getByLabelText("Player from the roster"), name);
+const picker = (n: number) => within(slot(n)).getByLabelText("Player from the roster");
+/** Opens the row's picker and clicks the option (an option's name carries the NSSZ number). */
+const pick = async (n: number, name: string) => {
+  await userEvent.click(picker(n));
+  await userEvent.click(screen.getByRole("option", { name: new RegExp(`^${name}`) }));
+};
 
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset();
@@ -179,10 +183,11 @@ describe("LineupCreator form", () => {
   it("lists the roster in Hungarian alphabetical order, whatever order the API sent", async () => {
     renderCreator({ roster: [BEN, ANN] });
     await screen.findByLabelText("Opponent");
+    await userEvent.click(picker(1));
     const options = within(slot(1))
       .getAllByRole("option")
       .map((option) => option.textContent);
-    expect(options.slice(-2)).toEqual(["Kovács Anna", "Nagy Bence"]);
+    expect(options).toEqual(["Type in by hand", "Kovács AnnaMVLSZ1", "Nagy BenceMVLSZ2"]);
   });
 
   it("fills a row from the roster, locks it, and leaves the player out of the other rows", async () => {
@@ -194,14 +199,30 @@ describe("LineupCreator form", () => {
     expect(within(slot(1)).getByLabelText("NSSZ number")).toHaveValue("MVLSZ1");
     expect(within(slot(1)).getByLabelText("Name")).toHaveAttribute("readonly");
 
-    expect(within(slot(2)).getByRole("option", { name: "Kovács Anna" })).toBeDisabled();
-    expect(within(slot(2)).getByRole("option", { name: "Nagy Bence" })).toBeEnabled();
-    expect(within(slot(1)).getByRole("option", { name: "Kovács Anna" })).toBeEnabled();
+    await user.click(picker(2));
+    const taken = within(slot(2)).getByRole("option", { name: /^Kovács Anna/ });
+    expect(taken).toHaveAttribute("aria-disabled", "true");
+    expect(within(slot(2)).getByRole("option", { name: /^Nagy Bence/ })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+    // Picking the taken player does nothing.
+    await user.click(taken);
+    expect(picker(2)).toHaveValue("");
+    await user.keyboard("{Escape}");
+    await user.click(picker(1));
+    expect(within(slot(1)).getByRole("option", { name: /^Kovács Anna/ })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+    await user.keyboard("{Escape}");
 
     await user.click(screen.getByRole("button", { name: "Clear row 1" }));
     expect(within(slot(1)).getByLabelText("Name")).toHaveValue("");
     expect(within(slot(1)).getByLabelText("Name")).not.toHaveAttribute("readonly");
-    expect(within(slot(2)).getByRole("option", { name: "Kovács Anna" })).toBeEnabled();
+    await user.click(picker(2));
+    expect(within(slot(2)).getByRole("option", { name: /^Kovács Anna/ })).not.toHaveAttribute(
+      "aria-disabled",
+    );
+    await user.keyboard("{Escape}");
 
     // Switching a row back to "type in by hand" empties it as well.
     await pick(1, "Nagy Bence");
@@ -243,8 +264,8 @@ describe("LineupCreator form", () => {
     });
     expect(await screen.findByLabelText("Division")).toHaveValue("OB II.");
     expect(screen.getByLabelText("Coach")).toHaveValue("Klón Edző");
-    expect(within(slot(4)).getByLabelText("Player from the roster")).toHaveValue("p-ben");
-    expect(within(slot(1)).getByLabelText("Player from the roster")).toHaveValue("");
+    expect(picker(4)).toHaveValue("Nagy Bence");
+    expect(picker(1)).toHaveValue("");
     expect(screen.getByLabelText("Opponent")).toHaveValue("");
   });
 

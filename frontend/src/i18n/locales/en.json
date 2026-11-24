@@ -248,6 +248,7 @@
     "emptyRoster": "The roster is empty. Add players on the Roster page, or type players in by hand.",
     "rosterPlayer": "Player from the roster",
     "typedIn": "Type in by hand",
+    "noPlayerMatches": "No player found",
     "save": "Save lineup",
     "preview": "Preview",
     "saved": "Saved. You can download it now.",

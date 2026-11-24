@@ -43,6 +43,38 @@ for (const lang of ["en", "hu"] as const) {
   });
 }
 
+for (const lang of ["en", "hu"] as const) {
+  test(`the roster picker opens, filters by typing and passes axe with the list open (${lang})`, async ({
+    app,
+    isMobile,
+    expectAccessible,
+    expectNoHorizontalScroll,
+  }) => {
+    await app.addInitScript((value) => localStorage.setItem("lineup-lang", value), lang);
+    await app.goto("/");
+    const picker = app
+      .getByRole("combobox", { name: /^(Player from the roster|Játékos a keretből)$/ })
+      .first();
+    await picker.click();
+    await expect(picker).toHaveAttribute("aria-expanded", "true");
+    const options = app.getByRole("option").filter({ visible: true });
+    await expect(options.nth(1)).toBeVisible();
+    if (isMobile) {
+      // 44 px touch targets in the open list.
+      expect((await options.nth(1).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+    await expectNoHorizontalScroll(app);
+    await expectAccessible(app);
+
+    // Keyboard only: type part of a name; the first match is active, Enter picks it.
+    await picker.fill("player 0");
+    await app.keyboard.press("Enter");
+    await expect(picker).toHaveValue("Player 01");
+    await expect(picker).toHaveAttribute("aria-expanded", "false");
+    await expect(app.getByLabel(/^(Name|Név)$/).first()).toHaveValue("Player 01");
+  });
+}
+
 for (const theme of ["light", "dark"] as const) {
   test(`fill in a lineup from the roster, preview it and close the preview (${theme} theme)`, async ({
     app,
@@ -201,6 +233,7 @@ async function fillLineup(app: Page) {
   await app.getByLabel("Division").filter({ visible: true }).fill("OB I");
   await app.getByLabel("Date").filter({ visible: true }).fill("2026. 11. 1.");
   await app.getByLabel("Coach", { exact: true }).filter({ visible: true }).fill("Coach Carter");
-  await app.getByLabel("Player from the roster").first().selectOption({ label: "Player 01" });
+  await app.getByLabel("Player from the roster").first().click();
+  await app.getByRole("option", { name: /^Player 01/ }).click();
   await expect(app.getByLabel("Name", { exact: true }).first()).toHaveValue("Player 01");
 }

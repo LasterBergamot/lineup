@@ -27,3 +27,6 @@ afterEach(() => {
   document.documentElement.classList.remove("dark");
   localStorage.clear();
 });
+
+// jsdom does not lay anything out, so it has no scrollIntoView; the combobox calls it for the active option.
+Element.prototype.scrollIntoView = function scrollIntoView() {};
