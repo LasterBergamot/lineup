@@ -17,7 +17,7 @@ const valid = () => ({
   ...emptyValues(),
   opponent: "Csongrád",
   division: "OB I.",
-  date: "2026. 11. 1.",
+  match_date: "2026-11-01",
   coach: "Kovács",
   players: rows({ 1: { name: "Nagy Bence", nssz_number: "MVLSZ1" } }),
 });
@@ -34,13 +34,26 @@ describe("creatorSchema", () => {
 
   it("requires the opponent, division, date, coach and cap colour", () => {
     expect(
-      messages({ ...valid(), opponent: " ", division: "", date: "", coach: "", cap: "Zöld" }),
+      messages({ ...valid(), opponent: " ", division: "", match_date: "", coach: "", cap: "Zöld" }),
     ).toEqual([
       "opponent: validation.required(fields.opponent)",
       "division: validation.required(fields.division)",
       "cap: validation.capColour",
-      "date: validation.required(fields.date)",
+      "match_date: validation.required(fields.date)",
       "coach: validation.required(fields.coach)",
+    ]);
+  });
+
+  it("accepts only a real calendar day and a blank or HH:MM time", () => {
+    expect(messages({ ...valid(), match_date: "2026-02-30" })).toEqual([
+      "match_date: validation.required(fields.date)",
+    ]);
+    expect(messages({ ...valid(), match_date: "1.11.2026" })).toEqual([
+      "match_date: validation.required(fields.date)",
+    ]);
+    expect(messages({ ...valid(), match_time: "18:30" })).toEqual([]);
+    expect(messages({ ...valid(), match_time: "24:00" })).toEqual([
+      "match_time: validation.required(fields.time)",
     ]);
   });
 

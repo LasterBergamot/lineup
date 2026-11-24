@@ -55,7 +55,7 @@ test("the browser asks before closing the tab while the creator is dirty, not af
 
   // Filled in and saved: nothing to lose, so the navigation goes straight through.
   await app.getByLabel("Opponent", { exact: true }).filter({ visible: true }).fill("Opponent X");
-  await app.getByLabel("Date").filter({ visible: true }).fill("2026. 11. 1.");
+  await app.getByLabel("Date").filter({ visible: true }).fill("2026-11-01");
   await app.getByLabel("Coach", { exact: true }).filter({ visible: true }).fill("Coach Carter");
   await app.getByLabel("Player from the roster").first().click();
   await app.getByRole("option", { name: /^Player 01/ }).click();

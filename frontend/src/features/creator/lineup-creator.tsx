@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /** Sample values for the placeholders: real Hungarian data formats, the same in both languages. */
-const EXAMPLES = { match: "SZVTK - Csongrád", division: "OB II.", date: "2024. 12. 21." };
+const EXAMPLES = { match: "SZVTK - Csongrád", division: "OB II." };
 
 const DOWNLOADS = [
   ["pdf", "lineup.downloadPdf"],
@@ -226,8 +226,11 @@ export function LineupCreator({
                 </p>
               )}
             </div>
-            <Field label={t("fields.date")} error={errors.date?.message}>
-              {(props) => <Input {...props} placeholder={EXAMPLES.date} {...register("date")} />}
+            <Field label={t("fields.date")} error={errors.match_date?.message}>
+              {(props) => <Input {...props} type="date" {...register("match_date")} />}
+            </Field>
+            <Field label={t("fields.time")} error={errors.match_time?.message}>
+              {(props) => <Input {...props} type="time" {...register("match_time")} />}
             </Field>
           </CardContent>
         </Card>

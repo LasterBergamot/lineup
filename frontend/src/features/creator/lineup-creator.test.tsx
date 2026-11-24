@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { ApiError } from "@/api/errors";
@@ -114,7 +114,6 @@ async function fillMatch(user: User, opponent = "Csongrád") {
   await screen.findByLabelText("Opponent");
   await user.type(screen.getByLabelText("Opponent"), opponent);
   await user.type(screen.getByLabelText("Division"), "OB I.");
-  await user.type(screen.getByLabelText("Date"), "2026. 11. 1.");
   await user.type(screen.getByLabelText("Coach"), "Kovács Béla");
 }
 
@@ -144,6 +143,29 @@ describe("LineupCreator form", () => {
     await userEvent.clear(division);
     await userEvent.type(division, "Cup");
     expect(division).toHaveValue("Cup");
+  });
+
+  it("starts on today's local date with no time, and is not dirty", async () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 24, 23, 59), toFake: ["Date"] });
+    const { isDirty } = renderCreator();
+    expect(await screen.findByLabelText("Date")).toHaveValue("2026-11-24");
+    expect(screen.getByLabelText("Start time (optional)")).toHaveValue("");
+    expect(isDirty()).toBe(false);
+  });
+
+  it("starts on the next day just after local midnight", async () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 25, 0, 1), toFake: ["Date"] });
+    renderCreator();
+    expect(await screen.findByLabelText("Date")).toHaveValue("2026-11-25");
+  });
+
+  it("requires a date: a cleared one is an error and nothing is sent", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.clear(await screen.findByLabelText("Date"));
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    expect(await screen.findByText("Date is required")).toBeInTheDocument();
+    expect(mocks.createSavedLineup).not.toHaveBeenCalled();
   });
 
   it("keeps the lineup's own division over the team default when one is given", async () => {
@@ -447,6 +469,50 @@ describe("LineupCreator save", () => {
     await pick(1, "Nagy Bence");
     await user.click(screen.getByRole("button", { name: "Save lineup" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/no longer exists/i);
+  });
+});
+
+describe("LineupCreator date and time", () => {
+  /** Fills the match, picks a player and sets the date (and time, when given). */
+  async function fillWithDate(user: User, date: string, time?: string) {
+    await fillMatch(user);
+    await pick(1, "Kovács Anna");
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value: date } });
+    if (time)
+      fireEvent.change(screen.getByLabelText("Start time (optional)"), { target: { value: time } });
+  }
+
+  it("saves the date and time as structured fields and no printed text", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await fillWithDate(user, "2026-12-05", "18:30");
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    await waitFor(() => expect(mocks.createSavedLineup).toHaveBeenCalledOnce());
+    const body = mocks.createSavedLineup.mock.calls[0]![0];
+    expect(body).toMatchObject({ match_date: "2026-12-05", match_time: "18:30" });
+    expect(body).not.toHaveProperty("date");
+  });
+
+  it("leaves the time out of the save when it is blank", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await fillWithDate(user, "2026-12-05");
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    await waitFor(() => expect(mocks.createSavedLineup).toHaveBeenCalledOnce());
+    expect(mocks.createSavedLineup.mock.calls[0]![0].match_time).toBeUndefined();
+  });
+
+  it("previews with the printed text, with and without the time", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await fillWithDate(user, "2026-12-05", "18:30");
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(mocks.generateLineup).toHaveBeenCalledOnce());
+    expect(mocks.generateLineup.mock.calls[0]![0].date).toBe("2026. 12. 05. 18:30");
+    fireEvent.change(screen.getByLabelText("Start time (optional)"), { target: { value: "" } });
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(mocks.generateLineup).toHaveBeenCalledTimes(2));
+    expect(mocks.generateLineup.mock.calls[1]![0].date).toBe("2026. 12. 05.");
   });
 });
 

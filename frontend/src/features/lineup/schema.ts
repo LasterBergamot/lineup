@@ -3,6 +3,7 @@ import { errorKey } from "@/i18n/error-key";
 import { capRows, checkCapRows, MAX_PLAYERS, requestPlayers } from "@/features/lineup/cap-rows";
 import type { components } from "@/api/schema";
 import { cleanText as text } from "@/lib/clean-text";
+import { composeMatchDate, matchDateSchema, matchTimeSchema, todayIso } from "@/lib/match-date";
 
 export const CAP_COLOURS = ["Fehér", "Kék"] as const;
 
@@ -33,7 +34,8 @@ export const lineupSchema = z.object({
   division: text(100, "fields.division"),
   team_name: text(120, "fields.teamName"),
   cap: z.enum(CAP_COLOURS, { error: errorKey("validation.capColour") }),
-  date: text(50, "fields.date"),
+  match_date: matchDateSchema,
+  match_time: matchTimeSchema,
   coach: text(200, "fields.coach"),
   doctor: text(200, "fields.doctor"),
   assistant_coach: text(200, "fields.assistantCoach"),
@@ -47,17 +49,27 @@ export const lineupSchema = z.object({
 
 export type LineupFormValues = z.infer<typeof lineupSchema>;
 
-/** The 15 empty cap rows the Quick sheet opens with. */
+/** The 15 empty cap rows and today's date (read now, no time) the Quick sheet opens with. */
 export function emptyQuickSheetValues(): Partial<LineupFormValues> {
   return {
     cap: "Fehér",
+    match_date: todayIso(),
+    match_time: "",
     players: capRows((cap_number) => ({ cap_number, name: "", nssz_number: "" })),
   };
 }
 
-/** The body for `POST /lineups`: the form values with only the filled cap rows. */
+/**
+ * The body for `POST /lineups`: the form values with only the filled cap rows. The stateless
+ * endpoint takes only the printed `date`, so it is composed here from the date and time inputs.
+ */
 export function toQuickSheetRequest(
   values: LineupFormValues,
 ): components["schemas"]["LineupRequest"] {
-  return { ...values, players: requestPlayers(values.players) };
+  const { match_date, match_time, ...rest } = values;
+  return {
+    ...rest,
+    date: composeMatchDate(match_date, match_time),
+    players: requestPlayers(values.players),
+  };
 }

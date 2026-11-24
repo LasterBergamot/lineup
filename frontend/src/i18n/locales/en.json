@@ -72,6 +72,7 @@
     "teamName": "Team name",
     "capColour": "Cap colour",
     "date": "Date",
+    "time": "Start time (optional)",
     "coach": "Coach",
     "doctor": "Doctor",
     "assistantCoach": "Assistant coach",
