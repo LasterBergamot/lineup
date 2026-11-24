@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { errorKey } from "@/i18n/error-key";
 import { cleanText, optionalCleanText } from "@/lib/clean-text";
+import { matchDateSchema, matchTimeSchema } from "@/lib/match-date";
 import { checkCapRows } from "@/features/lineup/cap-rows";
 import { CAP_COLOURS, capNumberSchema, MAX_PLAYERS } from "@/features/lineup/schema";
 
@@ -21,7 +22,8 @@ const slotSchema = z.object({
  * What the lineup creator edits. It mirrors the API's `SavedLineupCreate` limits (the backend is
  * the authority) with two differences: the team is the current team and not a field, and the
  * opponent is one text box (`opponent`) plus the directory id (`opponentId`, `""` for free text)
- * that the combobox sets when the typed name is a listed team.
+ * that the combobox sets when the typed name is a listed team. The match date is a
+ * `YYYY-MM-DD` string and the optional start time `HH:MM` or blank, as the native inputs hold them.
  */
 export const creatorSchema = z.object({
   match_name: optionalCleanText(200, "fields.match"),
@@ -29,7 +31,8 @@ export const creatorSchema = z.object({
   opponentId: z.string(),
   division: cleanText(100, "fields.division"),
   cap: z.enum(CAP_COLOURS, { error: errorKey("validation.capColour") }),
-  date: cleanText(50, "fields.date"),
+  match_date: matchDateSchema,
+  match_time: matchTimeSchema,
   coach: cleanText(200, "fields.coach"),
   doctor: optionalCleanText(200, "fields.doctor"),
   assistant_coach: optionalCleanText(200, "fields.assistantCoach"),

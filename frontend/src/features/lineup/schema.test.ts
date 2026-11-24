@@ -22,7 +22,8 @@ const valid = {
   division: "OB II.",
   team_name: "SZVTK",
   cap: "Fehér" as const,
-  date: "2024. 12. 21.",
+  match_date: "2024-12-21",
+  match_time: "",
   coach: "A",
   doctor: "B",
   assistant_coach: "C",
@@ -130,7 +131,14 @@ describe("lineupSchema blank NSSZ numbers", () => {
 
 describe("emptyQuickSheetValues", () => {
   it("opens with white caps and the 15 empty cap rows", () => {
-    expect(emptyQuickSheetValues()).toEqual({ cap: "Fehér", players: rows() });
+    vi.useFakeTimers({ now: new Date(2026, 10, 24, 18, 30) });
+    expect(emptyQuickSheetValues()).toEqual({
+      cap: "Fehér",
+      match_date: "2026-11-24",
+      match_time: "",
+      players: rows(),
+    });
+    vi.useRealTimers();
   });
 });
 
@@ -140,9 +148,23 @@ describe("toQuickSheetRequest", () => {
       ...valid,
       players: rows({ 5: { name: " Kiss Ádám ", nssz_number: "N5" } }),
     }) as LineupFormValues;
+    const rest = { ...valid, match_date: undefined, match_time: undefined };
     expect(toQuickSheetRequest(values)).toEqual({
-      ...valid,
+      ...rest,
+      date: "2024. 12. 21.",
       players: [{ cap_number: 5, name: "Kiss Ádám", nssz_number: "N5" }],
     });
+  });
+
+  it("prints the time after the date when one is set", () => {
+    const values = lineupSchema.parse({
+      ...valid,
+      match_time: "18:30",
+      players: rows({ 5: { name: "A", nssz_number: "N5" } }),
+    }) as LineupFormValues;
+    const body = toQuickSheetRequest(values);
+    expect(body.date).toBe("2024. 12. 21. 18:30");
+    expect(body).not.toHaveProperty("match_date");
+    expect(body).not.toHaveProperty("match_time");
   });
 });

@@ -132,7 +132,7 @@ The UI is Hungarian by default and English is selectable (#155).
   items carry a `labelKey`; the role in the account panel goes through a role-to-text map (an unknown
   role shows a neutral label, never the raw API value); the cap colours keep their Hungarian value
   (`Fehér`, `Kék`: that is what the API and the `.docx` get) and only the label is translated;
-  counts and seconds use i18next's `number` formatter (`Intl`). The free-text `Date` field is sent as typed.
+  counts and seconds use i18next's `number` formatter (`Intl`). The match date is a native date input (see the creator); it is never free text.
 - **Known gaps.** The sentences of a server `422` (`fieldErrors()`) come from the API in English
   and are shown as received. The `AuthConfigError` text (missing `VITE_SUPABASE_*`) is a
   developer-facing message and also stays English. Both go away only if the API returns error codes.
@@ -307,17 +307,24 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
 - **Default division.** A fresh lineup starts with the team's default division in the Division box
   (`emptyValues(team.division)`); the box stays editable per lineup and changing it never changes the
   team. A clone keeps the saved lineup's own division.
+- **Match date and time (#287).** A native `<input type="date">` that starts on **today** (the
+  browser's local day, read each time a form is built, so a tab left open overnight is not a day
+  behind) and an optional `<input type="time">`. A cleared or invalid date is a "required" error.
+  The preview sends the printed text `YYYY. MM. DD.` (plus ` HH:MM` with a time) composed by
+  `composeMatchDate()` in `src/lib/match-date.ts`; saving sends `match_date` and `match_time`
+  (blank time omitted) and the server composes the same text and stores both fields.
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
   lineup and `valuesFromSaved()` starts the creator from it (staff, division, players, each in the
-  row of their cap number; not the match, opponent or date). Only the id travels in the history state, never the lineup itself.
+  row of their cap number; not the match or opponent; the date is reset to today and the time cleared, as it is a new match). Only the id travels in the history state, never the lineup itself.
 - The doctor, assistant coach, team leader and ball thrower are optional here and in the API.
 
 ### The one-off lineup form ("Quick sheet")
 
 The Lineup page's "Quick sheet" mode shows the one-off lineup form (`src/features/lineup/`), the UI for `POST /lineups`: match data
-(match, division, team name, cap colour, date), five staff names and the same 15 fixed cap rows as
+(match, division, team name, cap colour, date and optional start time), five staff names and the same 15 fixed cap rows as
 the creator (name and NSSZ number per cap, a **Clear** button, empty rows left out of the request by
-`toQuickSheetRequest()`). Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
+`toQuickSheetRequest()`). The date starts on today, with the same date and time inputs as the
+creator; the request carries only the composed printed `date` text. Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
 since #96 the endpoint it calls requires the token too (rate limited: a `429` comes with `Retry-After`).
 
 - **Validation twice.** `schema.ts` mirrors the backend's limits (`CleanStr*` types and the

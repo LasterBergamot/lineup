@@ -2,6 +2,7 @@ import type { components } from "@/api/schema";
 import type { CreatorValues } from "@/features/creator/schema";
 import type { Player } from "@/features/players/api";
 import type { Team } from "@/features/teams/api";
+import { composeMatchDate, todayIso } from "@/lib/match-date";
 import { capRows, filledRows, requestPlayers, rowPath } from "@/features/lineup/cap-rows";
 
 type LineupRequest = components["schemas"]["LineupRequest"];
@@ -16,7 +17,8 @@ const optional = (value: string) => value || undefined;
 
 /**
  * The empty creator: the 15 empty cap rows, white caps, nothing else filled in except the
- * team's default division (`division`, when it has one; still editable per lineup).
+ * team's default division (`division`, when it has one; still editable per lineup), and the
+ * match date set to today (the browser's local day, read on each call) with no start time.
  */
 export function emptyValues(division = ""): CreatorValues {
   return {
@@ -25,7 +27,8 @@ export function emptyValues(division = ""): CreatorValues {
     opponentId: "",
     division,
     cap: "Fehér",
-    date: "",
+    match_date: todayIso(),
+    match_time: "",
     coach: "",
     doctor: "",
     assistant_coach: "",
@@ -46,7 +49,7 @@ export function toLineupRequest(values: CreatorValues, teamName: string): Lineup
     division: values.division,
     team_name: teamName,
     cap: values.cap,
-    date: values.date,
+    date: composeMatchDate(values.match_date, values.match_time),
     coach: values.coach,
     doctor: optional(values.doctor),
     assistant_coach: optional(values.assistant_coach),
@@ -59,8 +62,9 @@ export function toLineupRequest(values: CreatorValues, teamName: string): Lineup
 /**
  * The body for `POST /lineups/saved`. The server takes the team name from `source_team_id`,
  * resolves a roster player or a listed opponent by id (as the caller, so a foreign id is a 404)
- * and freezes the values; the API wants exactly one of an id or free text per field. Empty cap
- * rows are left out.
+ * and freezes the values; the API wants exactly one of an id or free text per field. The date goes
+ * as `match_date`/`match_time` and the server composes the printed text. Empty cap rows are left
+ * out.
  */
 export function toSavedLineupRequest(
   values: CreatorValues,
@@ -75,7 +79,8 @@ export function toSavedLineupRequest(
     match_name: optional(values.match_name),
     division: values.division,
     cap: values.cap,
-    date: values.date,
+    match_date: values.match_date,
+    match_time: optional(values.match_time),
     coach: values.coach,
     doctor: optional(values.doctor),
     assistant_coach: optional(values.assistant_coach),
@@ -91,7 +96,8 @@ export function toSavedLineupRequest(
 
 /**
  * Starting values for "Clone to new match": the staff, division, cap colour and players of a
- * saved lineup, with the match, opponent and date left empty. Each player goes into the row of
+ * saved lineup, with the match and opponent left empty, the date reset to today and the time cleared (it is a
+ * new match). Each player goes into the row of
  * their `cap_number`; the other rows stay empty. A player who is still on the roster is picked
  * from it (so name changes follow); one who was deleted since stays as typed-in text with the
  * frozen name and NSSZ number.

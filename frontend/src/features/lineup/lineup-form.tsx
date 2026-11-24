@@ -32,7 +32,6 @@ const EXAMPLES = {
   match: "SZVTK - Csongrád",
   division: "OB II.",
   team: "SZVTK",
-  date: "2024. 12. 21.",
 };
 
 const STAFF_FIELDS = [
@@ -128,8 +127,11 @@ export function LineupForm() {
               </Select>
             )}
           </Field>
-          <Field label={t("fields.date")} error={errors.date?.message}>
-            {(props) => <Input {...props} placeholder={EXAMPLES.date} {...register("date")} />}
+          <Field label={t("fields.date")} error={errors.match_date?.message}>
+            {(props) => <Input {...props} type="date" {...register("match_date")} />}
+          </Field>
+          <Field label={t("fields.time")} error={errors.match_time?.message}>
+            {(props) => <Input {...props} type="time" {...register("match_time")} />}
           </Field>
         </CardContent>
       </Card>

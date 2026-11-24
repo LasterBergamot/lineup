@@ -231,7 +231,7 @@ test("saving shows a toast that can be dismissed and passes the accessibility ch
 async function fillLineup(app: Page) {
   await app.getByLabel("Opponent", { exact: true }).filter({ visible: true }).fill("Opponent X");
   await app.getByLabel("Division").filter({ visible: true }).fill("OB I");
-  await app.getByLabel("Date").filter({ visible: true }).fill("2026. 11. 1.");
+  await app.getByLabel("Date").filter({ visible: true }).fill("2026-11-01");
   await app.getByLabel("Coach", { exact: true }).filter({ visible: true }).fill("Coach Carter");
   await app.getByLabel("Player from the roster").first().click();
   await app.getByRole("option", { name: /^Player 01/ }).click();

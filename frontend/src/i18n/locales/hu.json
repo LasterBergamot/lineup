@@ -72,6 +72,7 @@
     "teamName": "Csapat neve",
     "capColour": "Sapka színe",
     "date": "Dátum",
+    "time": "Kezdés ideje (nem kötelező)",
     "coach": "Edző",
     "doctor": "Hivatalos orvos",
     "assistantCoach": "Segédedző",

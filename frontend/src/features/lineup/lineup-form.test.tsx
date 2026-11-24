@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach } from "vitest";
 import { i18n } from "@/i18n";
@@ -35,7 +35,6 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
     Match: "SZVTK - Csongrád",
     Division: "OB II.",
     "Team name": "SZVTK",
-    Date: "2024. 12. 21.",
     Coach: "Coach",
     Doctor: "Doctor",
     "Assistant coach": "Assistant",
@@ -179,6 +178,32 @@ describe("LineupForm", () => {
       ],
     });
     expect(saveFile).toHaveBeenCalledWith(file);
+  });
+
+  it("opens on today's local date with no time", () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 24, 23, 59), toFake: ["Date"] });
+    renderForm();
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-11-24");
+    expect(screen.getByLabelText("Start time (optional)")).toHaveValue("");
+  });
+
+  it("requires a date and prints the chosen date and time on the sheet", async () => {
+    const user = userEvent.setup();
+    generateLineup.mockResolvedValue({ blob: new Blob(["x"]), filename: "sheet.pdf" });
+    renderForm();
+    await fillValidForm(user);
+    await user.clear(screen.getByLabelText("Date"));
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    expect(await screen.findByText("Date is required")).toBeInTheDocument();
+    expect(generateLineup).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-12-05" } });
+    fireEvent.change(screen.getByLabelText("Start time (optional)"), {
+      target: { value: "18:30" },
+    });
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    await vi.waitFor(() => expect(generateLineup).toHaveBeenCalledOnce());
+    expect(generateLineup.mock.calls[0]![0].date).toBe("2026. 12. 05. 18:30");
   });
 
   it("submits as DOCX from the second button", async () => {

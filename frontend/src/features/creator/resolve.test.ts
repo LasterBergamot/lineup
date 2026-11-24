@@ -20,7 +20,7 @@ const values = (patch: Partial<CreatorValues> = {}): CreatorValues => ({
   ...emptyValues(),
   opponent: "Csongrád",
   division: "OB I.",
-  date: "2026. 11. 1.",
+  match_date: "2026-11-01",
   coach: "Kovács",
   players: rows({
     1: { playerId: "p-1", name: "Nagy Bence", nssz_number: "N1" },
@@ -37,6 +37,22 @@ describe("emptyValues", () => {
     players.forEach((row, index) =>
       expect(row).toEqual({ cap_number: index + 1, playerId: "", name: "", nssz_number: "" }),
     );
+  });
+});
+
+describe("emptyValues date", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("starts on today's local date with no time", () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 24, 18, 30) });
+    expect(emptyValues()).toMatchObject({ match_date: "2026-11-24", match_time: "" });
+  });
+
+  it("follows the local midnight, read on each call", () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 24, 23, 59, 59) });
+    expect(emptyValues().match_date).toBe("2026-11-24");
+    vi.setSystemTime(new Date(2026, 10, 25, 0, 0, 1));
+    expect(emptyValues().match_date).toBe("2026-11-25");
   });
 });
 
@@ -60,6 +76,13 @@ describe("toLineupRequest", () => {
       ],
     });
     expect(body.players).toHaveLength(2);
+  });
+
+  it("prints the composed date, with the time when one is set", () => {
+    expect(toLineupRequest(values(), "SZVTK").date).toBe("2026. 11. 01.");
+    expect(toLineupRequest(values({ match_time: "18:30" }), "SZVTK").date).toBe(
+      "2026. 11. 01. 18:30",
+    );
   });
 
   it("leaves blank staff out and keeps a given match name", () => {
@@ -94,6 +117,16 @@ describe("toSavedLineupRequest", () => {
     expect(body).not.toHaveProperty("opponent_name");
     expect(body.match_name).toBeUndefined();
     expect(body.doctor).toBeUndefined();
+  });
+
+  it("sends the structured date and leaves a blank time out", () => {
+    const body = toSavedLineupRequest(values(), { id: "team-1" });
+    expect(body).toMatchObject({ match_date: "2026-11-01" });
+    expect(body.match_time).toBeUndefined();
+    expect(body).not.toHaveProperty("date");
+    expect(toSavedLineupRequest(values({ match_time: "18:30" }), { id: "t" }).match_time).toBe(
+      "18:30",
+    );
   });
 
   it("sends a free-text opponent by name", () => {
@@ -135,7 +168,7 @@ const saved = (patch: Partial<SavedLineup> = {}): SavedLineup => ({
 });
 
 describe("valuesFromSaved", () => {
-  it("keeps the staff, division and players (each in their cap's row), not the match or date", () => {
+  it("keeps the staff, division and players (each in their cap's row), not the match, and resets the date", () => {
     expect(valuesFromSaved(saved(), roster)).toEqual({
       ...emptyValues(),
       division: "OB I.",
@@ -148,6 +181,13 @@ describe("valuesFromSaved", () => {
         11: { name: "Kézi", nssz_number: "N11" },
       }),
     });
+  });
+
+  it("starts the clone on today with no time, whatever the saved lineup had", () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 24, 9, 0) });
+    const clone = valuesFromSaved(saved({ match_date: "2026-10-01", match_time: "18:30" }), roster);
+    vi.useRealTimers();
+    expect(clone).toMatchObject({ match_date: "2026-11-24", match_time: "" });
   });
 
   it("falls back to white caps for a colour it does not know", () => {
