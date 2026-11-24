@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { errorKey } from "@/i18n/error-key";
+import { capRows, checkCapRows, MAX_PLAYERS, requestPlayers } from "@/features/lineup/cap-rows";
+import type { components } from "@/api/schema";
 import { cleanText as text } from "@/lib/clean-text";
 
 export const CAP_COLOURS = ["Fehér", "Kék"] as const;
 
-export const MAX_PLAYERS = 15;
+export { MAX_PLAYERS };
 
 const CAP_NUMBER_ERROR = errorKey("validation.capNumber");
 
@@ -15,13 +17,17 @@ export const capNumberSchema = z
   .min(1, CAP_NUMBER_ERROR)
   .max(MAX_PLAYERS, CAP_NUMBER_ERROR);
 
+/** One cap row; its text is checked by `checkCapRows`, because an empty row is allowed. */
 const playerSchema = z.object({
   cap_number: capNumberSchema,
-  name: text(200, "fields.name"),
-  nssz_number: text(50, "fields.nsszNumber"),
+  name: z.string(),
+  nssz_number: z.string(),
 });
 
-/** The one-off lineup form; the shape is exactly the API's `LineupRequest`. */
+/**
+ * The one-off lineup form: the API's `LineupRequest` fields, with `players` as the 15 fixed cap
+ * rows (`cap-rows.ts`). {@link toQuickSheetRequest} drops the empty rows before sending.
+ */
 export const lineupSchema = z.object({
   match: text(200, "fields.match"),
   division: text(100, "fields.division"),
@@ -35,40 +41,23 @@ export const lineupSchema = z.object({
   ball_thrower: text(200, "fields.ballThrower"),
   players: z
     .array(playerSchema)
-    .min(1, errorKey("validation.minPlayers"))
     .max(MAX_PLAYERS, errorKey("validation.maxPlayers", { max: MAX_PLAYERS }))
-    .superRefine((players, ctx) => {
-      const seenCaps = new Set<number>();
-      const seenNssz = new Set<string>();
-      players.forEach((player, index) => {
-        if (seenCaps.has(player.cap_number)) {
-          ctx.addIssue({
-            code: "custom",
-            path: [index, "cap_number"],
-            message: errorKey("validation.uniqueCapNumber"),
-          });
-        }
-        seenCaps.add(player.cap_number);
-        const nssz = player.nssz_number.toLowerCase();
-        // Blank values are already reported as "required"; don't also call them duplicates.
-        if (nssz && seenNssz.has(nssz)) {
-          ctx.addIssue({
-            code: "custom",
-            path: [index, "nssz_number"],
-            message: errorKey("validation.uniqueNssz"),
-          });
-        }
-        seenNssz.add(nssz);
-      });
-    }),
+    .superRefine(checkCapRows),
 });
 
 export type LineupFormValues = z.infer<typeof lineupSchema>;
 
-/** The smallest cap number from 1 to 15 that no row uses yet, or `undefined` when all are taken. */
-export function nextFreeCapNumber(used: readonly number[]): number | undefined {
-  for (let n = 1; n <= MAX_PLAYERS; n++) {
-    if (!used.includes(n)) return n;
-  }
-  return undefined;
+/** The 15 empty cap rows the Quick sheet opens with. */
+export function emptyQuickSheetValues(): Partial<LineupFormValues> {
+  return {
+    cap: "Fehér",
+    players: capRows((cap_number) => ({ cap_number, name: "", nssz_number: "" })),
+  };
+}
+
+/** The body for `POST /lineups`: the form values with only the filled cap rows. */
+export function toQuickSheetRequest(
+  values: LineupFormValues,
+): components["schemas"]["LineupRequest"] {
+  return { ...values, players: requestPlayers(values.players) };
 }

@@ -64,17 +64,20 @@ held: the sign-in redirect unmounts the shell, and the guard with it, first.
 Guarded today: the lineup creator for a new lineup (also when it starts from a clone; an untouched
 clone is not dirty), the Quick sheet, the add and edit player forms and the team settings. The
 **edit mode** of a saved lineup (#290) is not built yet; it gets the same guard when it lands. The
-switch between the creator and the Quick sheet on the Lineup page is not a navigation, so it is not
-held. The guard only ever knows *whether* a form is dirty: the values stay in the form's memory, and
+switch between the creator and the Quick sheet on the Lineup page is not a navigation, so the guard
+does not hold it, and it does not need to: both modes stay mounted and the inactive one is `hidden`,
+so nothing typed is dropped (#302) and both forms keep reporting their dirty flag (a nav link or a
+tab close still asks while the hidden mode holds input). The guard only ever knows *whether* a form is dirty: the values stay in the form's memory, and
 there is no draft in browser storage to come back to, because the forms hold names and NSSZ numbers.
 
 ### Phones, installing and browser tests
 
 - **Touch**: on a touch screen (`pointer-coarse:`) buttons and text fields are 44 px tall, on a
   mouse 32-40 px. Text fields are 16 px below the `md` breakpoint, because iOS Safari zooms the
-  page in when a smaller field is focused. The player row of the lineup creator stacks (cap number
-  and remove button, then the roster picker, name and NSSZ number each full width) below the
-  container's `2xl` width, so the picker's text is never cut off.
+  page in when a smaller field is focused. A cap row of the lineup creator and the Quick sheet
+  stacks below the container's `2xl` width (the cap number on the left, the Clear button on the
+  right, the roster picker, name and NSSZ number between them, each as wide as the others), so the
+  picker's text is never cut off; from `2xl` each row is one line and only the first shows labels.
 - **Safe areas**: `index.html` has `viewport-fit=cover`; the top bar, the bottom navigation and the
   full-screen preview dialog add `env(safe-area-inset-*)` padding, so nothing hides under a notch
   or the home bar when the app runs from the home screen.
@@ -269,9 +272,14 @@ Chromium at phone and desktop sizes against the local stack.
 `/` opens the **lineup creator** (`src/features/creator/`, #203) for the current team; the page loads
 the team's roster first (`QueryBoundary` + skeleton). A lineup is built like this:
 
-- **Players.** Each slot has a cap number and either a roster player (a select, in Hungarian
-  alphabetical order; the name and NSSZ number are copied in and locked, and a player already used in another slot is disabled) or free
-  text. A roster pick is saved as `source_player_id`, so the server freezes the current values.
+- **Players.** 15 fixed rows, one per cap number in cap order (#285): the cap number is the row's
+  label, not an input, so a duplicate or missing cap cannot happen. A row holds either a roster
+  player (a select, in Hungarian alphabetical order; the name and NSSZ number are copied in and
+  locked, and a player already used in another row is disabled) or free text, or nothing; **Clear**
+  empties it. Empty rows are left out of the preview and the save; a half-filled row is a field
+  error, and at least one row must be filled. A roster pick is saved as `source_player_id`, so the
+  server freezes the current values. The row model, the skip-empty rule and the shared validation
+  live in `src/features/lineup/cap-rows.ts`, used by both forms.
 - **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
   directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
   opponents (`GET /teams/{id}/opponents/recent`). If the typed text equals a listed team's name the
@@ -291,7 +299,8 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   return to the Enlarge button. The file is still only in memory: no URL, no storage.
 - **Save.** `POST /lineups/saved` (a "Lineup saved" toast confirms it); afterwards "Saved" stays until the next edit, the PDF/DOCX
   download buttons use `POST /lineups/saved/{id}/generate`, and the saved and recent-opponent
-  queries are refreshed. A 422 is mapped onto the fields (`formPath()`).
+  queries are refreshed. A 422 is mapped onto the fields (`formPath()`); the API's `players.<n>` is
+  the n-th filled row, so it is mapped back to that row's cap.
 - **Unsaved changes.** From the first edit until the lineup is saved, leaving the page asks first
   and a reload or tab close triggers the browser's prompt (see *Unsaved changes* above). A failed
   save keeps the guard on. Editing a saved lineup (#290) will get the same guard.
@@ -299,22 +308,24 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   (`emptyValues(team.division)`); the box stays editable per lineup and changing it never changes the
   team. A clone keeps the saved lineup's own division.
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
-  lineup and `valuesFromSaved()` starts the creator from it (staff, division, players; not the
-  match, opponent or date). Only the id travels in the history state, never the lineup itself.
+  lineup and `valuesFromSaved()` starts the creator from it (staff, division, players, each in the
+  row of their cap number; not the match, opponent or date). Only the id travels in the history state, never the lineup itself.
 - The doctor, assistant coach, team leader and ball thrower are optional here and in the API.
 
 ### The one-off lineup form ("Quick sheet")
 
 The Lineup page's "Quick sheet" mode shows the one-off lineup form (`src/features/lineup/`), the UI for `POST /lineups`: match data
-(match, division, team name, cap colour, date), five staff names and 1 to 15 players (cap number,
-name, NSSZ number). Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
+(match, division, team name, cap colour, date), five staff names and the same 15 fixed cap rows as
+the creator (name and NSSZ number per cap, a **Clear** button, empty rows left out of the request by
+`toQuickSheetRequest()`). Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
 since #96 the endpoint it calls requires the token too (rate limited: a `429` comes with `Retry-After`).
 
 - **Validation twice.** `schema.ts` mirrors the backend's limits (`CleanStr*` types and the
-  `LineupRequest` validators): trimmed, required, length-capped, no control characters, cap numbers
-  1 to 15 and unique, NSSZ numbers unique ignoring case. If the API still answers 422, `fieldErrors()`
-  maps each Pydantic entry (`loc: ["body", "players", 0, "name"]`) onto the matching input
-  (`players.0.name`) and shows its message there; list-level errors appear above the players.
+  `LineupRequest` validators): trimmed, required, length-capped, no control characters, a half-filled
+  cap row is an error, at least one row filled, NSSZ numbers unique ignoring case. If the API still
+  answers 422, `fieldErrors()` maps each Pydantic entry (`loc: ["body", "players", 0, "name"]`) onto
+  the matching input; `rowPath()` turns the request's player index into the cap row it came from,
+  and list-level errors appear above the players.
 - **Two buttons, one request.** "Download PDF" (the primary action, also what Enter does) and
   "Download DOCX" both call `generateLineup()` with the long-timeout client. While a request runs both
   buttons are disabled and the pressed one shows a spinner, so it cannot be sent twice. After 5 s a

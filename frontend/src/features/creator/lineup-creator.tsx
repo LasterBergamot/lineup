@@ -1,8 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Eraser } from "lucide-react";
 import { useState } from "react";
-import { useFieldArray, useForm, useWatch, type FieldPath } from "react-hook-form";
+import { useForm, useWatch, type FieldPath } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { describeError, fieldErrors } from "@/api/errors";
@@ -26,7 +26,8 @@ import {
 import { creatorSchema, type CreatorValues } from "@/features/creator/schema";
 import { saveFile } from "@/features/lineup/download";
 import { generateLineup, generateSavedLineup, type LineupFormat } from "@/features/lineup/generate";
-import { CAP_COLOURS, MAX_PLAYERS, nextFreeCapNumber } from "@/features/lineup/schema";
+import { filledRows, isEmptyRow } from "@/features/lineup/cap-rows";
+import { CAP_COLOURS, MAX_PLAYERS } from "@/features/lineup/schema";
 import { SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
 import type { Player } from "@/features/players/api";
 import { PdfViewer } from "@/features/preview/pdf-viewer";
@@ -35,6 +36,7 @@ import type { Team } from "@/features/teams/api";
 import { translateError } from "@/i18n/error-key";
 import { sortByName } from "@/lib/sort-by-name";
 import { useAfterDelay } from "@/lib/use-after-delay";
+import { cn } from "@/lib/utils";
 import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /** Sample values for the placeholders: real Hungarian data formats, the same in both languages. */
@@ -53,9 +55,10 @@ const STAFF_FIELDS = [
 ] as const;
 
 /**
- * Builds a lineup for `team` from its roster: pick a roster player for each slot (or type one in
- * by hand), choose the opponent from the directory, the team's recent opponents or free text,
- * preview the sheet as a PDF, then save it. A saved lineup can be downloaded right away and is
+ * Builds a lineup for `team` from its roster: 15 fixed rows, one per cap number in cap order; pick
+ * a roster player for a row (or type one in by hand, or leave it empty), choose the opponent from
+ * the directory, the team's recent opponents or free text, preview the sheet as a PDF, then save
+ * it. Empty rows are left out of the sheet. A saved lineup can be downloaded right away and is
  * kept in the team's workspace.
  *
  * The form values include players' names and NSSZ numbers: they live in component state only (no
@@ -82,7 +85,7 @@ export function LineupCreator({
     control,
     setError,
     setValue,
-    getValues,
+    clearErrors,
     reset,
     formState: { errors, isDirty },
   } = useForm<CreatorValues>({
@@ -91,14 +94,14 @@ export function LineupCreator({
   });
   // Leaving with unsaved input asks first; the save's `reset(values)` turns the guard off.
   useUnsavedChangesGuard(isDirty);
-  const { fields, append, remove } = useFieldArray({ control, name: "players" });
   const players = useWatch({ control, name: "players" });
   const opponent = useWatch({ control, name: "opponent" });
   const cap = useWatch({ control, name: "cap" });
 
-  function showServerErrors(error: unknown) {
+  function showServerErrors(error: unknown, sent: CreatorValues) {
     for (const { path, message } of fieldErrors(error)) {
-      const target = formPath(path) === "players" ? "players.root" : formPath(path);
+      const field = formPath(path, sent.players);
+      const target = field === "players" ? "players.root" : field;
       setError(target as FieldPath<CreatorValues>, { type: "server", message });
     }
   }
@@ -108,7 +111,7 @@ export function LineupCreator({
     gcTime: 0,
     mutationFn: (values: CreatorValues) =>
       generateLineup(toLineupRequest(values, team.name), "pdf"),
-    onError: showServerErrors,
+    onError: (error, values) => showServerErrors(error, values),
   });
   const save = useMutation({
     mutationFn: (values: CreatorValues) => createSavedLineup(toSavedLineupRequest(values, team)),
@@ -119,7 +122,7 @@ export function LineupCreator({
       await queryClient.invalidateQueries({ queryKey: ["saved"] });
       await queryClient.invalidateQueries({ queryKey: recentOpponentsKey(userId, team.id) });
     },
-    onError: showServerErrors,
+    onError: (error, values) => showServerErrors(error, values),
   });
   const download = useMutation({
     mutationFn: async ({ id, format }: { id: string; format: LineupFormat }) =>
@@ -142,10 +145,12 @@ export function LineupCreator({
     preview.reset();
   }
 
-  function addPlayer() {
-    // The button is disabled at 15 rows, so a free cap number always exists here.
-    const next = nextFreeCapNumber(getValues("players").map((p) => p.cap_number))!;
-    append({ cap_number: next, playerId: "", name: "", nssz_number: "" });
+  /** Empties one cap row (and its errors); an empty row is left out of the sheet. */
+  function clearRow(index: number) {
+    for (const field of ["playerId", "name", "nssz_number"] as const) {
+      setValue(`players.${index}.${field}`, "", { shouldDirty: true });
+    }
+    clearErrors(`players.${index}`);
   }
 
   /** Copies the picked roster player's name and NSSZ number into the slot (or clears them). */
@@ -158,6 +163,7 @@ export function LineupCreator({
 
   const playersError = errors.players?.root?.message ?? errors.players?.message;
   const chosen = new Set(players.map((p) => p.playerId).filter(Boolean));
+  const sortedRoster = sortByName(roster);
 
   return (
     <div className={showPreview ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_28rem]" : undefined}>
@@ -242,24 +248,15 @@ export function LineupCreator({
         </Card>
 
         <Card>
-          <CardHeader className="flex-row items-center justify-between gap-4">
+          <CardHeader>
             <CardTitle>
               {t("lineup.sections.players")}{" "}
               <span className="text-sm font-normal text-muted-foreground">
-                {t("lineup.playerCount", { count: fields.length, max: MAX_PLAYERS })}
+                {t("lineup.playerCount", { count: filledRows(players).length, max: MAX_PLAYERS })}
               </span>
             </CardTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addPlayer}
-              disabled={fields.length >= MAX_PLAYERS}
-            >
-              <Plus /> {t("lineup.addPlayer")}
-            </Button>
           </CardHeader>
-          <CardContent className="@container flex flex-col gap-4">
+          <CardContent className="@container flex flex-col gap-4 @2xl:gap-2">
             {roster.length === 0 && (
               <p className="text-sm text-muted-foreground">{t("creator.emptyRoster")}</p>
             )}
@@ -268,46 +265,44 @@ export function LineupCreator({
                 {translateError(playersError, t)}
               </p>
             )}
-            {fields.map((field, index) => {
+            {players.map((row, index) => {
               const rowErrors = errors.players?.[index];
-              const fromRoster = Boolean(players[index]?.playerId);
+              const fromRoster = Boolean(row.playerId);
+              // On a wide card the rows line up like a table: only the first shows its labels.
+              const compact = index > 0;
               return (
                 <div
-                  key={field.id}
+                  key={row.cap_number}
                   role="group"
-                  aria-label={t("lineup.player", { number: index + 1 })}
-                  className="grid grid-cols-[5rem_1fr_auto] items-start gap-3 @2xl:grid-cols-[5rem_1fr_1fr_12rem_auto]"
+                  aria-label={t("lineup.capRow", { number: row.cap_number })}
+                  className={cn(
+                    "grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 border-b pb-4 last:border-b-0 last:pb-0",
+                    "@2xl:grid-cols-[2.75rem_minmax(0,1fr)_minmax(0,1fr)_10rem_auto] @2xl:border-b-0 @2xl:pb-0",
+                    compact && "@2xl:[&_label]:sr-only",
+                  )}
                 >
-                  <Field label={t("fields.capNo")} error={rowErrors?.cap_number?.message}>
-                    {(props) => (
-                      <Input
-                        {...props}
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={MAX_PLAYERS}
-                        {...register(`players.${index}.cap_number`, { valueAsNumber: true })}
-                      />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "row-span-3 mt-[1.625rem] flex h-10 items-center justify-center rounded-md bg-muted text-sm font-semibold tabular-nums pointer-coarse:h-11 @2xl:row-span-1",
+                      compact && "@2xl:mt-0",
                     )}
-                  </Field>
-                  <Field
-                    label={t("creator.rosterPlayer")}
-                    className="col-span-3 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
                   >
+                    {row.cap_number}
+                  </span>
+                  <Field label={t("creator.rosterPlayer")}>
                     {(props) => (
                       <Select
                         {...props}
-                        value={players[index]?.playerId ?? ""}
+                        value={row.playerId}
                         onChange={(event) => pickPlayer(index, event.target.value)}
                       >
                         <option value="">{t("creator.typedIn")}</option>
-                        {sortByName(roster).map((player) => (
+                        {sortedRoster.map((player) => (
                           <option
                             key={player.id}
                             value={player.id}
-                            disabled={
-                              chosen.has(player.id) && players[index]?.playerId !== player.id
-                            }
+                            disabled={chosen.has(player.id) && row.playerId !== player.id}
                           >
                             {player.name}
                           </option>
@@ -318,7 +313,7 @@ export function LineupCreator({
                   <Field
                     label={t("fields.name")}
                     error={rowErrors?.name?.message}
-                    className="col-span-3 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
+                    className="col-start-2 @2xl:col-start-auto"
                   >
                     {(props) => (
                       <Input
@@ -331,7 +326,7 @@ export function LineupCreator({
                   <Field
                     label={t("fields.nsszNumber")}
                     error={rowErrors?.nssz_number?.message}
-                    className="col-span-3 col-start-1 @2xl:col-span-1 @2xl:col-start-auto"
+                    className="col-start-2 @2xl:col-start-auto"
                   >
                     {(props) => (
                       <Input
@@ -345,12 +340,15 @@ export function LineupCreator({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="col-start-3 row-start-1 mt-[1.625rem] self-start @2xl:col-start-auto @2xl:row-start-auto"
-                    aria-label={t("lineup.removePlayer", { number: index + 1 })}
-                    onClick={() => remove(index)}
-                    disabled={fields.length === 1}
+                    className={cn(
+                      "col-start-3 row-start-1 mt-[1.625rem] @2xl:col-start-auto @2xl:row-start-auto",
+                      compact && "@2xl:mt-0",
+                    )}
+                    aria-label={t("lineup.clearRow", { number: row.cap_number })}
+                    onClick={() => clearRow(index)}
+                    disabled={isEmptyRow(row)}
                   >
-                    <Trash2 />
+                    <Eraser />
                   </Button>
                 </div>
               );

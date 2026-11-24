@@ -751,6 +751,13 @@ export interface components {
          *     team *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
          *     defaults to "<team> - <opponent>". Blank optional values count as not provided. Cap numbers
          *     must be unique, and no roster player may appear twice.
+         *
+         *     The match date comes in one of two ways. Send `match_date` (and optionally `match_time`,
+         *     which needs a `match_date`) and the server composes the printed `date` text itself as
+         *     `YYYY. MM. DD.` plus ` HH:MM` when a time is set; any `date` text sent alongside is
+         *     replaced. Or send only the free-text `date`, which is printed as typed and stores no
+         *     structured fields. One of the two is required. A time is minute precision and has no
+         *     timezone: seconds are dropped and an offset is rejected.
          */
         SavedLineupCreate: {
             /** Assistant Coach */
@@ -765,13 +772,17 @@ export interface components {
             /** Coach */
             coach: string;
             /** Date */
-            date: string;
+            date?: string | null;
             /** Division */
             division: string;
             /** Doctor */
             doctor?: string | null;
+            /** Match Date */
+            match_date?: string | null;
             /** Match Name */
             match_name?: string | null;
+            /** Match Time */
+            match_time?: string | null;
             /** Opponent Name */
             opponent_name?: string | null;
             /** Players */
@@ -855,8 +866,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Match Date */
+            match_date: string | null;
             /** Match Name */
             match_name: string;
+            /** Match Time */
+            match_time: string | null;
             /** Opponent Name */
             opponent_name: string;
             /** Players */

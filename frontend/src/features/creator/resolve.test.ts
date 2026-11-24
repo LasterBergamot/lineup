@@ -11,25 +11,32 @@ import type { Player } from "@/features/players/api";
 
 type SavedLineup = components["schemas"]["SavedLineupResponse"];
 
+/** The 15 cap rows, with the given ones filled in by cap number. */
+function rows(filled: Record<number, Partial<CreatorValues["players"][number]>> = {}) {
+  return emptyValues().players.map((row) => ({ ...row, ...filled[row.cap_number] }));
+}
+
 const values = (patch: Partial<CreatorValues> = {}): CreatorValues => ({
   ...emptyValues(),
   opponent: "Csongrád",
   division: "OB I.",
   date: "2026. 11. 1.",
   coach: "Kovács",
-  players: [
-    { cap_number: 1, playerId: "p-1", name: "Nagy Bence", nssz_number: "N1" },
-    { cap_number: 2, playerId: "", name: "Kiss Ádám", nssz_number: "N2" },
-  ],
+  players: rows({
+    1: { playerId: "p-1", name: "Nagy Bence", nssz_number: "N1" },
+    4: { name: " Kiss Ádám ", nssz_number: "N4" },
+  }),
   ...patch,
 });
 
 describe("emptyValues", () => {
-  it("starts with white caps and one empty typed-in slot", () => {
-    expect(emptyValues()).toMatchObject({
-      cap: "Fehér",
-      players: [{ cap_number: 1, playerId: "", name: "", nssz_number: "" }],
-    });
+  it("starts with white caps and the 15 empty cap rows in cap order", () => {
+    const { cap, players } = emptyValues();
+    expect(cap).toBe("Fehér");
+    expect(players).toHaveLength(15);
+    players.forEach((row, index) =>
+      expect(row).toEqual({ cap_number: index + 1, playerId: "", name: "", nssz_number: "" }),
+    );
   });
 });
 
@@ -41,7 +48,7 @@ describe("emptyValues with a team default division", () => {
 });
 
 describe("toLineupRequest", () => {
-  it("names the match after the teams and prints the players as they stand", () => {
+  it("names the match after the teams and prints only the filled rows", () => {
     const body = toLineupRequest(values(), "SZVTK");
     expect(body).toMatchObject({
       match: "SZVTK - Csongrád",
@@ -49,9 +56,10 @@ describe("toLineupRequest", () => {
       coach: "Kovács",
       players: [
         { cap_number: 1, name: "Nagy Bence", nssz_number: "N1" },
-        { cap_number: 2, name: "Kiss Ádám", nssz_number: "N2" },
+        { cap_number: 4, name: "Kiss Ádám", nssz_number: "N4" },
       ],
     });
+    expect(body.players).toHaveLength(2);
   });
 
   it("leaves blank staff out and keeps a given match name", () => {
@@ -68,7 +76,7 @@ describe("toLineupRequest", () => {
 });
 
 describe("toSavedLineupRequest", () => {
-  it("sends roster players and a listed opponent as ids", () => {
+  it("sends roster players and a listed opponent as ids, and only the filled rows", () => {
     const body = toSavedLineupRequest(values({ opponentId: "opp-1", team_leader: "Vezető" }), {
       id: "team-1",
     });
@@ -79,9 +87,10 @@ describe("toSavedLineupRequest", () => {
       team_leader: "Vezető",
       players: [
         { source_player_id: "p-1", cap_number: 1 },
-        { name: "Kiss Ádám", nssz_number: "N2", cap_number: 2 },
+        { name: "Kiss Ádám", nssz_number: "N4", cap_number: 4 },
       ],
     });
+    expect(body.players).toHaveLength(2);
     expect(body).not.toHaveProperty("opponent_name");
     expect(body.match_name).toBeUndefined();
     expect(body.doctor).toBeUndefined();
@@ -106,6 +115,8 @@ const saved = (patch: Partial<SavedLineup> = {}): SavedLineup => ({
   division: "OB I.",
   cap: "Kék",
   date: "2026. 10. 1.",
+  match_date: null,
+  match_time: null,
   coach: "Kovács",
   doctor: "Dr. Kis",
   assistant_coach: null,
@@ -117,24 +128,24 @@ const saved = (patch: Partial<SavedLineup> = {}): SavedLineup => ({
   players: [
     { id: "x1", cap_number: 1, name: "Nagy Bence", nssz_number: "N1", source_player_id: "p-1" },
     { id: "x2", cap_number: 2, name: "Töröltem", nssz_number: "N2", source_player_id: "gone" },
-    { id: "x3", cap_number: 3, name: "Kézi", nssz_number: "N3", source_player_id: null },
+    { id: "x3", cap_number: 11, name: "Kézi", nssz_number: "N11", source_player_id: null },
   ],
   ...patch,
 });
 
 describe("valuesFromSaved", () => {
-  it("keeps the staff, division and players but not the match, opponent or date", () => {
+  it("keeps the staff, division and players (each in their cap's row), not the match or date", () => {
     expect(valuesFromSaved(saved(), roster)).toEqual({
       ...emptyValues(),
       division: "OB I.",
       cap: "Kék",
       coach: "Kovács",
       doctor: "Dr. Kis",
-      players: [
-        { cap_number: 1, playerId: "p-1", name: "Nagy Bence (new)", nssz_number: "N1b" },
-        { cap_number: 2, playerId: "", name: "Töröltem", nssz_number: "N2" },
-        { cap_number: 3, playerId: "", name: "Kézi", nssz_number: "N3" },
-      ],
+      players: rows({
+        1: { playerId: "p-1", name: "Nagy Bence (new)", nssz_number: "N1b" },
+        2: { name: "Töröltem", nssz_number: "N2" },
+        11: { name: "Kézi", nssz_number: "N11" },
+      }),
     });
   });
 
@@ -144,12 +155,17 @@ describe("valuesFromSaved", () => {
 });
 
 describe("formPath", () => {
+  const sent = values().players;
+
   it("maps API field names onto the creator's fields", () => {
-    expect(formPath("opponent_name")).toBe("opponent");
-    expect(formPath("source_opponent_id")).toBe("opponent");
-    expect(formPath("match")).toBe("match_name");
-    expect(formPath("players.3.source_player_id")).toBe("players.3.name");
-    expect(formPath("players.3.nssz_number")).toBe("players.3.nssz_number");
-    expect(formPath("division")).toBe("division");
+    expect(formPath("opponent_name", sent)).toBe("opponent");
+    expect(formPath("source_opponent_id", sent)).toBe("opponent");
+    expect(formPath("match", sent)).toBe("match_name");
+    expect(formPath("division", sent)).toBe("division");
+  });
+
+  it("maps the n-th sent player onto its cap row", () => {
+    expect(formPath("players.1.source_player_id", sent)).toBe("players.3.name");
+    expect(formPath("players.1.nssz_number", sent)).toBe("players.3.nssz_number");
   });
 });

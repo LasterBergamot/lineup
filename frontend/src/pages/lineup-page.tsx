@@ -17,7 +17,8 @@ import { useTeams } from "@/features/teams/context";
  * Make a lineup. The creator (default) builds it from the current team's roster, previews it and
  * saves it; "Quick sheet" is the one-off form for a lineup nobody needs to keep. When the Saved
  * page sends the id of a lineup to clone (`location.state.cloneFromId`), the page fetches it and the
- * creator starts from it. Only the id travels in the router state: the lineup itself holds players'
+ * creator starts from it. Both modes stay mounted and the inactive one is hidden, so switching
+ * keeps what was typed in either (the values live in component state only, never in storage). Only the id travels in the router state: the lineup itself holds players'
  * names and NSSZ numbers, which must not end up in the browser's history entries.
  */
 export function LineupPage() {
@@ -64,9 +65,10 @@ export function LineupPage() {
         aria-labelledby={quick ? "lineup-mode-quick" : "lineup-mode-creator"}
         className="flex flex-col gap-6"
       >
-        {quick ? (
-          <LineupForm />
-        ) : (
+        {/* Both modes stay mounted and the inactive one is hidden, so a switch never drops what was
+            typed (#302) and both forms keep reporting their dirty flag to the unsaved-changes guard.
+            The `hidden` goes on a wrapper without a display class: `flex` would override it. */}
+        <div hidden={quick}>
           <QueryBoundary query={roster} skeleton={<CreatorSkeleton />}>
             {(players) =>
               cloneId === undefined ? (
@@ -85,7 +87,10 @@ export function LineupPage() {
               )
             }
           </QueryBoundary>
-        )}
+        </div>
+        <div hidden={!quick}>
+          <LineupForm />
+        </div>
       </div>
     </div>
   );
