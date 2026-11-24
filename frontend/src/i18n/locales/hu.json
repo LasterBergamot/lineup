@@ -63,7 +63,6 @@
     "capColour": "Válasszon sapkaszínt",
     "minPlayers": "Adjon hozzá legalább egy játékost",
     "maxPlayers": "Egy rajtlistán legfeljebb {{max, number}} játékos szerepelhet",
-    "uniqueCapNumber": "A sapkaszámoknak különbözniük kell",
     "uniqueNssz": "Az NSSZ számoknak különbözniük kell",
     "inviteLink": "Ez nem tűnik meghívó hivatkozásnak"
   },
@@ -93,9 +92,8 @@
       "players": "Játékosok"
     },
     "playerCount": "({{count, number}} / {{max, number}})",
-    "addPlayer": "Játékos hozzáadása",
-    "player": "{{number, number}}. játékos",
-    "removePlayer": "{{number, number}}. játékos törlése",
+    "capRow": "Sapkaszám: {{number, number}}",
+    "clearRow": "{{number, number}}. sor ürítése",
     "caps": {
       "Fehér": "Fehér",
       "Kék": "Kék"

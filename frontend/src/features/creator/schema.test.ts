@@ -1,4 +1,4 @@
-import { creatorSchema } from "@/features/creator/schema";
+import { creatorSchema, type CreatorValues } from "@/features/creator/schema";
 import { emptyValues } from "@/features/creator/resolve";
 import { decodeError } from "@/i18n/error-key";
 
@@ -19,8 +19,13 @@ const valid = () => ({
   division: "OB I.",
   date: "2026. 11. 1.",
   coach: "Kovács",
-  players: [{ cap_number: 1, playerId: "", name: "Nagy Bence", nssz_number: "MVLSZ1" }],
+  players: rows({ 1: { name: "Nagy Bence", nssz_number: "MVLSZ1" } }),
 });
+
+/** The 15 cap rows, with the given ones filled in by cap number. */
+function rows(filled: Record<number, Partial<CreatorValues["players"][number]>> = {}) {
+  return emptyValues().players.map((row) => ({ ...row, ...filled[row.cap_number] }));
+}
 
 describe("creatorSchema", () => {
   it("accepts a minimal lineup, with the optional fields blank", () => {
@@ -47,18 +52,20 @@ describe("creatorSchema", () => {
   });
 
   it("checks typed-in players but trusts the ones picked from the roster", () => {
-    const players = [
-      { cap_number: 1, playerId: "", name: "", nssz_number: " " },
-      { cap_number: 2, playerId: "p-1", name: "", nssz_number: "" },
-    ];
+    const players = rows({ 1: { name: "a\u0000b", nssz_number: "N1" }, 2: { playerId: "p-1" } });
     expect(messages({ ...valid(), players })).toEqual([
-      "players.0.name: validation.required(fields.name)",
-      "players.0.nssz_number: validation.required(fields.nsszNumber)",
+      "players.0.name: validation.unsupportedCharacters(fields.name)",
     ]);
   });
 
-  it("needs 1 to 15 players", () => {
-    expect(messages({ ...valid(), players: [] })).toEqual(["players: validation.minPlayers"]);
+  it("skips empty rows, flags a half-filled one and needs at least one filled row", () => {
+    expect(messages({ ...valid(), players: rows() })).toEqual(["players: validation.minPlayers"]);
+    expect(messages({ ...valid(), players: rows({ 9: { name: "Kiss" } }) })).toEqual([
+      "players.8.nssz_number: validation.required(fields.nsszNumber)",
+    ]);
+  });
+
+  it("allows at most 15 rows", () => {
     const many = Array.from({ length: 16 }, (_, i) => ({
       cap_number: (i % 15) + 1,
       playerId: "",
@@ -68,14 +75,13 @@ describe("creatorSchema", () => {
     expect(messages({ ...valid(), players: many })).toContain("players: validation.maxPlayers(15)");
   });
 
-  it("rejects a repeated cap number or NSSZ number (any case) on the later row", () => {
-    const players = [
-      { cap_number: 3, playerId: "", name: "A", nssz_number: "mvlsz1" },
-      { cap_number: 3, playerId: "p-2", name: "B", nssz_number: "MVLSZ1" },
-    ];
+  it("rejects a repeated NSSZ number (any case) on the later row", () => {
+    const players = rows({
+      1: { name: "A", nssz_number: "mvlsz1" },
+      3: { playerId: "p-2", name: "B", nssz_number: "MVLSZ1" },
+    });
     expect(messages({ ...valid(), players })).toEqual([
-      "players.1.cap_number: validation.uniqueCapNumber",
-      "players.1.nssz_number: validation.uniqueNssz",
+      "players.2.nssz_number: validation.uniqueNssz",
     ]);
   });
 });

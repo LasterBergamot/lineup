@@ -27,6 +27,9 @@ function renderForm() {
   return { ...view, isDirty: unsaved.isDirty };
 }
 
+/** The row of one cap number. */
+const capRow = (n: number) => screen.getByLabelText(`Cap no. ${n}`);
+
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   const values: Record<string, string> = {
     Match: "SZVTK - Csongrád",
@@ -38,12 +41,16 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
     "Assistant coach": "Assistant",
     "Team leader": "Leader",
     "Ball thrower": "Thrower",
-    Name: "Török András",
-    "NSSZ number": "MVLSZ1",
   };
+  // Pasting instead of typing keeps the 15-row form fast enough under coverage.
   for (const [label, value] of Object.entries(values)) {
-    await user.type(screen.getByLabelText(label), value);
+    await user.click(screen.getByLabelText(label));
+    await user.paste(value);
   }
+  await user.click(within(capRow(1)).getByLabelText("Name"));
+  await user.paste("Török András");
+  await user.click(within(capRow(1)).getByLabelText("NSSZ number"));
+  await user.paste("MVLSZ1");
 }
 
 beforeEach(() => {
@@ -79,11 +86,18 @@ describe("LineupForm unsaved changes", () => {
 });
 
 describe("LineupForm", () => {
-  it("starts with one player row and the white caps selected", () => {
+  it("starts with the 15 empty cap rows in cap order and the white caps selected", () => {
     renderForm();
     expect(screen.getByLabelText("Cap colour")).toHaveValue("Fehér");
-    expect(screen.getByLabelText("Cap no.")).toHaveValue(1);
-    expect(screen.getByRole("button", { name: "Remove player 1" })).toBeDisabled();
+    const rows = screen.getAllByRole("group", { name: /^Cap no\./ });
+    expect(rows.map((row) => row.getAttribute("aria-label"))).toEqual(
+      Array.from({ length: 15 }, (_, i) => `Cap no. ${i + 1}`),
+    );
+    expect(within(capRow(15)).getByText("15")).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add player/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear row 1" })).toBeDisabled();
+    expect(screen.getByText("(0 of 15)")).toBeInTheDocument();
   });
 
   it("shows field errors and sends nothing when the form is empty", async () => {
@@ -92,7 +106,8 @@ describe("LineupForm", () => {
     await user.click(screen.getByRole("button", { name: "Download PDF" }));
     expect(await screen.findByText("Match is required")).toBeInTheDocument();
     expect(screen.getByLabelText("Match")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.getByText("Name is required")).toBeInTheDocument();
+    expect(screen.getByText("Add at least one player")).toBeInTheDocument();
+    expect(screen.queryByText("Name is required")).not.toBeInTheDocument();
     expect(generateLineup).not.toHaveBeenCalled();
   });
 
@@ -103,10 +118,11 @@ describe("LineupForm", () => {
     expect(await screen.findByText("Match is required")).toBeInTheDocument();
     await act(() => i18n.changeLanguage("hu"));
     expect(screen.getByText("Mérkőzés megadása kötelező")).toBeInTheDocument();
-    expect(screen.getByText("Név megadása kötelező")).toBeInTheDocument();
+    expect(screen.getByText("Adjon hozzá legalább egy játékost")).toBeInTheDocument();
     expect(screen.getByLabelText("Mérkőzés")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: "PDF letöltése" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "1. játékos" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Sapkaszám: 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "1. sor ürítése" })).toBeInTheDocument();
   });
 
   it("shows cap colours in the current language but submits the Hungarian value", async () => {
@@ -119,28 +135,22 @@ describe("LineupForm", () => {
     expect(screen.getByLabelText("Sapka színe")).toHaveValue("Kék");
   });
 
-  it("adds players with the next free cap number, up to 15, and removes them", async () => {
+  it("flags a half-filled row, and Clear empties it and drops its error", async () => {
     const user = userEvent.setup();
     renderForm();
-    const add = screen.getByRole("button", { name: /Add player/ });
-    await user.click(add);
-    await user.click(add);
-    expect(screen.getAllByLabelText("Cap no.").map((el) => (el as HTMLInputElement).value)).toEqual(
-      ["1", "2", "3"],
-    );
+    await fillValidForm(user);
+    await user.type(within(capRow(3)).getByLabelText("Name"), "Kiss Ádám");
+    expect(screen.getByText("(2 of 15)")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    expect(await within(capRow(3)).findByText("NSSZ number is required")).toBeInTheDocument();
+    expect(generateLineup).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "Remove player 2" }));
-    expect(screen.getAllByLabelText("Cap no.").map((el) => (el as HTMLInputElement).value)).toEqual(
-      ["1", "3"],
-    );
-    await user.click(add);
-    expect(screen.getAllByLabelText("Cap no.").map((el) => (el as HTMLInputElement).value)).toEqual(
-      ["1", "3", "2"],
-    );
-
-    for (let i = 0; i < 12; i++) await user.click(add);
-    expect(screen.getAllByRole("group", { name: /^Player/ })).toHaveLength(15);
-    expect(add).toBeDisabled();
+    const clear = screen.getByRole("button", { name: "Clear row 3" });
+    await user.click(clear);
+    expect(within(capRow(3)).getByLabelText("Name")).toHaveValue("");
+    expect(within(capRow(3)).queryByText("NSSZ number is required")).not.toBeInTheDocument();
+    expect(clear).toBeDisabled();
+    expect(screen.getByText("(1 of 15)")).toBeInTheDocument();
   });
 
   it("submits the trimmed values as PDF and hands the file to the browser", async () => {
@@ -149,6 +159,8 @@ describe("LineupForm", () => {
     generateLineup.mockResolvedValue(file);
     renderForm();
     await fillValidForm(user);
+    await user.type(within(capRow(7)).getByLabelText("Name"), "  Kiss Ádám ");
+    await user.type(within(capRow(7)).getByLabelText("NSSZ number"), "MVLSZ7");
     await user.selectOptions(screen.getByLabelText("Cap colour"), "Kék");
 
     await user.click(screen.getByRole("button", { name: "Download PDF" }));
@@ -161,7 +173,10 @@ describe("LineupForm", () => {
       match: "SZVTK - Csongrád",
       cap: "Kék",
       coach: "Coach",
-      players: [{ cap_number: 1, name: "Török András", nssz_number: "MVLSZ1" }],
+      players: [
+        { cap_number: 1, name: "Török András", nssz_number: "MVLSZ1" },
+        { cap_number: 7, name: "Kiss Ádám", nssz_number: "MVLSZ7" },
+      ],
     });
     expect(saveFile).toHaveBeenCalledWith(file);
   });
@@ -209,13 +224,13 @@ describe("LineupForm", () => {
     );
   });
 
-  it("maps a 422 onto the fields it names", async () => {
+  it("maps a 422 onto the fields it names, players by their cap row", async () => {
     const user = userEvent.setup();
     generateLineup.mockRejectedValue(
       new ApiError(422, {
         detail: [
           { loc: ["body", "match"], msg: "String should have at most 200 characters" },
-          { loc: ["body", "players", 0, "nssz_number"], msg: "Value error, taken" },
+          { loc: ["body", "players", 1, "nssz_number"], msg: "Value error, taken" },
           { loc: ["body", "players"], msg: "Value error, Player cap numbers must be unique" },
           { loc: ["query", "format"], msg: "ignored" },
         ],
@@ -223,13 +238,15 @@ describe("LineupForm", () => {
     );
     renderForm();
     await fillValidForm(user);
+    await user.type(within(capRow(5)).getByLabelText("Name"), "Kiss Ádám");
+    await user.type(within(capRow(5)).getByLabelText("NSSZ number"), "MVLSZ5");
     await user.click(screen.getByRole("button", { name: "Download PDF" }));
 
     expect(
       await screen.findByText("String should have at most 200 characters"),
     ).toBeInTheDocument();
-    const row = screen.getByRole("group", { name: "Player 1" });
-    expect(within(row).getByText("taken")).toBeInTheDocument();
+    // The second player sent is the one in cap row 5.
+    expect(within(capRow(5)).getByText("taken")).toBeInTheDocument();
     expect(screen.getByText("Player cap numbers must be unique")).toBeInTheDocument();
     expect(screen.getByText(/server rejected some of the details/i)).toBeInTheDocument();
     expect(saveFile).not.toHaveBeenCalled();

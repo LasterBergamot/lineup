@@ -1,5 +1,21 @@
 import { decodeError } from "@/i18n/error-key";
-import { lineupSchema, nextFreeCapNumber } from "@/features/lineup/schema";
+import { capRows } from "@/features/lineup/cap-rows";
+import {
+  emptyQuickSheetValues,
+  lineupSchema,
+  toQuickSheetRequest,
+  type LineupFormValues,
+} from "@/features/lineup/schema";
+
+/** The 15 cap rows, with the given ones filled in by cap number. */
+function rows(filled: Record<number, { name: string; nssz_number: string }> = {}) {
+  return capRows((cap_number) => ({
+    cap_number,
+    name: "",
+    nssz_number: "",
+    ...filled[cap_number],
+  }));
+}
 
 const valid = {
   match: "SZVTK - Csongrád",
@@ -12,10 +28,10 @@ const valid = {
   assistant_coach: "C",
   team_leader: "D",
   ball_thrower: "E",
-  players: [
-    { cap_number: 1, name: "Török András", nssz_number: "MVLSZ1" },
-    { cap_number: 2, name: "Kovács Béla", nssz_number: "MVLSZ2" },
-  ],
+  players: rows({
+    1: { name: "Török András", nssz_number: "MVLSZ1" },
+    2: { name: "Kovács Béla", nssz_number: "MVLSZ2" },
+  }),
 };
 
 /**
@@ -64,8 +80,8 @@ describe("lineupSchema", () => {
     expect(messages({ ...valid, cap: "Piros" })).toEqual(["cap: validation.capColour"]);
   });
 
-  it("needs between 1 and 15 players", () => {
-    expect(messages({ ...valid, players: [] })).toEqual(["players: validation.minPlayers"]);
+  it("needs a filled row and at most 15 rows", () => {
+    expect(messages({ ...valid, players: rows() })).toEqual(["players: validation.minPlayers"]);
     const sixteen = Array.from({ length: 16 }, (_, i) => ({
       cap_number: (i % 15) + 1,
       name: `P${i}`,
@@ -81,21 +97,21 @@ describe("lineupSchema", () => {
     expect(messages({ ...valid, players })).toEqual(["players.0.cap_number: validation.capNumber"]);
   });
 
-  it("flags a repeated cap number on the later row", () => {
-    const players = [
-      { cap_number: 3, name: "A", nssz_number: "N1" },
-      { cap_number: 3, name: "B", nssz_number: "N2" },
-    ];
+  it("flags the missing half of a half-filled row", () => {
+    const players = rows({
+      1: { name: "A", nssz_number: "N1" },
+      4: { name: "B", nssz_number: "" },
+    });
     expect(messages({ ...valid, players })).toEqual([
-      "players.1.cap_number: validation.uniqueCapNumber",
+      "players.3.nssz_number: validation.required(fields.nsszNumber)",
     ]);
   });
 
   it("flags a repeated NSSZ number, ignoring case", () => {
-    const players = [
-      { cap_number: 1, name: "A", nssz_number: "mvlsz1" },
-      { cap_number: 2, name: "B", nssz_number: "MVLSZ1" },
-    ];
+    const players = rows({
+      1: { name: "A", nssz_number: "mvlsz1" },
+      2: { name: "B", nssz_number: "MVLSZ1" },
+    });
     expect(messages({ ...valid, players })).toEqual([
       "players.1.nssz_number: validation.uniqueNssz",
     ]);
@@ -104,10 +120,7 @@ describe("lineupSchema", () => {
 
 describe("lineupSchema blank NSSZ numbers", () => {
   it("reports blanks as required only, not also as duplicates", () => {
-    const players = [
-      { cap_number: 1, name: "A", nssz_number: "" },
-      { cap_number: 2, name: "B", nssz_number: "" },
-    ];
+    const players = rows({ 1: { name: "A", nssz_number: "" }, 2: { name: "B", nssz_number: "" } });
     expect(messages({ ...valid, players })).toEqual([
       "players.0.nssz_number: validation.required(fields.nsszNumber)",
       "players.1.nssz_number: validation.required(fields.nsszNumber)",
@@ -115,13 +128,21 @@ describe("lineupSchema blank NSSZ numbers", () => {
   });
 });
 
-describe("nextFreeCapNumber", () => {
-  it("returns the smallest unused number", () => {
-    expect(nextFreeCapNumber([])).toBe(1);
-    expect(nextFreeCapNumber([1, 2, 4])).toBe(3);
+describe("emptyQuickSheetValues", () => {
+  it("opens with white caps and the 15 empty cap rows", () => {
+    expect(emptyQuickSheetValues()).toEqual({ cap: "Fehér", players: rows() });
   });
+});
 
-  it("returns undefined once all 15 are used", () => {
-    expect(nextFreeCapNumber(Array.from({ length: 15 }, (_, i) => i + 1))).toBeUndefined();
+describe("toQuickSheetRequest", () => {
+  it("sends the form values with only the filled rows", () => {
+    const values = lineupSchema.parse({
+      ...valid,
+      players: rows({ 5: { name: " Kiss Ádám ", nssz_number: "N5" } }),
+    }) as LineupFormValues;
+    expect(toQuickSheetRequest(values)).toEqual({
+      ...valid,
+      players: [{ cap_number: 5, name: "Kiss Ádám", nssz_number: "N5" }],
+    });
   });
 });

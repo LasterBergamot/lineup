@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
-import { useFieldArray, useForm, type FieldPath } from "react-hook-form";
+import { Eraser } from "lucide-react";
+import { useForm, useWatch, type FieldPath } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { describeError, fieldErrors } from "@/api/errors";
 import { Button } from "@/components/ui/button";
@@ -10,16 +10,19 @@ import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { saveFile } from "@/features/lineup/download";
 import { generateLineup, type LineupFormat } from "@/features/lineup/generate";
+import { filledRows, isEmptyRow, rowPath } from "@/features/lineup/cap-rows";
 import {
   CAP_COLOURS,
+  emptyQuickSheetValues,
   lineupSchema,
   MAX_PLAYERS,
-  nextFreeCapNumber,
+  toQuickSheetRequest,
   type LineupFormValues,
 } from "@/features/lineup/schema";
 import { translateError } from "@/i18n/error-key";
 import { useAfterDelay } from "@/lib/use-after-delay";
 import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
+import { cn } from "@/lib/utils";
 
 /** How long a PDF may take before we explain that the first one after a break is slower. */
 export const SLOW_PDF_NOTICE_MS = 5000;
@@ -41,8 +44,8 @@ const STAFF_FIELDS = [
 ] as const;
 
 /**
- * The one-off lineup form: fill in the match, the staff and up to 15 players, then download the
- * sheet as PDF or DOCX. Nothing is saved anywhere: the values live in this component's memory
+ * The one-off lineup form: fill in the match, the staff and the players in 15 fixed cap rows (empty
+ * rows are left out), then download the sheet as PDF or DOCX. Nothing is saved anywhere: the values live in this component's memory
  * only (no localStorage drafts), because they include players' names and NSSZ numbers.
  */
 export function LineupForm() {
@@ -52,31 +55,29 @@ export function LineupForm() {
     handleSubmit,
     control,
     setError,
-    getValues,
+    setValue,
+    clearErrors,
     reset,
     formState: { errors, isDirty },
   } = useForm<LineupFormValues>({
     resolver: zodResolver(lineupSchema),
-    defaultValues: {
-      cap: "Fehér",
-      players: [{ cap_number: 1, name: "", nssz_number: "" }],
-    },
+    defaultValues: emptyQuickSheetValues(),
   });
-  const { fields, append, remove } = useFieldArray({ control, name: "players" });
+  const players = useWatch({ control, name: "players" });
   // Nothing is saved here, so a finished download counts as done: it makes the downloaded values
   // the new baseline (the guard turns off until the next edit).
   useUnsavedChangesGuard(isDirty);
 
   const generate = useMutation({
     mutationFn: ({ values, format }: { values: LineupFormValues; format: LineupFormat }) =>
-      generateLineup(values, format),
+      generateLineup(toQuickSheetRequest(values), format),
     onSuccess: (file, { values }) => {
       saveFile(file);
       reset(values);
     },
-    onError: (error) => {
+    onError: (error, { values }) => {
       for (const { path, message } of fieldErrors(error)) {
-        const target = path === "players" ? "players.root" : path;
+        const target = path === "players" ? "players.root" : rowPath(path, values.players);
         setError(target as FieldPath<LineupFormValues>, { type: "server", message });
       }
     },
@@ -89,11 +90,11 @@ export function LineupForm() {
   const submitAs = (format: LineupFormat) =>
     handleSubmit((values) => generate.mutate({ values, format }));
 
-  function addPlayer() {
-    // Taking all 15 cap numbers needs 15 rows, and the button is disabled at 15, so there is
-    // always a free number here; the helper's `undefined` only exists for its own contract.
-    const next = nextFreeCapNumber(getValues("players").map((p) => p.cap_number))!;
-    append({ cap_number: next, name: "", nssz_number: "" });
+  /** Empties one cap row (and its errors); an empty row is left out of the sheet. */
+  function clearRow(index: number) {
+    setValue(`players.${index}.name`, "", { shouldDirty: true });
+    setValue(`players.${index}.nssz_number`, "", { shouldDirty: true });
+    clearErrors(`players.${index}`);
   }
 
   const playersError = errors.players?.root?.message ?? errors.players?.message;
@@ -147,58 +148,51 @@ export function LineupForm() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-4">
+        <CardHeader>
           <CardTitle>
             {t("lineup.sections.players")}{" "}
             <span className="text-sm font-normal text-muted-foreground">
-              {t("lineup.playerCount", { count: fields.length, max: MAX_PLAYERS })}
+              {t("lineup.playerCount", { count: filledRows(players).length, max: MAX_PLAYERS })}
             </span>
           </CardTitle>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addPlayer}
-            disabled={fields.length >= MAX_PLAYERS}
-          >
-            <Plus /> {t("lineup.addPlayer")}
-          </Button>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="@container flex flex-col gap-4 @2xl:gap-2">
           {playersError && (
             <p role="alert" className="text-sm text-destructive">
               {translateError(playersError, t)}
             </p>
           )}
-          {fields.map((field, index) => {
+          {players.map((row, index) => {
             const rowErrors = errors.players?.[index];
-            const label = t("lineup.player", { number: index + 1 });
+            // On a wide card the rows line up like a table: only the first shows its labels.
+            const compact = index > 0;
             return (
               <div
-                key={field.id}
+                key={row.cap_number}
                 role="group"
-                aria-label={label}
-                className="grid grid-cols-[5rem_1fr_auto] items-start gap-3 md:grid-cols-[5rem_1fr_14rem_auto]"
+                aria-label={t("lineup.capRow", { number: row.cap_number })}
+                className={cn(
+                  "grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 border-b pb-4 last:border-b-0 last:pb-0",
+                  "@2xl:grid-cols-[2.75rem_minmax(0,1fr)_14rem_auto] @2xl:border-b-0 @2xl:pb-0",
+                  compact && "@2xl:[&_label]:sr-only",
+                )}
               >
-                <Field label={t("fields.capNo")} error={rowErrors?.cap_number?.message}>
-                  {(props) => (
-                    <Input
-                      {...props}
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={MAX_PLAYERS}
-                      {...register(`players.${index}.cap_number`, { valueAsNumber: true })}
-                    />
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "row-span-2 mt-[1.625rem] flex h-10 items-center justify-center rounded-md bg-muted text-sm font-semibold tabular-nums pointer-coarse:h-11 @2xl:row-span-1",
+                    compact && "@2xl:mt-0",
                   )}
-                </Field>
+                >
+                  {row.cap_number}
+                </span>
                 <Field label={t("fields.name")} error={rowErrors?.name?.message}>
                   {(props) => <Input {...props} {...register(`players.${index}.name`)} />}
                 </Field>
                 <Field
                   label={t("fields.nsszNumber")}
                   error={rowErrors?.nssz_number?.message}
-                  className="col-span-2 col-start-1 row-start-2 md:col-span-1 md:col-start-auto md:row-start-auto"
+                  className="col-start-2 @2xl:col-start-auto"
                 >
                   {(props) => <Input {...props} {...register(`players.${index}.nssz_number`)} />}
                 </Field>
@@ -206,12 +200,15 @@ export function LineupForm() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="mt-[1.625rem]"
-                  aria-label={t("lineup.removePlayer", { number: index + 1 })}
-                  onClick={() => remove(index)}
-                  disabled={fields.length === 1}
+                  className={cn(
+                    "col-start-3 row-start-1 mt-[1.625rem] @2xl:col-start-auto @2xl:row-start-auto",
+                    compact && "@2xl:mt-0",
+                  )}
+                  aria-label={t("lineup.clearRow", { number: row.cap_number })}
+                  onClick={() => clearRow(index)}
+                  disabled={isEmptyRow(row)}
                 >
-                  <Trash2 />
+                  <Eraser />
                 </Button>
               </div>
             );
