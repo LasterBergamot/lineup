@@ -33,6 +33,32 @@ describe("teams api", () => {
     expect(JSON.parse(body)).toEqual({ name: "New", is_public: false });
   });
 
+  it("sends a default division on create and leaves a blank one out", async () => {
+    const seen = stubFetch(Response.json(teamsPage("New").items[0], { status: 201 }));
+    await createTeam({ name: "New", division: "OB II.", isPublic: true }, client());
+    expect(JSON.parse((await seen()).body)).toEqual({
+      name: "New",
+      division: "OB II.",
+      is_public: true,
+    });
+    const blank = stubFetch(Response.json(teamsPage("New").items[0], { status: 201 }));
+    await createTeam({ name: "New", division: "", isPublic: true }, client());
+    expect(JSON.parse((await blank()).body)).toEqual({ name: "New", is_public: true });
+  });
+
+  it("sends the division on update, and leaves a blank one out (the API keeps the stored one)", async () => {
+    const seen = stubFetch(Response.json(teamsPage("A").items[0]));
+    await updateTeam("t", { name: "A", division: "OB I.", isPublic: true }, client());
+    expect(JSON.parse((await seen()).body)).toEqual({
+      name: "A",
+      division: "OB I.",
+      is_public: true,
+    });
+    const blank = stubFetch(Response.json(teamsPage("A").items[0]));
+    await updateTeam("t", { name: "A", division: "", isPublic: true }, client());
+    expect(JSON.parse((await blank()).body)).toEqual({ name: "A", is_public: true });
+  });
+
   it("updates a team with PUT, sending both the name and the listing choice", async () => {
     const updated = { ...teamsPage("Renamed").items[0], is_public: false };
     const seen = stubFetch(Response.json(updated));

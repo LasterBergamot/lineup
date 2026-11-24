@@ -33,6 +33,13 @@ describe("emptyValues", () => {
   });
 });
 
+describe("emptyValues with a team default division", () => {
+  it("pre-fills the division and nothing else", () => {
+    expect(emptyValues("OB II.")).toEqual({ ...emptyValues(), division: "OB II." });
+    expect(emptyValues().division).toBe("");
+  });
+});
+
 describe("toLineupRequest", () => {
   it("names the match after the teams and prints the players as they stand", () => {
     const body = toLineupRequest(values(), "SZVTK");

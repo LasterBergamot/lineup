@@ -238,7 +238,8 @@ sequenceDiagram
   role, next to *Sign out*. `TeamGate` wraps the page area: while the list loads it shows a skeleton,
   a user with no team gets **Onboarding** instead of the page, and everyone else sees their page. The
   onboarding form creates a team (`POST /teams`, the creator becomes its owner) and says out loud that
-  the checked-by-default box lists only the team *name* in the opponent directory. It also has a
+  the checked-by-default box lists only the team *name* in the opponent directory. An optional
+  *Division* field sets the team's default division. It also has a
   field for pasting an invite link (or just its code): it keeps only the code and opens `/join/<code>`.
 
 ### Team members and invitations
@@ -294,6 +295,9 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
 - **Unsaved changes.** From the first edit until the lineup is saved, leaving the page asks first
   and a reload or tab close triggers the browser's prompt (see *Unsaved changes* above). A failed
   save keeps the guard on. Editing a saved lineup (#290) will get the same guard.
+- **Default division.** A fresh lineup starts with the team's default division in the Division box
+  (`emptyValues(team.division)`); the box stays editable per lineup and changing it never changes the
+  team. A clone keeps the saved lineup's own division.
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
   lineup and `valuesFromSaved()` starts the creator from it (staff, division, players; not the
   match, opponent or date). Only the id travels in the history state, never the lineup itself.
@@ -335,8 +339,9 @@ browser) and lets any member add one (name and NSSZ number, nothing else), edit 
 place or delete one (a second click confirms). The whole team shares the roster, so no role is
 needed. An NSSZ number already on the roster is refused by the API (409) and shown, in our own translated words, on the NSSZ field of the form (adding and editing alike). A name another player already has is allowed (namesakes exist): the first save shows a non-blocking warning and turns the button into "Save anyway", the second one saves; changing the name takes the warning back. Deleting a player does not change lineups that were already saved: they keep the name and
 NSSZ number as they were when saved, and a hint under the list says so. **Team settings**, shown to
-owners only, renames the team and switches "list the team's name in the opponent directory" on or
-off. **Opponent directory** is a search box over the teams that chose to be listed; it shows team
+owners only, renames the team, sets its default division and switches "list the team's name in the
+opponent directory" on or off. The default division can be replaced but not cleared (the API keeps
+the stored value for a blank). **Opponent directory** is a search box over the teams that chose to be listed; it shows team
 names only (never rosters or lineups), waits 300 ms after typing, and keeps the last results on
 screen while the next ones load. Names, NSSZ numbers and search terms live in component state and
 the in-memory query cache only: nothing goes to browser storage, the address bar or a log. A

@@ -11,7 +11,7 @@ import { createTeam, teamsKey } from "@/features/teams/api";
 import { teamFormSchema, type TeamFormValues } from "@/features/teams/schema";
 
 /**
- * Name your team and create it; you become its owner. The checkbox lists only the name in the
+ * Name your team (and, optionally, its usual division) and create it; you become its owner. The checkbox lists only the name in the
  * shared opponent directory (default on, as the API does) and is said out loud because it is
  * the one thing in this form other clubs can see. On success the teams query is refreshed, which
  * is what moves the user out of onboarding.
@@ -27,7 +27,7 @@ export function CreateTeamForm() {
     formState: { errors },
   } = useForm<TeamFormValues>({
     resolver: zodResolver(teamFormSchema),
-    defaultValues: { name: "", isPublic: true },
+    defaultValues: { name: "", division: "", isPublic: true },
   });
 
   const create = useMutation({
@@ -56,6 +56,15 @@ export function CreateTeamForm() {
             autoComplete="organization"
             placeholder={t("teams.form.teamNamePlaceholder")}
             {...register("name")}
+          />
+        )}
+      </Field>
+      <Field label={t("fields.division")} error={errors.division?.message}>
+        {(props) => (
+          <Input
+            {...props}
+            placeholder={t("teams.form.divisionPlaceholder")}
+            {...register("division")}
           />
         )}
       </Field>

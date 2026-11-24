@@ -117,6 +117,7 @@
     },
     "form": {
       "teamNamePlaceholder": "e.g. SZVTK",
+      "divisionPlaceholder": "e.g. OB II.",
       "listInDirectory": "List the team name in the opponent directory",
       "listInDirectoryHint": "Other teams can then pick you as an opponent. Only the name is shown, never your roster or lineups. You can change this later.",
       "submit": "Create team"

@@ -109,6 +109,7 @@ export function teamsPage(...names: string[]) {
       id: `00000000-0000-4000-8000-00000000000${i + 1}`,
       name,
       created_by: "11111111-1111-4111-8111-111111111111",
+      division: null,
       is_public: true,
       created_at: "2026-10-05T10:00:00",
       role: "owner",
