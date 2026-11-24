@@ -194,6 +194,16 @@ future sign-in uses an `Authorization` header, not cookies), and only `GET/POST/
 `Authorization` and `Content-Type` headers are allowed. `Content-Disposition` is exposed so the
 frontend can read the download file name.
 
+### The match location
+
+`saved_lineups.location` (VARCHAR 200, nullable, migration `c4f8a2d6e913`, #294) is where the
+match was played. `POST /lineups/saved` takes an optional `location` (trimmed; blank becomes
+`null`; over 200 characters is `422`) and `SavedLineupResponse` returns it, so the list, a single
+lineup and a clone all carry it. It is stored for the history and for search (#295) only: it is
+never part of the data sent to document generation, so the PDF/DOCX is byte-identical with and
+without it (a test checks this). `POST /lineups` (the Quick sheet) does not save, so it has no
+such field. Existing lineups are `null`. The edit body (#290) will get the field when it lands.
+
 ### The match date
 
 A saved lineup holds its date twice. `date` is the text printed on the sheet and is always
@@ -266,6 +276,7 @@ erDiagram
         string date "printed text, always kept"
         date match_date "nullable, structured date for search"
         time match_time "nullable, only with match_date"
+        string location "nullable venue, never printed"
         uuid team_id FK "the workspace, required, ondelete RESTRICT"
         uuid created_by "audit only"
         uuid source_team_id "nullable, ondelete SET NULL"

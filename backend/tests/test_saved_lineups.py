@@ -5,7 +5,9 @@ player data as text at creation time, so deleting the source team or player
 afterwards has zero effect on a previously saved lineup.
 """
 
+import io
 import uuid
+import zipfile
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -316,6 +318,58 @@ class TestMatchDate:
         assert response.status_code == 422
 
 
+class TestLocation:
+    async def _save(self, async_client, **extra):
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        payload = _lineup_payload(team["id"], player["id"]) | extra
+        return await async_client.post("/lineups/saved", json=payload)
+
+    async def test_location_is_stored_and_returned(self, async_client: AsyncClient):
+        created = (
+            await self._save(async_client, location="  Szeged, Tisza uszoda ")
+        ).json()
+        assert created["location"] == "Szeged, Tisza uszoda"
+        fetched = (await async_client.get(f"/lineups/saved/{created['id']}")).json()
+        assert fetched["location"] == "Szeged, Tisza uszoda"
+        listed = (await async_client.get("/lineups/saved")).json()
+        assert listed["items"][0]["location"] == "Szeged, Tisza uszoda"
+
+    @pytest.mark.parametrize("extra", [{}, {"location": None}, {"location": "   "}])
+    async def test_missing_or_blank_location_is_null(
+        self, async_client: AsyncClient, extra
+    ):
+        created = (await self._save(async_client, **extra)).json()
+        assert created["location"] is None
+
+    async def test_too_long_location_is_422(self, async_client: AsyncClient):
+        response = await self._save(async_client, location="x" * 201)
+        assert response.status_code == 422
+
+    async def test_location_is_not_printed(self, async_client: AsyncClient):
+        """The generated DOCX is byte-identical with and without a location."""
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        base = _lineup_payload(team["id"], player["id"])
+        plain = (await async_client.post("/lineups/saved", json=base)).json()
+        located = (
+            await async_client.post(
+                "/lineups/saved", json=base | {"location": "Szeged, Tisza uszoda"}
+            )
+        ).json()
+        docs = []
+        for lineup in (plain, located):
+            response = await async_client.post(
+                f"/lineups/saved/{lineup['id']}/generate?format=docx"
+            )
+            assert response.status_code == 200
+            docs.append(response.content)
+        assert docs[0] == docs[1]
+        assert b"Tisza" not in docs[1]
+        with zipfile.ZipFile(io.BytesIO(docs[1])) as z:
+            assert b"Tisza" not in z.read("word/document.xml")
+
+
 class TestListSavedLineups:
     async def test_list_lineups_empty(self, async_client: AsyncClient):
         response = await async_client.get("/lineups/saved")
@@ -618,6 +672,7 @@ class TestSavedLineupRepositoryMembership:
             date="2024. 12. 21.",
             match_date=None,
             match_time=None,
+            location=None,
             coach="Coach",
             doctor=None,
             assistant_coach=None,

@@ -244,6 +244,9 @@ class SavedLineup(Base):
     # is what gets printed. `match_time` is only ever set together with `match_date`.
     match_date: Mapped[date_type | None] = mapped_column(Date, nullable=True)
     match_time: Mapped[time_type | None] = mapped_column(Time, nullable=True)
+    # Where the match was played. Free text, optional, shown in the history and never sent to
+    # document generation: the official sheet has no venue.
+    location: Mapped[str | None] = mapped_column(String(200), nullable=True)
     coach: Mapped[str] = mapped_column(String(200), nullable=False)
     doctor: Mapped[str | None] = mapped_column(String(200), nullable=True)
     assistant_coach: Mapped[str | None] = mapped_column(String(200), nullable=True)
