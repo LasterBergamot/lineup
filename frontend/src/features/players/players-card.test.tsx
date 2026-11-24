@@ -54,11 +54,17 @@ function renderCard(role: "owner" | "member" = "member") {
   return { queryClient };
 }
 
+const HU = { name: "Név", nssz: "NSSZ-szám" };
 const addForm = () => screen.getByRole("form", { name: "Add a player" });
 
-async function fill(form: HTMLElement, name: string, nssz: string) {
-  const nameInput = within(form).getByLabelText("Name");
-  const nsszInput = within(form).getByLabelText("NSSZ number");
+async function fill(
+  form: HTMLElement,
+  name: string,
+  nssz: string,
+  labels = { name: "Name", nssz: "NSSZ number" },
+) {
+  const nameInput = within(form).getByLabelText(labels.name);
+  const nsszInput = within(form).getByLabelText(labels.nssz);
   await userEvent.clear(nameInput);
   if (name) await userEvent.type(nameInput, name);
   await userEvent.clear(nsszInput);
@@ -207,6 +213,130 @@ describe("adding", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add player" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(text);
     expect(screen.queryByText("server text")).not.toBeInTheDocument();
+  });
+});
+
+describe("a repeated NSSZ number", () => {
+  it("is shown on the NSSZ field when adding, in our own words, and the input is kept", async () => {
+    mocks.createPlayer.mockRejectedValue(new ApiError(409, { detail: "server text" }));
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    await fill(addForm(), "Kiss Csaba", "MVLSZ1");
+    await userEvent.click(screen.getByRole("button", { name: "Add player" }));
+    expect(
+      await within(addForm()).findByText("This NSSZ number is already on the roster."),
+    ).toBeInTheDocument();
+    const nssz = within(addForm()).getByLabelText("NSSZ number");
+    expect(nssz).toHaveAttribute("aria-invalid", "true");
+    expect(nssz).toHaveValue("MVLSZ1");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText("server text")).not.toBeInTheDocument();
+  });
+
+  it("is shown on the NSSZ field when editing", async () => {
+    mocks.updatePlayer.mockRejectedValue(new ApiError(409));
+    renderCard();
+    await userEvent.click(await screen.findByRole("button", { name: "Edit Nagy Bence" }));
+    const form = screen.getByRole("form", { name: "Edit Nagy Bence" });
+    await fill(form, "Nagy Bence", "MVLSZ1");
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+    expect(
+      await within(form).findByText("This NSSZ number is already on the roster."),
+    ).toBeInTheDocument();
+    expect(form).toBeInTheDocument();
+  });
+
+  it("is shown in Hungarian too", async () => {
+    mocks.createPlayer.mockRejectedValue(new ApiError(409));
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    await act(async () => {
+      await i18n.changeLanguage("hu");
+    });
+    await fill(
+      screen.getByRole("form", { name: "Játékos hozzáadása" }),
+      "Kiss Csaba",
+      "MVLSZ1",
+      HU,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Hozzáadás" }));
+    expect(await screen.findByText("Ez az NSSZ-szám már szerepel a keretben.")).toBeInTheDocument();
+  });
+});
+
+describe("a repeated name", () => {
+  const warning = /A player with this name is already on the roster/;
+
+  it("warns first, then saves after confirming", async () => {
+    mocks.createPlayer.mockResolvedValue({ ...ANN, id: "p-new" });
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    await fill(addForm(), "  kovács   ANNA ", "MVLSZ3");
+    await userEvent.click(screen.getByRole("button", { name: "Add player" }));
+    expect(await within(addForm()).findByText(warning)).toBeInTheDocument();
+    expect(mocks.createPlayer).not.toHaveBeenCalled();
+    await userEvent.click(within(addForm()).getByRole("button", { name: "Save anyway" }));
+    expect(mocks.createPlayer).toHaveBeenCalledWith(TEAM, {
+      name: "kovács   ANNA",
+      nsszNumber: "MVLSZ3",
+    });
+    await waitFor(() => expect(within(addForm()).queryByText(warning)).not.toBeInTheDocument());
+    expect(within(addForm()).getByLabelText("Name")).toHaveValue("");
+  });
+
+  it("takes the warning back when the name changes", async () => {
+    mocks.createPlayer.mockResolvedValue(ANN);
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    await fill(addForm(), "Kovács Anna", "MVLSZ3");
+    await userEvent.click(screen.getByRole("button", { name: "Add player" }));
+    expect(await within(addForm()).findByText(warning)).toBeInTheDocument();
+    await userEvent.type(within(addForm()).getByLabelText("Name"), " Jr.");
+    expect(within(addForm()).queryByText(warning)).not.toBeInTheDocument();
+    await userEvent.click(within(addForm()).getByRole("button", { name: "Add player" }));
+    expect(mocks.createPlayer).toHaveBeenCalledWith(TEAM, {
+      name: "Kovács Anna Jr.",
+      nsszNumber: "MVLSZ3",
+    });
+  });
+
+  it("does not warn about a new name", async () => {
+    mocks.createPlayer.mockResolvedValue(ANN);
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    await fill(addForm(), "Kiss Csaba", "MVLSZ3");
+    await userEvent.click(screen.getByRole("button", { name: "Add player" }));
+    await waitFor(() => expect(mocks.createPlayer).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+  });
+
+  it("warns when editing a player to another one's name, but not for its own", async () => {
+    mocks.updatePlayer.mockResolvedValue(BEN);
+    renderCard();
+    await userEvent.click(await screen.findByRole("button", { name: "Edit Nagy Bence" }));
+    const form = screen.getByRole("form", { name: "Edit Nagy Bence" });
+    await fill(form, "Kovács Anna", "MVLSZ2");
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+    expect(await within(form).findByText(warning)).toBeInTheDocument();
+    expect(mocks.updatePlayer).not.toHaveBeenCalled();
+    await userEvent.click(within(form).getByRole("button", { name: "Save anyway" }));
+    expect(mocks.updatePlayer).toHaveBeenCalledWith(BEN, {
+      name: "Kovács Anna",
+      nsszNumber: "MVLSZ2",
+    });
+  });
+
+  it("is in Hungarian too", async () => {
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    await act(async () => {
+      await i18n.changeLanguage("hu");
+    });
+    const form = screen.getByRole("form", { name: "Játékos hozzáadása" });
+    await fill(form, "Kovács Anna", "MVLSZ3", HU);
+    await userEvent.click(screen.getByRole("button", { name: "Hozzáadás" }));
+    expect(await within(form).findByText(/Ilyen nevű játékos már van/)).toBeInTheDocument();
+    expect(within(form).getByRole("button", { name: "Mentés mégis" })).toBeInTheDocument();
   });
 });
 

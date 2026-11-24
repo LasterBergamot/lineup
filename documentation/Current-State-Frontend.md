@@ -298,7 +298,7 @@ The **Roster** page (`/roster`) is three cards for the current team (#197). **Pl
 team's players in Hungarian alphabetical order (#283; the API order is kept and the sort runs in the
 browser) and lets any member add one (name and NSSZ number, nothing else), edit one in
 place or delete one (a second click confirms). The whole team shares the roster, so no role is
-needed. Deleting a player does not change lineups that were already saved: they keep the name and
+needed. An NSSZ number already on the roster is refused by the API (409) and shown, in our own translated words, on the NSSZ field of the form (adding and editing alike). A name another player already has is allowed (namesakes exist): the first save shows a non-blocking warning and turns the button into "Save anyway", the second one saves; changing the name takes the warning back. Deleting a player does not change lineups that were already saved: they keep the name and
 NSSZ number as they were when saved, and a hint under the list says so. **Team settings**, shown to
 owners only, renames the team and switches "list the team's name in the opponent directory" on or
 off. **Opponent directory** is a search box over the teams that chose to be listed; it shows team

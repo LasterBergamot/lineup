@@ -1757,7 +1757,7 @@
         ]
       },
       "post": {
-        "description": "Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a\nmember of it.",
+        "description": "Add a player to the roster of `team_id`. 404 if the team is unknown or you are not a\nmember of it. 409 if that roster already has a player with the same NSSZ number (the NSSZ\nnumber identifies a person; the same name with a different number is allowed).",
         "operationId": "create_player_players_post",
         "requestBody": {
           "content": {
@@ -1779,6 +1779,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "The team's roster already has a player with this NSSZ number (compared ignoring case). The body is the fixed sentence `A player with this NSSZ number is already on this team` and never describes the other player."
           },
           "422": {
             "content": {
@@ -1891,7 +1894,7 @@
         ]
       },
       "put": {
-        "description": "Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is\nunknown or not yours.",
+        "description": "Replace a player's name, NSSZ number and team. 404 if the player, or the target team, is\nunknown or not yours. 409 if another player on the target team's roster already has this\nNSSZ number (keeping the player's own number is fine).",
         "operationId": "update_player_players__player_id__put",
         "parameters": [
           {
@@ -1925,6 +1928,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "The team's roster already has a player with this NSSZ number (compared ignoring case). The body is the fixed sentence `A player with this NSSZ number is already on this team` and never describes the other player."
           },
           "422": {
             "content": {
