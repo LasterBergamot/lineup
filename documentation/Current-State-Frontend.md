@@ -12,7 +12,7 @@ and `PLAN.md`). The backend it talks to is described in [[Current State: Backend
 |---|---|---|
 | Language and UI | React 19 + TypeScript, built by Vite | Mainstream, fast dev server, one static bundle to host |
 | Styling | Tailwind CSS v4 with the **Lineup design system** (`frontend/DESIGN.md`) as CSS variables in `src/index.css`, light and dark | Components use semantic tokens (`bg-primary`) and never raw colors, so the theme can change in one file |
-| Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Input/Select, Field, Skeleton, Badge, Tabs, Dialog, Toast); only Button's `asChild` uses a Radix primitive (Slot), Dialog is the native `<dialog>` and Tabs and Toast are hand-written | We own the code and can restyle it in one place |
+| Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Input/Select, Combobox, Field, Skeleton, Badge, Tabs, Dialog, Toast); only Button's `asChild` uses a Radix primitive (Slot), Dialog is the native `<dialog>` and Tabs, Combobox and Toast are hand-written | We own the code and can restyle it in one place |
 | Routing | React Router as a **data router**: the route table in `src/routes.tsx`, mounted by `createBrowserRouter` + `RouterProvider` in `src/app.tsx` (tests use `createMemoryRouter` on the same table) | Client-side navigation; `/sign-in` and `/join/:code` are public, `/`, `/roster`, `/saved`, `/members` need a signed-in user. A data router is needed for `useBlocker`, which holds a navigation while a form has unsaved changes (see *Unsaved changes* below) |
 | Sign-in | `@supabase/supabase-js`, for sign-in only | Supabase Auth runs the Google flow; the browser never queries Supabase's Data API, every piece of data goes through our API, which checks the token |
 | Language | `react-i18next` with `src/i18n/locales/hu.json` and `en.json`, Hungarian by default | The users and the generated document are Hungarian; both files ship in the bundle, so there is no extra request and no loading state (see *Language* below) |
@@ -274,7 +274,7 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
 
 - **Players.** 15 fixed rows, one per cap number in cap order (#285): the cap number is the row's
   label, not an input, so a duplicate or missing cap cannot happen. A row holds either a roster
-  player (a select, in Hungarian alphabetical order; the name and NSSZ number are copied in and
+  player (a searchable picker, the hand-written `Combobox`: type part of a name or NSSZ number, with or without accents, to narrow the list, which is in Hungarian alphabetical order; arrow keys and Enter work, a player already in another row is shown greyed out and cannot be picked; the name and NSSZ number are copied in and
   locked, and a player already used in another row is disabled) or free text, or nothing; **Clear**
   empties it. Empty rows are left out of the preview and the save; a half-filled row is a field
   error, and at least one row must be filled. A roster pick is saved as `source_player_id`, so the

@@ -10,7 +10,8 @@ import { useAuth } from "@/auth/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
-import { Input, Select } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
@@ -163,7 +164,11 @@ export function LineupCreator({
 
   const playersError = errors.players?.root?.message ?? errors.players?.message;
   const chosen = new Set(players.map((p) => p.playerId).filter(Boolean));
-  const sortedRoster = sortByName(roster);
+  const rosterOptions = sortByName(roster).map((player) => ({
+    value: player.id,
+    label: player.name,
+    hint: player.nssz_number,
+  }));
 
   return (
     <div className={showPreview ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_28rem]" : undefined}>
@@ -292,22 +297,17 @@ export function LineupCreator({
                   </span>
                   <Field label={t("creator.rosterPlayer")}>
                     {(props) => (
-                      <Select
+                      <Combobox
                         {...props}
                         value={row.playerId}
-                        onChange={(event) => pickPlayer(index, event.target.value)}
-                      >
-                        <option value="">{t("creator.typedIn")}</option>
-                        {sortedRoster.map((player) => (
-                          <option
-                            key={player.id}
-                            value={player.id}
-                            disabled={chosen.has(player.id) && row.playerId !== player.id}
-                          >
-                            {player.name}
-                          </option>
-                        ))}
-                      </Select>
+                        onChange={(playerId) => pickPlayer(index, playerId)}
+                        emptyLabel={t("creator.typedIn")}
+                        noMatchesLabel={t("creator.noPlayerMatches")}
+                        options={rosterOptions.map((option) => ({
+                          ...option,
+                          disabled: chosen.has(option.value) && row.playerId !== option.value,
+                        }))}
+                      />
                     )}
                   </Field>
                   <Field

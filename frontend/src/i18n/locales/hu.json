@@ -248,6 +248,7 @@
     "emptyRoster": "A keret üres. Vegyen fel játékosokat a Keret oldalon, vagy írja be őket kézzel.",
     "rosterPlayer": "Játékos a keretből",
     "typedIn": "Kézzel beírom",
+    "noPlayerMatches": "Nincs találat",
     "save": "Rajtlista mentése",
     "preview": "Előnézet",
     "saved": "Elmentve. Most le is töltheti.",
