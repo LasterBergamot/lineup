@@ -209,6 +209,85 @@ them: GDPR applies even at this size.
 **Exit criteria:** an acquaintance signs in on dev via an invite link, sees the shared roster,
 creates and previews a lineup on their phone, and feedback is collected.
 
+### Phase 7 — Feedback from the dev preview (Nov 2026)
+
+The first round of feedback from using the preview, filed as #281–#296 (issues filed 2026-11-24). All of
+them are sub-issues of epic #20, except #281 (epic #44) and #291 (epic #41, parked). **Every issue is
+self-contained**: Problem, a dated Decision where the maintainer changed the original proposal, Evidence
+with file:line, Proposal, Acceptance, the wiki pages to update and the recommended model and effort. Read
+the whole issue before starting. The GitHub "blocked by" links match the order below.
+
+**How it is executed**
+- One PR per issue (`feat/<N>-…`, commits `#N - …`, `Closes #N`). A full-stack issue may be split into a
+  backend PR (`Refs #N`) and a frontend PR (`Closes #N`).
+- At the start of each issue run `compliance-audit quick <N>`, and fold its findings into the work.
+  Coverage stays at 100 % on both sides. Every issue lists the `documentation/` (wiki) pages it must
+  update: that is part of done, not a follow-up.
+- **Use subagents where the waves below allow it**, each in its own worktree. Keep each sequence marked
+  "one agent, in order" with a single agent: its issues change the same code.
+- **Database migrations are strictly serial.** Seven issues add one. Build them in this order, one PR
+  each, and rebase `down_revision` onto the current head before merging (`task migrate-check`, then
+  the `supabase-smoke` skill after merge):
+  **#284 → #288 → #287 → #294 → #292 → #290 → #296.**
+- **Conflict hotspots:**
+  - `frontend/src/i18n/locales/{hu,en}.json`
+  - `.claude/rules/frontend.md`
+  - `documentation/Current-State-Frontend.md` and `Current-State-Backend.md`
+  - `frontend/e2e/fixtures.ts`
+  - `frontend/src/features/creator/lineup-creator.tsx`
+
+  Merge PRs that touch them one at a time, and rebase the rest after each merge.
+- **Coordinator:** Sonnet 5.5 at high effort. It schedules, reviews (`convention-reviewer`) and merges; it
+  doesn't implement. **Workers:** the model and effort listed per issue. An agent that meets a decision
+  the issue doesn't make stops and asks; it doesn't improvise.
+
+**Waves**
+1. **Wave A**, three agents in parallel:
+   - **#293** alone on the app shell. It moves to a data router, which touches `app.tsx` and every page test.
+   - **#282**, then **#283** (small, separate folders).
+   - **#284** (backend, the first migration, then its roster-form part).
+2. **Wave B**, after #293 has merged:
+   - **Backend chain** (one agent, in order): #288 → #287 (backend) → #294 (backend) → #292 → #290 (backend)
+     → #296 (backend).
+   - **Creator sequence** (one agent, in order): #285 → #286 → #287 (frontend) → #289. #289 waits for #292.
+   - **Team settings:** the #288 frontend part, as soon as the #288 backend has merged.
+3. **Wave C:**
+   - #290 (frontend: Edit), #294 (frontend: location) and #296 (frontend: Home/Away), each once its backend
+     and blockers have merged.
+   - #295 (search, backend and frontend) after #287 and #294.
+   - #281 (a wiki note only) goes into any PR that edits `documentation/Current-State-Backend.md`.
+
+**Checklist** (model · effort · size)
+- [ ] #282 Saved lineups: preview only on the Preview button, no hover (Haiku 5.5 · low · S)
+- [ ] #283 Roster players in alphabetical order, Hungarian collation (Haiku 5.5 · medium · S)
+- [ ] #284 No duplicate roster players: same NSSZ in a team → 409 + DB constraint, warning on a repeated
+      name (Sonnet 5.5 · high · M)
+- [ ] #293 Unsaved-changes warning: data router, `useBlocker` + `beforeunload` (Opus 5.5 · medium · M)
+- [ ] #288 Default division per team, pre-filled in the creator (Sonnet 5.5 · medium · M)
+- [ ] #285 Creator and Quick sheet: 15 fixed cap rows in cap order (Opus 5.5 · medium · M)
+- [ ] #286 Searchable roster picker, a hand-written ARIA combobox (Sonnet 5.5 · medium · M)
+- [ ] #287 Today as the default date, optional time, `match_date`/`match_time` stored (Sonnet 5.5 · medium · M)
+- [ ] #294 Optional match location, not printed (Sonnet 5.5 · medium · S)
+- [ ] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
+- [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
+- [ ] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L)
+- [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M)
+- [ ] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M)
+- [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
+- Parked, not part of this phase: #291 waterpolo.hu fixtures spike (Opus 5.5 · high).
+
+**Decisions (2026-11-24)**
+- **#281:** a known limitation, not a bug. The official form has the same logo.
+- **#285:** 15 fixed rows instead of re-sorting.
+- **#287:** the date is also stored structured, for search.
+- **#289/#292:** staff is a separate team entity, picked from the roster or typed in, with one default per role.
+- **#295:** filters are AND-combinable query parameters, so more can be added later.
+- **#296:** home plays in Fehér, away in Kék.
+- **#291:** parked.
+
+**Exit criteria:** every box above is ticked, the wiki pages named in the issues are current, and a
+teammate builds, edits and finds a lineup on their phone without retyping the team's usual values.
+
 ---
 
 ## 4. Repo layout (D3)
@@ -494,6 +573,7 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-01 | #242 (frontend): the preview can be enlarged. `PdfViewer` draws each page at the size it is shown (CSS width × `devicePixelRatio`, redrawn after a resize or zoom, capped for mobile Safari) instead of a fixed bitmap, and `PreviewPanel` gets an Enlarge button opening `EnlargedPreview` (whole screen on a phone) with Fit width, 100 %, 150 % and 200 %. Known, not from this change: the Hungarian creator form is ~1 px wider than a 360 px phone once filled in. | #244 |
 | 2026-11-01 | #245 (backend + frontend): the Team page shows members by name. `team_members.display_name` (migration `a9e3c7d51f28`) is copied from the member's own token when they create a team or accept a link and refreshed on `GET /teams`, so members who joined earlier are filled in the next time they open the app, with no re-invite (`null` until then, shown as "Member N"). | #245, PR #246 |
 | 2026-11-04 | Plan for an optional self-hosted install (D15): `self-host-plan.md` holds the decisions, the owner's manual steps (done first, so the rest can run unattended) and tasks detailed enough for cheaper models. Epic #250 and its sub-issues filed under the new milestone "M4 – Self-hosting", the `self-host` skill added. No implementation yet. | #250, PR #262 |
+| 2026-11-24 | Phase 7 planned from the first round of dev-preview feedback. Issues #281–#296 filed and revised with the maintainer's decisions. Each one is self-contained and lists its wiki pages and the recommended model and effort. The waves, the serial migration order and the conflict hotspots are recorded above. #281 turned out not to be a bug (the official form has the same cropped logo): wiki note only. #291 (waterpolo.hu spike) parked. No implementation yet. | #20, #281–#296, PR #297 |
 
 ---
 
