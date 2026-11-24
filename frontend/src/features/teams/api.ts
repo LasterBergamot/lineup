@@ -21,32 +21,37 @@ export async function listTeams(client: Pick<typeof api, "GET"> = api): Promise<
 }
 
 /**
- * Creates a team; the caller becomes its owner. `isPublic` lists just the team's name in the
+ * Creates a team; the caller becomes its owner. `division` is its optional default division. `isPublic` lists just the team's name in the
  * shared opponent directory (never its roster or lineups). Throws `ApiError` on failure; a 422
  * carries per-field messages (see `fieldErrors`).
  */
 export async function createTeam(
-  body: { name: string; isPublic: boolean },
+  body: { name: string; division?: string; isPublic: boolean },
   client: Pick<typeof api, "POST"> = api,
 ): Promise<Team> {
-  return request(client.POST("/teams", { body: { name: body.name, is_public: body.isPublic } }));
+  return request(
+    client.POST("/teams", {
+      body: { name: body.name, division: body.division || undefined, is_public: body.isPublic },
+    }),
+  );
 }
 
 /**
  * Renames a team and/or changes whether its name is listed in the opponent directory (owners
- * only). Both values are always sent, so what the form shows is what gets stored. Throws
+ * only). The name and the listing choice are always sent. A blank `division` is left out, which
+ * the API reads as "keep the stored one": a default division can be replaced but not cleared. Throws
  * `ApiError`: 403 for a member who is not the owner, 404 for someone outside the team, 422 with
  * per-field messages (see `fieldErrors`).
  */
 export async function updateTeam(
   teamId: string,
-  body: { name: string; isPublic: boolean },
+  body: { name: string; division?: string; isPublic: boolean },
   client: Pick<typeof api, "PUT"> = api,
 ): Promise<Team> {
   return request(
     client.PUT("/teams/{team_id}", {
       params: { path: { team_id: teamId } },
-      body: { name: body.name, is_public: body.isPublic },
+      body: { name: body.name, division: body.division || undefined, is_public: body.isPublic },
     }),
   );
 }

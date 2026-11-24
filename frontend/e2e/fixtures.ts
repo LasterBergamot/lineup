@@ -12,6 +12,7 @@ export interface Team {
   id: string;
   name: string;
   created_by: string;
+  division: string | null;
   is_public: boolean;
   created_at: string;
   role: "owner" | "member";
@@ -88,6 +89,7 @@ export const team = (name: string, role: Team["role"] = "owner"): Team => ({
   id: `t-${name}`,
   name,
   created_by: USER_ID,
+  division: null,
   is_public: true,
   created_at: NOW,
   role,
@@ -162,8 +164,16 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
       if (method === "GET" && path === "/health") return json(route, { status: "ok" });
       if (method === "GET" && path === "/teams") return json(route, page_(api.teams));
       if (method === "POST" && path === "/teams") {
-        const body = request.postDataJSON() as { name: string; is_public: boolean };
-        const created = { ...team(body.name), is_public: body.is_public };
+        const body = request.postDataJSON() as {
+          name: string;
+          division?: string;
+          is_public: boolean;
+        };
+        const created = {
+          ...team(body.name),
+          division: body.division ?? null,
+          is_public: body.is_public,
+        };
         api.teams.push(created);
         return json(route, created, 201);
       }

@@ -14,13 +14,16 @@ const MATCH_MAX = 200;
 /** A blank optional field is left out of the request (the API prints it empty). */
 const optional = (value: string) => value || undefined;
 
-/** The empty creator: the 15 empty cap rows, white caps, nothing else filled in. */
-export function emptyValues(): CreatorValues {
+/**
+ * The empty creator: the 15 empty cap rows, white caps, nothing else filled in except the
+ * team's default division (`division`, when it has one; still editable per lineup).
+ */
+export function emptyValues(division = ""): CreatorValues {
   return {
     match_name: "",
     opponent: "",
     opponentId: "",
-    division: "",
+    division,
     cap: "Fehér",
     date: "",
     coach: "",

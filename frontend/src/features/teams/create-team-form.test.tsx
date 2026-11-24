@@ -33,6 +33,20 @@ beforeEach(() => {
 });
 
 describe("create team form", () => {
+  it("sends the optional default division along with the name", async () => {
+    mocks.createTeam.mockResolvedValue({});
+    renderForm();
+    await userEvent.type(await screen.findByLabelText("Team name"), "SZVTK");
+    await userEvent.type(screen.getByLabelText("Division"), "OB II.");
+    await userEvent.click(screen.getByRole("button", { name: "Create team" }));
+    await waitFor(() => expect(mocks.createTeam).toHaveBeenCalledOnce());
+    expect(mocks.createTeam.mock.calls[0]![0]).toEqual({
+      name: "SZVTK",
+      division: "OB II.",
+      isPublic: true,
+    });
+  });
+
   it("shows the generic message for a 422 about a field the form does not show", async () => {
     mocks.createTeam.mockImplementation(async () => {
       throw new ApiError(422, {

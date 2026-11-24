@@ -73,9 +73,17 @@ function SignedIn(props: Parameters<typeof LineupCreator>[0]) {
 }
 
 function renderCreator(
-  props: { roster?: Player[]; initialValues?: ReturnType<typeof emptyValues> } = {},
+  props: {
+    roster?: Player[];
+    initialValues?: ReturnType<typeof emptyValues>;
+    division?: string | null;
+  } = {},
 ) {
-  const team = { ...teamsPage("SZVTK").items[0]!, id: TEAM_ID } as Team;
+  const team = {
+    ...teamsPage("SZVTK").items[0]!,
+    id: TEAM_ID,
+    division: props.division ?? null,
+  } as Team;
   const queryClient = testQueryClient();
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
   const unsaved = unsavedProbe();
@@ -124,6 +132,21 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("LineupCreator form", () => {
+  it("starts a fresh lineup with the team's default division, editable and not dirty", async () => {
+    const { isDirty } = renderCreator({ division: "OB II." });
+    const division = await screen.findByLabelText("Division");
+    expect(division).toHaveValue("OB II.");
+    expect(isDirty()).toBe(false);
+    await userEvent.clear(division);
+    await userEvent.type(division, "Cup");
+    expect(division).toHaveValue("Cup");
+  });
+
+  it("keeps the lineup's own division over the team default when one is given", async () => {
+    renderCreator({ division: "OB II.", initialValues: { ...emptyValues(), division: "OB I." } });
+    expect(await screen.findByLabelText("Division")).toHaveValue("OB I.");
+  });
+
   it("starts with the 15 empty cap rows in cap order and says when the roster is empty", async () => {
     renderCreator({ roster: [] });
     expect(await screen.findByText(/The roster is empty/)).toBeInTheDocument();

@@ -40,10 +40,11 @@ const saveButton = () => screen.getByRole("button", { name: "Save changes" });
 beforeEach(() => {
   mocks.updateTeam.mockReset();
   mocks.updateTeam.mockImplementation(
-    async (id: string, body: { name: string; isPublic: boolean }) => ({
+    async (id: string, body: { name: string; division?: string; isPublic: boolean }) => ({
       ...OWNED,
       id,
       name: body.name,
+      division: body.division || OWNED.division,
       is_public: body.isPublic,
     }),
   );
@@ -74,7 +75,11 @@ describe("team settings card", () => {
     await userEvent.type(nameInput(), "  SZVTK II  ");
     await userEvent.click(listed());
     await userEvent.click(saveButton());
-    expect(mocks.updateTeam).toHaveBeenCalledWith(OWNED.id, { name: "SZVTK II", isPublic: false });
+    expect(mocks.updateTeam).toHaveBeenCalledWith(OWNED.id, {
+      name: "SZVTK II",
+      division: "",
+      isPublic: false,
+    });
     expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
     expect(invalidate).toHaveBeenCalledWith({ queryKey: teamsKey(ME) });
     expect(nameInput()).toHaveValue("SZVTK II");
@@ -96,6 +101,29 @@ describe("team settings card", () => {
     expect(nameInput()).toHaveValue("Renamed elsewhere");
     expect(listed()).not.toBeChecked();
     expect(saveButton()).toBeDisabled();
+  });
+
+  it("shows the stored division and saves a changed one", async () => {
+    renderCard({ ...OWNED, division: "OB II." });
+    const division = screen.getByRole("textbox", { name: "Division" });
+    expect(division).toHaveValue("OB II.");
+    await userEvent.clear(division);
+    await userEvent.type(division, "  OB I.  ");
+    await userEvent.click(saveButton());
+    expect(mocks.updateTeam).toHaveBeenCalledWith(OWNED.id, {
+      name: "SZVTK",
+      division: "OB I.",
+      isPublic: true,
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
+    expect(division).toHaveValue("OB I.");
+  });
+
+  it("follows a division changed elsewhere", () => {
+    const { rerender } = renderCard();
+    expect(screen.getByRole("textbox", { name: "Division" })).toHaveValue("");
+    rerender({ ...OWNED, division: "OB III." });
+    expect(screen.getByRole("textbox", { name: "Division" })).toHaveValue("OB III.");
   });
 
   it("checks the name before sending anything", async () => {

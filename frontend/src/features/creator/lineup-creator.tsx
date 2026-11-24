@@ -90,7 +90,7 @@ export function LineupCreator({
     formState: { errors, isDirty },
   } = useForm<CreatorValues>({
     resolver: zodResolver(creatorSchema),
-    defaultValues: initialValues ?? emptyValues(),
+    defaultValues: initialValues ?? emptyValues(team.division ?? ""),
   });
   // Leaving with unsaved input asks first; the save's `reset(values)` turns the guard off.
   useUnsavedChangesGuard(isDirty);

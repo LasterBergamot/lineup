@@ -173,7 +173,11 @@ describe("onboarding", () => {
     renderApp("/", fakeSession());
     await userEvent.type(await screen.findByLabelText("Team name"), "  Brand New ");
     await userEvent.click(screen.getByRole("button", { name: "Create team" }));
-    expect(createTeam).toHaveBeenCalledWith({ name: "Brand New", isPublic: true });
+    expect(createTeam).toHaveBeenCalledWith({
+      name: "Brand New",
+      division: "",
+      isPublic: true,
+    });
     expect(await screen.findByRole("heading", { name: "Lineup" })).toBeInTheDocument();
     expect(screen.getAllByText("Brand New").length).toBeGreaterThan(0);
   });
@@ -184,7 +188,11 @@ describe("onboarding", () => {
     await userEvent.type(await screen.findByLabelText("Team name"), "Quiet");
     await userEvent.click(screen.getByRole("checkbox"));
     await userEvent.click(screen.getByRole("button", { name: "Create team" }));
-    expect(createTeam).toHaveBeenCalledWith({ name: "Quiet", isPublic: false });
+    expect(createTeam).toHaveBeenCalledWith({
+      name: "Quiet",
+      division: "",
+      isPublic: false,
+    });
   });
 
   it("validates the name before calling the API", async () => {

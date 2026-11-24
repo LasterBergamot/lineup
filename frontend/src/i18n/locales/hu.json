@@ -115,6 +115,7 @@
     },
     "form": {
       "teamNamePlaceholder": "pl. SZVTK",
+      "divisionPlaceholder": "pl. OB II.",
       "listInDirectory": "A csapat nevének megjelenítése az ellenfélkatalógusban",
       "listInDirectoryHint": "Így más csapatok kiválaszthatják Önt ellenfélként. Csak a név látszik, a keret és a rajtlisták soha. Ezt később módosíthatja.",
       "submit": "Csapat létrehozása"
