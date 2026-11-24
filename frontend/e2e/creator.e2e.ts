@@ -170,10 +170,10 @@ test("saving shows a toast that can be dismissed and passes the accessibility ch
 
 /** Fills the match details and picks the first roster player. */
 async function fillLineup(app: Page) {
-  await app.getByLabel("Opponent", { exact: true }).fill("Opponent X");
-  await app.getByLabel("Division").fill("OB I");
-  await app.getByLabel("Date").fill("2026. 11. 1.");
-  await app.getByLabel("Coach", { exact: true }).fill("Coach Carter");
+  await app.getByLabel("Opponent", { exact: true }).filter({ visible: true }).fill("Opponent X");
+  await app.getByLabel("Division").filter({ visible: true }).fill("OB I");
+  await app.getByLabel("Date").filter({ visible: true }).fill("2026. 11. 1.");
+  await app.getByLabel("Coach", { exact: true }).filter({ visible: true }).fill("Coach Carter");
   await app.getByLabel("Player from the roster").first().selectOption({ label: "Player 01" });
   await expect(app.getByLabel("Name", { exact: true }).first()).toHaveValue("Player 01");
 }

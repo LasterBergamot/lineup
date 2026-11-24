@@ -9,7 +9,7 @@ test("text fields are 16 px, so iOS does not zoom the page when one is focused",
   app,
 }) => {
   await app.goto("/");
-  await expect(app.getByLabel("Division")).toBeVisible();
+  await expect(app.getByLabel("Division").filter({ visible: true })).toBeVisible();
   const sizes = await app
     .locator("input:not([type=checkbox]), select")
     .evaluateAll((els) => els.map((el) => parseFloat(getComputedStyle(el).fontSize)));
@@ -20,7 +20,7 @@ test("text fields are 16 px, so iOS does not zoom the page when one is focused",
 test("every button, link and field is at least 44 px tall", async ({ app }) => {
   // Each screen is measured once its data (not just the skeleton) is on the page.
   const loaded = {
-    "/": () => app.getByLabel("Division"),
+    "/": () => app.getByLabel("Division").filter({ visible: true }),
     "/saved": () => app.getByRole("button", { name: /^Preview SZVTK - Opponent 1/ }),
     "/members": () => app.getByText("Member 1"),
     "/roster": () => app.getByText("Player 01").first(),

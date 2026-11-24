@@ -64,8 +64,10 @@ held: the sign-in redirect unmounts the shell, and the guard with it, first.
 Guarded today: the lineup creator for a new lineup (also when it starts from a clone; an untouched
 clone is not dirty), the Quick sheet, the add and edit player forms and the team settings. The
 **edit mode** of a saved lineup (#290) is not built yet; it gets the same guard when it lands. The
-switch between the creator and the Quick sheet on the Lineup page is not a navigation, so it is not
-held. The guard only ever knows *whether* a form is dirty: the values stay in the form's memory, and
+switch between the creator and the Quick sheet on the Lineup page is not a navigation, so the guard
+does not hold it, and it does not need to: both modes stay mounted and the inactive one is `hidden`,
+so nothing typed is dropped (#302) and both forms keep reporting their dirty flag (a nav link or a
+tab close still asks while the hidden mode holds input). The guard only ever knows *whether* a form is dirty: the values stay in the form's memory, and
 there is no draft in browser storage to come back to, because the forms hold names and NSSZ numbers.
 
 ### Phones, installing and browser tests
