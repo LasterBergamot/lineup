@@ -25,6 +25,7 @@ from lineup.saved_lineups.router import router as saved_lineups_router
 from lineup.security.body_limit import BodySizeLimitMiddleware
 from lineup.security.config import read_docs_enabled, validate_production_config
 from lineup.security.headers import SecurityHeadersMiddleware
+from lineup.staff.router import router as staff_router
 from lineup.teams.router import router as teams_router
 from lineup.version import APP_VERSION
 
@@ -107,6 +108,7 @@ app.include_router(health_router)
 app.include_router(lineup_router)
 app.include_router(teams_router)
 app.include_router(team_invitations_router)
+app.include_router(staff_router)
 app.include_router(invitations_router)
 app.include_router(players_router)
 app.include_router(saved_lineups_router)

@@ -43,7 +43,7 @@ permanent: the Free plan has **no backups** ([[Privacy and Security]], section 7
    - **Authentication → Users**: the sign-in accounts (see section 3).
 
 In the Table Editor make sure the schema selector (top left) says **`public`**. The app's tables
-live there: `teams`, `team_members`, `team_invitations`, `players`, `saved_lineups`,
+live there: `teams`, `team_members`, `team_invitations`, `team_staff`, `players`, `saved_lineups`,
 `lineup_player_snapshots` (and `alembic_version`, which you leave alone).
 
 ## 2. What is connected to what
@@ -52,9 +52,10 @@ Deleting a row also affects rows that point at it. The foreign keys decide how:
 
 | Delete this | These rows follow or block | Why |
 |-------------|---------------------------|-----|
-| A **team** | **Blocked** (`RESTRICT`) while it still has `players` or `saved_lineups`. Its `team_members` and `team_invitations` are **deleted with it** (`CASCADE`). Other lineups that merely *name* it as `source_team_id` / `source_opponent_id` keep existing, those columns become `NULL` (`SET NULL`) | A team is a workspace; the roster and the history must be removed on purpose |
+| A **team** | **Blocked** (`RESTRICT`) while it still has `players` or `saved_lineups`. Its `team_members`, `team_invitations` and `team_staff` are **deleted with it** (`CASCADE`). Other lineups that merely *name* it as `source_team_id` / `source_opponent_id` keep existing, those columns become `NULL` (`SET NULL`) | A team is a workspace; the roster and the history must be removed on purpose |
+| A **team staff** entry (`team_staff`) | Nothing. Deleting it removes the name from the team's staff list; lineups already saved keep their own copy of the names | The staff list only pre-fills new lineups |
 | A **saved lineup** | Its `lineup_player_snapshots` are deleted with it (`CASCADE`) | The snapshots belong to the lineup |
-| A **player** | Nothing is deleted. Snapshots of old lineups keep the name and NSSZ number, only their `source_player_id` becomes `NULL` (`SET NULL`) | A saved lineup is a frozen copy, deleting a player does not rewrite history |
+| A **player** | Nothing is deleted. Snapshots of old lineups keep the name and NSSZ number, only their `source_player_id` becomes `NULL` (`SET NULL`); the same goes for a `team_staff` entry picked from that player (it keeps its name) | A saved lineup is a frozen copy, deleting a player does not rewrite history |
 | An **invitation** | Nothing. The link stops working | Only the SHA-256 hash of the code is stored |
 | A **team member** row | Nothing. The person loses access to the team | |
 | A **user** in Authentication → Users | Nothing in `public`. `user_id`, `created_by` and `invited_by` are plain UUID columns, not foreign keys (`auth.users` is another schema), so the rows stay behind | See section 5 |
@@ -170,7 +171,8 @@ The order matters, because of `RESTRICT`: lineups, then players, then the team.
 select 'lineups'   as what, count(*) from saved_lineups where team_id = '<team id>'
 union all select 'players',     count(*) from players       where team_id = '<team id>'
 union all select 'members',     count(*) from team_members  where team_id = '<team id>'
-union all select 'invitations', count(*) from team_invitations where team_id = '<team id>';
+union all select 'invitations', count(*) from team_invitations where team_id = '<team id>'
+union all select 'staff',       count(*) from team_staff    where team_id = '<team id>';
 
 -- 2. Delete the children, then the team
 delete from saved_lineups where team_id = '<team id>' returning id, match_name, date;
@@ -178,7 +180,7 @@ delete from players       where team_id = '<team id>' returning id, name;
 delete from teams         where id      = '<team id>' returning *;
 ```
 
-**Warning:** the third statement also deletes the team's `team_members` and `team_invitations`
+**Warning:** the third statement also deletes the team's `team_members`, `team_invitations` and `team_staff`
 silently (`CASCADE`), and sets `source_team_id` / `source_opponent_id` to `NULL` on lineups of
 *other* teams that used it as an opponent. The members lose access immediately and see "no team".
 **Undo:** only from a backup. There is no soft delete.
@@ -265,7 +267,8 @@ select 'teams' as t, count(*) from teams
 union all select 'team_members', count(*) from team_members
 union all select 'players', count(*) from players
 union all select 'saved_lineups', count(*) from saved_lineups
-union all select 'invitations', count(*) from team_invitations;
+union all select 'invitations', count(*) from team_invitations
+union all select 'team_staff', count(*) from team_staff;
 
 -- Is RLS still on everywhere? (every row must say true)
 select tablename, rowsecurity from pg_tables where schemaname = 'public';

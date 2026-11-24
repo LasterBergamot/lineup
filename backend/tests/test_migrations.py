@@ -432,3 +432,96 @@ def test_location_is_added_nullable_and_can_be_undone(roster_database):
         count = db.execute("SELECT count(*) FROM saved_lineups").fetchone()[0]
     assert "location" not in columns
     assert count == len(ids)
+
+
+# --- e7a2c9b4d581: team staff (#292) ---------------------------------------------------------
+
+BEFORE_STAFF = "c4f8a2d6e913"
+AFTER_STAFF = "e7a2c9b4d581"
+
+
+@pytest.fixture
+def staff_database(tmp_path):
+    path = tmp_path / "staff.db"
+    alembic(path, "upgrade", BEFORE_STAFF)
+    return path
+
+
+def _seed_team_and_player(path) -> dict[str, str]:
+    ids = {"team": _id(), "player": _id(), "user": _id()}
+    with closing(sqlite3.connect(path)) as db:
+        db.execute(
+            "INSERT INTO teams VALUES (?, 'T', ?, 1, '2026-11-01 10:00:00', NULL)",
+            (ids["team"], ids["user"]),
+        )
+        db.execute(
+            "INSERT INTO players VALUES (?, 'P', 'N1', ?, ?, '2026-11-01 10:00:00')",
+            (ids["player"], ids["team"], ids["user"]),
+        )
+        db.commit()
+    return ids
+
+
+def _tables(path) -> set[str]:
+    with closing(sqlite3.connect(path)) as db:
+        return {r[0] for r in db.execute("SELECT name FROM sqlite_master")}
+
+
+def test_the_staff_migration_creates_an_empty_table_and_keeps_existing_rows(
+    staff_database,
+):
+    _seed_team_and_player(staff_database)
+    alembic(staff_database, "upgrade", AFTER_STAFF)
+    assert "team_staff" in _tables(staff_database)
+    assert _count(staff_database, "SELECT count(*) FROM team_staff") == 0
+    assert _count(staff_database, "SELECT count(*) FROM teams") == 1
+    assert _count(staff_database, "SELECT count(*) FROM players") == 1
+    assert {
+        "ix_team_staff_team_id",
+        "ix_team_staff_source_player_id",
+        "ux_team_staff_default_role",
+    } <= _indexes(staff_database)
+
+
+def test_the_staff_table_enforces_its_rules_and_defaults(staff_database):
+    ids = _seed_team_and_player(staff_database)
+    alembic(staff_database, "upgrade", AFTER_STAFF)
+    insert = (
+        "INSERT INTO team_staff (id, team_id, role, name, created_by, is_default) "
+        "VALUES (?, ?, ?, 'N', ?, ?)"
+    )
+    with closing(sqlite3.connect(staff_database)) as db:
+        db.execute("PRAGMA foreign_keys=ON")
+        # hand-written insert: is_default and created_at fall back to their server defaults
+        db.execute(
+            "INSERT INTO team_staff (id, team_id, role, name, created_by) "
+            "VALUES (?, ?, 'coach', 'N', ?)",
+            (_id(), ids["team"], ids["user"]),
+        )
+        assert db.execute(
+            "SELECT is_default, created_at IS NOT NULL FROM team_staff"
+        ).fetchone() == (0, 1)
+        db.execute(insert, (_id(), ids["team"], "coach", ids["user"], 1))
+        with pytest.raises(sqlite3.IntegrityError):  # a second default for the role
+            db.execute(insert, (_id(), ids["team"], "coach", ids["user"], 1))
+        db.execute(insert, (_id(), ids["team"], "team_leader", ids["user"], 1))
+        with pytest.raises(sqlite3.IntegrityError):  # no doctor
+            db.execute(insert, (_id(), ids["team"], "doctor", ids["user"], 0))
+        # the source link is nulled when the player goes, the team takes its staff along
+        db.execute(
+            "UPDATE team_staff SET source_player_id = ? WHERE role = 'team_leader'",
+            (ids["player"],),
+        )
+        db.execute("DELETE FROM players WHERE id = ?", (ids["player"],))
+        assert db.execute(
+            "SELECT source_player_id FROM team_staff WHERE role = 'team_leader'"
+        ).fetchone() == (None,)
+        db.execute("DELETE FROM teams WHERE id = ?", (ids["team"],))
+        assert db.execute("SELECT count(*) FROM team_staff").fetchone() == (0,)
+
+
+def test_the_staff_migration_can_be_undone(staff_database):
+    alembic(staff_database, "upgrade", AFTER_STAFF)
+    alembic(staff_database, "downgrade", BEFORE_STAFF)
+    assert "team_staff" not in _tables(staff_database)
+    assert "ux_team_staff_default_role" not in _indexes(staff_database)

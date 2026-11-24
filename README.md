@@ -10,7 +10,7 @@ Water polo match officials need a filled-in lineup sheet ("rajtlista") before ev
 
 **Document generation** (`POST /lineups`): the request is validated (Pydantic models in `backend/lineup/api/models.py`) and turned into a `WaterPoloLineupDTO`. `WaterPoloLineupCreator` passes it to `DocumentManager`, which fills `backend/resources/rajtlista.docx` using python-docx. For `format=docx` the filled file is returned as is; for `format=pdf` (the default) `PdfConverter` runs LibreOffice in headless mode on it and returns the PDF. LibreOffice only exists inside the container image, which is why the API is run with `task build` + `task up`.
 
-**Persistence layer** (`/teams`, `/players`, `/lineups/saved`): so a lineup can be built from a saved roster instead of retyping everything. Each module (`backend/lineup/teams/`, `backend/lineup/players/`, `backend/lineup/saved_lineups/`) has the same four files: `router.py` (HTTP), `schemas.py` (validation), `service.py` (business rules) and `repository.py` (SQL). Data is stored with SQLAlchemy (async) in a database chosen by the `DATABASE_URL` environment variable: local SQLite by default, Supabase Postgres when configured. Schema changes are managed by Alembic migrations. A saved lineup is a *frozen snapshot* (names copied as text), so deleting a team or player later never alters history.
+**Persistence layer** (`/teams`, `/players`, `/teams/{id}/staff`, `/lineups/saved`): so a lineup can be built from a saved roster instead of retyping everything. Each module (`backend/lineup/teams/`, `backend/lineup/players/`, `backend/lineup/staff/`, `backend/lineup/saved_lineups/`) has the same four files: `router.py` (HTTP), `schemas.py` (validation), `service.py` (business rules) and `repository.py` (SQL). Data is stored with SQLAlchemy (async) in a database chosen by the `DATABASE_URL` environment variable: local SQLite by default, Supabase Postgres when configured. Schema changes are managed by Alembic migrations. A saved lineup is a *frozen snapshot* (names copied as text), so deleting a team or player later never alters history.
 
 **Authentication:** every route except `GET /health` and the API docs (off when `ENV=production`) requires a Supabase access token (`Authorization: Bearer <jwt>`, Google sign-in through Supabase Auth). `get_current_user_id()` verifies it against the project's public signing keys and yields the user id; without a valid token the answer is `401`, and rows are only ever read or written for that user. A team is a workspace: its members share its roster and saved lineups; invitation links to add members are the next step. Setup steps: `documentation/Auth-Setup.md`. See the [wiki](https://github.com/LasterBergamot/lineup/wiki) (`documentation/`) for diagrams, the data model and the roadmap; `CLAUDE.md` holds the conventions.
 
@@ -285,6 +285,8 @@ Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup
 | `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename, list-or-unlist (`is_public`) and set the default `division` / delete a team. Update and delete are owner-only (**403** for other members). Delete returns **409** while the team has players or saved lineups |
 | `GET`/`POST` | `/players` | List the players of your teams (optionally `?team_id=`) / add a player to a team's roster (`team_id` is required and must be a team you belong to, else **404** `Team not found`; **409** if the team's roster already has that NSSZ number, compared ignoring case) |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (moving to a team you're not in is a **404**; an NSSZ number already on the target roster is a **409**) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
+| `GET`/`POST` | `/teams/{id}/staff` | List / add the team's staff entries (coach, assistant coach, team leader, ball thrower; any member). A name per entry, typed in or picked from the roster (`source_player_id`, a player of the same team). `is_default: true` makes it the role's default and clears the previous one atomically. **404** for a team you are not in or a foreign `source_player_id` |
+| `PUT`/`DELETE` | `/teams/{id}/staff/{staff_id}` | Replace (every field) / delete a staff entry. Deleting a roster player keeps the staff entry's name and nulls the link; deleting the team deletes its staff |
 | `GET`/`POST` | `/lineups/saved` | List the saved lineups of your teams (optionally `?team_id=` or `?source_team_id=`) / create one in a team's workspace (`team_id`, required) |
 | `GET`/`DELETE` | `/lineups/saved/{id}` | Get / delete a saved lineup |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Generate a PDF/DOCX from a previously saved lineup |
@@ -421,7 +423,8 @@ lineup/
     │       ├── d9a4c6e81b32_snapshot_cap_unique_and_source_indexes.py  # unique cap per lineup + FK indexes
     │       ├── f2c8a5d7e931_timestamptz_and_server_defaults.py  # Postgres: timestamptz columns + server defaults
     │       ├── a9e3c7d51f28_member_display_name.py  # team_members.display_name (#245)
-    │       └── c8f3a1d6e472_players_unique_nssz_per_team.py  # unique (team_id, lower(nssz_number)) on players (#284)
+    │       ├── c8f3a1d6e472_players_unique_nssz_per_team.py  # unique (team_id, lower(nssz_number)) on players (#284)
+    │       └── e7a2c9b4d581_team_staff.py  # team_staff table, one default per role, RLS policy (#292)
     ├── docker/
     │   └── fontconfig/
     │       └── 99-calibri-carlito.conf  # Calibri → Carlito font mapping (copied into image)
@@ -462,6 +465,7 @@ lineup/
     │   ├── teams/                       # schemas / repository / service / router (incl. members, ownership transfer)
     │   ├── invitations/                 # schemas / repository / service / router (invite links: create, list, revoke, preview, accept)
     │   ├── players/                     # schemas / repository / service / router
+    │   ├── staff/                       # schemas / repository / service / router (team staff, #292)
     │   └── saved_lineups/                # schemas / repository / service / router
     ├── tests/
     │   ├── resources/
@@ -495,6 +499,7 @@ lineup/
     │   ├── test_db_models.py            # ORM model unit tests
     │   ├── test_teams.py                # Teams API + repository tests
     │   ├── test_players.py              # Players API + repository tests
+    │   ├── test_staff.py                # Team staff API: CRUD, 404 rules, one default per role, DB guards
     │   └── test_saved_lineups.py        # Saved lineups API + repository tests
 ```
 

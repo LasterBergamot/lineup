@@ -55,6 +55,7 @@ choice). Every column of the data model is listed; a new column needs a row here
 | NSSZ number (federation registration id) | `players.nssz_number`, `lineup_player_snapshots.nssz_number` | Players | Identify the player on the official sheet; also the roster's identity key: one per team, ignoring case, enforced by a unique index on `lower(nssz_number)` (#284; the index copy goes with the row, and neither the 409 nor any log carries the number) | as above | as above |
 | Cap number | `lineup_player_snapshots.cap_number` | Players | Appear on the sheet | as above | with the saved lineup |
 | Staff names (coach, doctor, assistant coach, team leader, ball thrower) | `saved_lineups.coach`, `.doctor`, `.assistant_coach`, `.team_leader`, `.ball_thrower` | Club staff | Appear on the sheet. The "doctor" field is a name only, never medical notes | as above | with the saved lineup |
+| Staff entries kept per team (coach, assistant coach, team leader, ball thrower) | `team_staff.name`, `.role`, `.source_player_id`, `.is_default`, `.created_by`, `.created_at` (#292) | Club staff, some of them roster players | Pre-fill the staff fields of a new lineup so the club does not retype them. A name and a role only: no phone, e-mail or licence number (G4), and no doctor role. `source_player_id` only remembers which roster player the name was picked from; the name is a copy | as above | Until the club deletes the entry or its team (`ON DELETE CASCADE`). Deleting the source player keeps the staff name and nulls the link, so an **erasure request for a person who is both a player and staff must remove both rows** (section 9). Never logged. The export and erasure tooling of #95 must cover this table |
 | Team, opponent, match, division, cap colour, date | `teams.name`, `saved_lineups.team_name`, `.opponent_name`, `.match_name`, `.division`, `.cap`, `.date`, `.match_date`, `.match_time`, `.location` | Mostly clubs, not people; can identify a team's members | Describe the match (`location` is a venue, shown in the history only, never printed) | as above | with the saved lineup or team |
 | Team visibility | `teams.is_public` | Club | Whether the team name is listed in the opponent directory. Default **listed**; only `id` and `name` are ever exposed | as above | with the team |
 | User id (Supabase `sub`, a random UUID) | `team_members.user_id`, `teams.created_by`, `players.created_by`, `saved_lineups.created_by`, `team_invitations.invited_by` | Account holders | Access control (who may see a team) and audit | Art. 6(1)(b)/(f) | Memberships until the person leaves or is removed. The `created_by` audit columns **have no purge yet** (see section 8, #95) |
@@ -129,6 +130,7 @@ The lineup form keeps no drafts. Nothing else is stored client-side.
 | Invitation links | Deleted 7 days after expiry | Yes, in code (`PURGE_GRACE`) and tested |
 | Rate-limit counters | 60 s, memory | Yes, by construction |
 | Generated files | Never stored. The lineup creator's PDF preview lives only in browser memory (a `Blob` that is dropped when the panel closes), rendered by pdf.js whose worker is bundled with the app, so no third party sees it | Yes, by construction and tested (`no-store`) |
+| Team staff | Until the club deletes the entry, or its team (deleted with it, enforced by the foreign key). The name is a copy: deleting a player does **not** remove the same person from the staff list | Yes for the team; per person it is manual until #95 |
 | Players, saved lineups, teams | Until the club deletes them. Deleting a team needs its players and lineups gone first (409 otherwise) | Manual by the club; a club that stops using the service is cleaned up by the operator on request |
 | Saved-lineup snapshots | Keep the player's name/NSSZ **as it was when saved**, so deleting a player does not remove them from old lineups | **Gap**: erasure of one person across snapshots needs a tool (#95) |
 | Accounts | Until deleted | **Gap**: no self-service deletion (#95); manual on request |
@@ -187,7 +189,7 @@ and tell the clubs (the terms promise advance notice).
 
 | Gap | Issue | Effect on this page |
 |---|---|---|
-| Export, erasure across snapshots, account deletion, inactivity purge | #95 | Rights are handled by hand (section 9) |
+| Export, erasure across snapshots and `team_staff`, account deletion, inactivity purge | #95 | Rights are handled by hand (section 9) |
 | Sentry scrubbing before a DSN is set | #93 | Sentry stays off, so it is not a live processor |
 | Frontend CSP, privacy page links, footer | #97 | The notice is not yet linked from the app; the sign-in page must link it before inviting anyone |
 | Backup and restore | #164 | Section 7 |
@@ -203,7 +205,8 @@ and tell the clubs (the terms promise advance notice).
    as the owner role, and send the result to the club.
 4. **Correction:** the club edits the player.
 5. **Erasure:** delete the player, then the matching `lineup_player_snapshots` rows (by name and NSSZ
-   number) and, if needed, the saved lineup. Write what was deleted to the private request log.
+   number), the matching `team_staff` rows (by name; a staff entry keeps its own copy of the name
+   after the player is deleted) and, if needed, the saved lineup. Write what was deleted to the private request log.
 6. **Account holder erasure:** remove the person from their teams (the last owner must hand over
    first), then delete the Supabase Auth user in the dashboard.
 7. Keep a private note of the request, the date and the answer. Do not put names in the public repo.

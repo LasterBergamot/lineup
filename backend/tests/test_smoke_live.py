@@ -91,6 +91,19 @@ async def test_every_step_passes_and_nothing_is_left_behind(two_users):
     assert log[-1] == "smoke test passed"
     assert any("generate DOCX" in line for line in log)
     assert any("a revoked link is gone" in line for line in log)
+    assert any("add typed-in staff as the new default" in line for line in log)
+    assert any("non-member cannot list staff" in line for line in log)
+    assert await teams_of_owner(two_users) == []
+
+
+async def test_a_default_that_does_not_replace_the_old_one_fails_the_run(two_users):
+    def old_default_is_kept(method, path):
+        if method == "GET" and path.endswith("/staff"):
+            return smoke_live.Reply(200, body=b"[]")
+
+    passed, log = await run_script(two_users, old_default_is_kept)
+    assert not passed
+    assert any(line.startswith("FAIL list staff:") for line in log)
     assert await teams_of_owner(two_users) == []
 
 
