@@ -7,25 +7,29 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from lineup.common.types import CleanStr120
+from lineup.common.types import CleanStr100, CleanStr120
 from lineup.db.models import Team
 
 
 class TeamCreate(BaseModel):
-    """Body for creating a team. The name is trimmed and must not be blank or contain control
+    """Body for creating a team. `division` is the team's usual division (optional, at most 100
+    characters), which the lineup creator pre-fills. The name is trimmed and must not be blank or contain control
     characters.
     """
 
     name: CleanStr120
     is_public: bool = True
+    division: CleanStr100 | None = None
 
 
 class TeamUpdate(BaseModel):
     """Body for updating a team (owners only). `name` is always required; `is_public` lists or
-    unlists the team in the opponent directory and is left unchanged when omitted."""
+    unlists the team in the opponent directory and `division` sets its default division; both are
+    left unchanged when omitted (so a division cannot be cleared once set, only replaced)."""
 
     name: CleanStr120
     is_public: bool | None = None
+    division: CleanStr100 | None = None
 
 
 class TeamResponse(BaseModel):
@@ -33,12 +37,14 @@ class TeamResponse(BaseModel):
 
     `role` is the caller's role in the team (`owner` or `member`); `created_by` is who created
     it (audit only, it grants nothing). `is_public` means "listed in the opponent directory".
+    `division` is the team's default division (`null` when unset), used to pre-fill new lineups.
     """
 
     id: uuid.UUID
     name: str
     created_by: uuid.UUID
     is_public: bool
+    division: str | None
     created_at: datetime
     role: str
 
@@ -50,6 +56,7 @@ class TeamResponse(BaseModel):
             name=team.name,
             created_by=team.created_by,
             is_public=team.is_public,
+            division=team.division,
             created_at=team.created_at,
             role=role,
         )
