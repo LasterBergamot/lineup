@@ -239,6 +239,83 @@ class TestCreateSavedLineup:
         assert response.status_code == 422
 
 
+class TestMatchDate:
+    """`match_date`/`match_time` are stored structured; the server composes the printed text."""
+
+    async def _post(self, async_client: AsyncClient, **changes):
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        payload = _lineup_payload(team["id"], player["id"])
+        for key, value in changes.items():
+            if value is None:
+                payload.pop(key, None)
+            else:
+                payload[key] = value
+        return await async_client.post("/lineups/saved", json=payload)
+
+    async def test_free_text_date_stores_no_structured_fields(
+        self, async_client: AsyncClient
+    ):
+        data = (await self._post(async_client)).json()
+        assert data["date"] == "2024. 12. 21."
+        assert data["match_date"] is None
+        assert data["match_time"] is None
+
+    async def test_date_only_is_composed_and_stored(self, async_client: AsyncClient):
+        response = await self._post(async_client, date=None, match_date="2026-11-24")
+        assert response.status_code == 201
+        data = response.json()
+        assert data["date"] == "2026. 11. 24."
+        assert data["match_date"] == "2026-11-24"
+        assert data["match_time"] is None
+
+    async def test_date_and_time_are_composed_and_stored(
+        self, async_client: AsyncClient
+    ):
+        response = await self._post(
+            async_client, date=None, match_date="2026-03-05", match_time="08:05"
+        )
+        data = response.json()
+        assert data["date"] == "2026. 03. 05. 08:05"
+        assert data["match_time"] == "08:05:00"
+
+    async def test_structured_date_replaces_free_text_and_drops_seconds(
+        self, async_client: AsyncClient
+    ):
+        response = await self._post(
+            async_client, match_date="2026-11-24", match_time="18:30:45"
+        )
+        data = response.json()
+        assert data["date"] == "2026. 11. 24. 18:30"
+        assert data["match_time"] == "18:30:00"
+
+    async def test_structured_fields_come_back_on_get(self, async_client: AsyncClient):
+        created = (
+            await self._post(async_client, date=None, match_date="2026-11-24")
+        ).json()
+        fetched = (await async_client.get(f"/lineups/saved/{created['id']}")).json()
+        assert fetched["match_date"] == "2026-11-24"
+        assert fetched["date"] == "2026. 11. 24."
+
+    async def test_time_without_date_is_422(self, async_client: AsyncClient):
+        response = await self._post(async_client, match_time="18:30")
+        assert response.status_code == 422
+
+    async def test_neither_date_nor_match_date_is_422(self, async_client: AsyncClient):
+        response = await self._post(async_client, date=None)
+        assert response.status_code == 422
+
+    async def test_time_with_timezone_is_422(self, async_client: AsyncClient):
+        response = await self._post(
+            async_client, match_date="2026-11-24", match_time="18:30+01:00"
+        )
+        assert response.status_code == 422
+
+    async def test_impossible_date_is_422(self, async_client: AsyncClient):
+        response = await self._post(async_client, date=None, match_date="2026-02-30")
+        assert response.status_code == 422
+
+
 class TestListSavedLineups:
     async def test_list_lineups_empty(self, async_client: AsyncClient):
         response = await async_client.get("/lineups/saved")
@@ -539,6 +616,8 @@ class TestSavedLineupRepositoryMembership:
             division="OB II.",
             cap="Fehér",
             date="2024. 12. 21.",
+            match_date=None,
+            match_time=None,
             coach="Coach",
             doctor=None,
             assistant_coach=None,

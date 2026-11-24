@@ -8,6 +8,8 @@ so lookups are keyed by the signed-in `user_id` and restricted to teams they bel
 from __future__ import annotations
 
 import uuid
+from datetime import date as date_type
+from datetime import time as time_type
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +26,8 @@ async def create_saved_lineup(
     division: str,
     cap: str,
     date: str,
+    match_date: date_type | None,
+    match_time: time_type | None,
     coach: str,
     doctor: str | None,
     assistant_coach: str | None,
@@ -49,6 +53,8 @@ async def create_saved_lineup(
         division=division,
         cap=cap,
         date=date,
+        match_date=match_date,
+        match_time=match_time,
         coach=coach,
         doctor=doctor,
         assistant_coach=assistant_coach,
