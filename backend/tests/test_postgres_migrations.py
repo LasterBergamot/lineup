@@ -38,6 +38,7 @@ APP_TABLES = [
     "saved_lineups",
     "team_invitations",
     "team_members",
+    "team_staff",
     "teams",
 ]
 
@@ -210,6 +211,58 @@ class TestAppRole:
             await conn.execute(text("DELETE FROM teams"))
             # ON DELETE CASCADE removed the dependants as well
             assert await conn.scalar(text("SELECT count(*) FROM team_members")) == 0
+
+    async def test_app_can_use_team_staff_and_it_follows_its_team_and_player(
+        self, engine
+    ):
+        """#292: the staff table needs its own policy, deletes with its team, and its source
+        link is nulled (the name stays) when the player goes."""
+        ids = {
+            "team": "00000000-0000-0000-0000-000000000002",
+            "player": "00000000-0000-0000-0000-000000000003",
+        }
+        async with engine.begin() as conn:
+            await conn.execute(text("SET LOCAL ROLE lineup_app"))
+            await conn.execute(
+                text(
+                    "INSERT INTO teams (id, name, created_by, is_public, created_at) "
+                    "VALUES (:team, 'T', gen_random_uuid(), true, now())"
+                ),
+                ids,
+            )
+            await conn.execute(
+                text(
+                    "INSERT INTO players (id, name, nssz_number, team_id, created_by, "
+                    "created_at) VALUES (:player, 'P', 'N1', :team, "
+                    "gen_random_uuid(), now())"
+                ),
+                ids,
+            )
+            # hand-written insert: is_default and created_at come from the server defaults
+            await conn.execute(
+                text(
+                    "INSERT INTO team_staff (id, team_id, role, name, source_player_id, "
+                    "created_by) VALUES (gen_random_uuid(), :team, 'coach', 'Kept Name', "
+                    ":player, gen_random_uuid())"
+                ),
+                ids,
+            )
+            row = (
+                await conn.execute(
+                    text("SELECT is_default, created_at FROM team_staff")
+                )
+            ).one()
+            assert row.is_default is False
+            assert row.created_at.utcoffset().total_seconds() == 0
+            await conn.execute(text("DELETE FROM players WHERE id = :player"), ids)
+            kept = (
+                await conn.execute(
+                    text("SELECT name, source_player_id FROM team_staff")
+                )
+            ).one()
+            assert (kept.name, kept.source_player_id) == ("Kept Name", None)
+            await conn.execute(text("DELETE FROM teams"))
+            assert await conn.scalar(text("SELECT count(*) FROM team_staff")) == 0
 
     async def test_a_new_table_denies_the_app_until_a_policy_exists(self, engine):
         """Default privileges hand the app DML on new tables, RLS keeps it out."""

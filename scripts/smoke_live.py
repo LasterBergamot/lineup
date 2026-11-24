@@ -3,7 +3,8 @@
 
 It drives a running API over HTTP and proves the real path on the real database (Postgres behind
 the Supabase pooler as the `lineup_app` role, so RLS, grants and the pooler are all in play):
-create a team, a player and a saved lineup, read them back, generate a DOCX, then create, preview,
+create a team, a player and a saved lineup, read them back, generate a DOCX, keep staff on the team
+(picked from the roster, one default per role, hidden from a non-member), then create, preview,
 accept and revoke an invitation as a second user. Every row it writes is synthetic and carries
 a `smoke-<unix time>` marker in its name.
 
@@ -222,7 +223,53 @@ class Smoke:
         )
         self.call("search the opponent pool", "GET", f"/teams/pool?search={m}", 200)
 
+        self.staff()
         self.invitations()
+
+    def staff(self) -> None:
+        """Team staff (#292): pick one from the roster, replace the role's default, check the
+        non-member is refused and that the entry is removed again. Needs the team and player from
+        `run`; the staff rows themselves go with the team in `cleanup`."""
+        path = f"/teams/{self.team_id}/staff"
+        picked = self.call(
+            "add staff from the roster",
+            "POST",
+            path,
+            201,
+            body={
+                "role": "coach",
+                "name": f"{self.marker} player",
+                "source_player_id": self.player_id,
+                "is_default": True,
+            },
+        ).json()
+        typed = self.call(
+            "add typed-in staff as the new default",
+            "POST",
+            path,
+            201,
+            body={"role": "coach", "name": f"{self.marker} coach", "is_default": True},
+        ).json()
+        listed = self.call("list staff", "GET", path, 200).json()
+        self.expect(
+            "list staff",
+            {row["id"]: row["is_default"] for row in listed}
+            == {picked["id"]: False, typed["id"]: True},
+            "a new default must replace the old one of the role",
+        )
+        self.call("non-member cannot list staff", "GET", path, 404, who="member")
+        self.call(
+            "foreign player cannot be a staff source",
+            "POST",
+            path,
+            404,
+            body={
+                "role": "ball_thrower",
+                "name": f"{self.marker} x",
+                "source_player_id": "00000000-0000-4000-8000-000000000000",
+            },
+        )
+        self.call("delete staff", "DELETE", f"{path}/{typed['id']}", 204)
 
     def invitations(self) -> None:
         """Create, preview, accept (twice) and revoke an invite link, with the permission checks

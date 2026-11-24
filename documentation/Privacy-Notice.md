@@ -151,7 +151,9 @@ must reach them (within one month, and at the latest at the first contact).*
 official lineup sheets for matches. Lineup is operated by [OPERATOR NAME] as our processor.
 
 - **Data:** your name, your federation (NSSZ) registration number and your cap number; for staff, the
-  name and role (coach, doctor, assistant coach, team leader, ball thrower) as written on the sheet. We
+  name and role (coach, doctor, assistant coach, team leader, ball thrower) as written on the sheet;
+  the club may also keep the names of its coach, assistant coach, team leader and ball thrower in
+  the team's staff list, so they need not be retyped for every lineup. We
   do not put dates of birth, photos, contact details or health information into Lineup. The
   "doctor" is only a name on the sheet.
 - **Where it comes from:** from our own club records, entered by our staff.
@@ -162,7 +164,7 @@ official lineup sheets for matches. Lineup is operated by [OPERATOR NAME] as our
   the printed sheet is handed or sent as usual; and Lineup's providers (Supabase in Ireland, Fly.io
   in Amsterdam, Cloudflare) as processors.
 - **How long:** until the player or staff member leaves the club, then we delete the entry from
-  Lineup; saved lineups are deleted when we no longer need them. Backups, if any, can keep deleted
+  Lineup (the player list and the staff list separately); saved lineups are deleted when we no longer need them. Backups, if any, can keep deleted
   data for up to 30 days.
 - **Your rights:** access, correction, erasure, restriction and objection (GDPR Arts. 15–21). For a
   child under 18 the parent can act. Write to [CLUB E-MAIL]. You can complain to NAIH

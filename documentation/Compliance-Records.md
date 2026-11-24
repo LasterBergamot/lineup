@@ -41,7 +41,7 @@ whenever a data category, a sub-processor or a purpose changes. *Last reviewed: 
 | Processor | [OPERATOR NAME], [OPERATOR ADDRESS], [PRIVACY E-MAIL]. No DPO |
 | Controllers | Each club with a team in Lineup. The list of clubs is kept privately by the operator (it is not published in this repo) |
 | Categories of processing | Storing, displaying and editing player, staff and lineup records; rendering DOCX/PDF on request |
-| Categories of data and subjects | Players (some children): name, NSSZ number, cap number. Staff: names. Team and match details |
+| Categories of data and subjects | Players (some children): name, NSSZ number, cap number. Staff: names, also kept per team as a staff list (coach, assistant coach, team leader, ball thrower). Team and match details |
 | Sub-processors | Supabase, Fly.io, Cloudflare (Sentry once enabled) |
 | Transfers outside the EU/EEA | As in section 1 |
 | Instructions | The [[Terms and Processor Agreement]] and what the club's users do in the app |

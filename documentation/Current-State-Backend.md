@@ -30,7 +30,7 @@ Paths on this page are relative to `backend/`, where all the Python lives (see
 [[Current State: Everything Else]] for why Python commands run from there).
 
 The persistence layer follows a consistent `schemas.py` / `repository.py` / `service.py` /
-`router.py` layering per module (`lineup/teams/`, `lineup/players/`, `lineup/saved_lineups/`).
+`router.py` layering per module (`lineup/teams/`, `lineup/players/`, `lineup/staff/`, `lineup/saved_lineups/`).
 Each layer has one job, which is what keeps the code easy to follow:
 
 | Layer | Job | Knows about |
@@ -137,6 +137,31 @@ so rendering, headers and error handling live in one place:
 | `GET`/`POST` | `/players` | `GET` lists the players of all your teams (filterable by `team_id`; a team you're not in gives an empty page). `POST`/`PUT` require `team_id`, which must be a team you belong to, otherwise **404** `Team not found` (unknown and foreign ids look the same). The NSSZ number is a player's identity within a team (#284): `POST`/`PUT` answer **409** `A player with this NSSZ number is already on this team` when the roster already has it (compared trimmed and case-insensitively; keeping a player's own number on `PUT` is fine, the same number in another team is allowed, and the same name with a different number is allowed). The body is fixed and never describes the other player; nothing logs the number. Two concurrent requests are decided by the unique index `ux_players_team_nssz`, and the loser gets the same 409 |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | `DELETE` is **unconditionally safe (204)** — saved lineups are frozen snapshots, not live references, so deleting a player never blocks or breaks anything |
 
+### Team staff
+
+Coach, assistant coach, team leader and ball thrower are kept **per team** (#292), so they are not
+retyped for every lineup. Staff is its own entity, not a kind of player: no NSSZ number, not on the
+roster. There is no `doctor` role (the doctor stays a free-text field on each saved lineup).
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET`/`POST` | `/teams/{id}/staff` | `GET` is a plain list (creation order, no paging: a team has a handful). `POST` body `{role, name, source_player_id?, is_default?}` -> `201`. `role` is `coach`, `assistant_coach`, `team_leader` or `ball_thrower` (`422` otherwise); `name` follows the usual text rules. **Any member** may use these routes (the team is the workspace); a team you are not in is **404** |
+| `PUT`/`DELETE` | `/teams/{id}/staff/{staff_id}` | `PUT` replaces every field (role, name, source player, default flag). `DELETE` is `204`; if it was its role's default the role simply has no default afterwards (nobody is promoted). A staff id that belongs to another team is **404** |
+
+- **Picked from the roster, or typed in.** The client copies the player's name into `name` and sends
+  the player's id as `source_player_id`; the server stores both and never keeps them in sync. It is
+  the same snapshot idea as saved lineups: deleting the player nulls `source_player_id`
+  (`ON DELETE SET NULL`) and the entry keeps its name, renaming the player does not touch it, and
+  nothing is ever blocked. A `source_player_id` must be a player of **this** team's roster; any other
+  id (unknown, another team's, even another team of yours) is `404 Player not found`.
+- **One default per role.** `is_default: true` makes the entry the role's default (the creator
+  pre-fills it). The previous default of that role is cleared in the same transaction, on `POST` and
+  on `PUT` (also when `PUT` moves an entry into another role). The partial unique index
+  `ux_team_staff_default_role` is the real guard: a request that loses a race against another one is
+  refused by the database and answered with the app-wide `409`, never two defaults.
+- **Team deletion** removes the staff (`ON DELETE CASCADE`); staff does not take part in the
+  `409` rule, which stays about players and saved lineups. Nothing here is logged with a name.
+
 ### Saved Lineups
 
 | Method | Path | Notes |
@@ -232,6 +257,8 @@ erDiagram
     TEAMS ||--o{ PLAYERS : "has active roster (team_id)"
     TEAMS ||--|{ TEAM_MEMBERS : "has members (CASCADE)"
     TEAMS ||--o{ TEAM_INVITATIONS : "has invite links (CASCADE)"
+    TEAMS ||--o{ TEAM_STAFF : "keeps staff (CASCADE)"
+    PLAYERS ||--o{ TEAM_STAFF : "soft ref (source_player_id)"
     TEAMS ||--o{ SAVED_LINEUPS : "workspace (team_id)"
     TEAMS ||--o{ SAVED_LINEUPS : "soft ref: our team / opponent"
     SAVED_LINEUPS ||--|{ LINEUP_PLAYER_SNAPSHOTS : "contains frozen slots"
@@ -261,6 +288,16 @@ erDiagram
         string role "owner | member"
         datetime expires_at
         datetime revoked_at "nullable"
+    }
+    TEAM_STAFF {
+        uuid id PK
+        uuid team_id FK "CASCADE"
+        string role "coach | assistant_coach | team_leader | ball_thrower"
+        string name "a copy, kept when the source player is deleted"
+        uuid source_player_id "nullable, ondelete SET NULL"
+        boolean is_default "at most one per team and role"
+        uuid created_by "audit only"
+        datetime created_at
     }
     PLAYERS {
         uuid id PK
@@ -315,6 +352,15 @@ the same transaction. `team_invitations` holds multi-use invite links: only the 
 is stored (`invite_code_hash`), so a database leak hands out no working invitation; a link stops working
 at `expires_at` or once `revoked_at` is set. Both tables go when their team does (`ON DELETE CASCADE`).
 The endpoints that use them are described under *Invitation links and members* below.
+
+**Team staff** (`team_staff`, migration `e7a2c9b4d581`, #292): a name per row for the four staff
+roles a team keeps (`CHECK` on `role`; no `doctor`), and nothing else (no phone, e-mail or licence:
+G4). `team_id` cascades with the team; `source_player_id` is a soft reference to `players.id`
+(`SET NULL`, indexed) and the `name` is a copy, so the roster and the staff never depend on each other.
+The partial unique index `ux_team_staff_default_role` on `(team_id, role) WHERE is_default` allows one
+default per role (a partial index works on SQLite and Postgres alike; the model declares it with both
+`postgresql_where` and `sqlite_where`). Like every table it has RLS, an `app_all` policy and DML for
+`lineup_app`, added by its own migration. The endpoints are described under *Team staff* above.
 
 **The team is the workspace.** Who may see a row is decided by `team_members`, never by who created
 it: a player or saved lineup belongs to a team (`players.team_id`, `saved_lineups.team_id`, both required)
@@ -458,11 +504,12 @@ database safe to put behind a public API. It does four things:
    you. The function's `search_path` is pinned to empty (a follow-up migration, after Supabase's
    Security Advisor flagged it); it only uses `pg_catalog` functions, which are always searched.
 4. **The `lineup_app` role**: not the owner (so RLS applies to it), `NOBYPASSRLS`, no `CREATE` on the
-   schema, `SELECT/INSERT/UPDATE/DELETE` on the six app tables only (not on `alembic_version`, so a
+   schema, `SELECT/INSERT/UPDATE/DELETE` on the seven app tables only (not on `alembic_version`, so a
    compromised API can't rewrite the migration history) and the same default privileges on future
    tables. An interim policy `app_all ... USING (true)` lets the API through, because the API is the
    only client; #21 replaces it with team-scoped policies. A new table therefore starts out *denied*
-   to the app until its migration adds a policy.
+   to the app until its migration adds a policy (`team_members`, `team_invitations` and `team_staff` each
+   do it in their own migration).
 
 Why not just connect as `postgres`? It owns the tables, so it **bypasses RLS**, can drop them, and can
 read other schemas such as `auth.*`. A SQL-injection bug or a leaked `DATABASE_URL` would then be

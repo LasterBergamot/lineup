@@ -431,6 +431,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/teams/{team_id}/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Staff
+         * @description List the team's staff entries (all roles, a plain list in creation order). A role can
+         *     have several entries; at most one per role has `is_default: true`. 404 if the team is
+         *     unknown or you are not a member.
+         */
+        get: operations["list_staff_teams__team_id__staff_get"];
+        put?: never;
+        /**
+         * Create Staff
+         * @description Add a staff entry, typed in or picked from the roster (`source_player_id`, with the
+         *     player's name copied into `name`). Any member may. With `is_default: true` it becomes the
+         *     default for its role and the previous default of that role is cleared in the same
+         *     transaction. 404 if the team is not yours or `source_player_id` is not on this team's roster.
+         */
+        post: operations["create_staff_teams__team_id__staff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/teams/{team_id}/staff/{staff_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Staff
+         * @description Replace every field of a staff entry (role, name, source player, default flag). Setting
+         *     `is_default: true` clears the other default of the resulting role atomically. 404 if the
+         *     team, the staff entry or the `source_player_id` is not reachable.
+         */
+        put: operations["update_staff_teams__team_id__staff__staff_id__put"];
+        post?: never;
+        /**
+         * Delete Staff
+         * @description Delete a staff entry (204). If it was its role's default, the role has no default
+         *     afterwards. 404 if the team or the entry is not reachable.
+         */
+        delete: operations["delete_staff_teams__team_id__staff__staff_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/teams/{team_id}/transfer-ownership": {
         parameters: {
             query?: never;
@@ -896,6 +952,69 @@ export interface components {
             team_leader: string | null;
             /** Team Name */
             team_name: string;
+        };
+        /**
+         * StaffResponse
+         * @description A staff entry as returned by the API.
+         */
+        StaffResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            role: components["schemas"]["StaffRole"];
+            /**
+             * Source Player Id
+             * @description The roster player it was picked from; `null` for a typed-in name or once that player was deleted.
+             */
+            source_player_id: string | null;
+            /**
+             * Team Id
+             * Format: uuid
+             */
+            team_id: string;
+        };
+        /**
+         * StaffRole
+         * @description The staff roles a team can keep. Stored as text (not a database enum), like `TeamRole`.
+         *     There is deliberately no `doctor`: that field stays a per-lineup free text.
+         * @enum {string}
+         */
+        StaffRole: "coach" | "assistant_coach" | "team_leader" | "ball_thrower";
+        /**
+         * StaffWrite
+         * @description Body for creating a staff entry or replacing one (`PUT` overwrites every field).
+         *
+         *     `name` is trimmed, must not be blank or contain control characters. It is stored as a copy:
+         *     when you pick a roster player, send their name here and their id as `source_player_id`; the
+         *     entry then keeps the name even after the player is deleted or renamed.
+         */
+        StaffWrite: {
+            /**
+             * Is Default
+             * @description Make this the team's default for its role. The previous default of that role, if any, stops being the default in the same transaction.
+             * @default false
+             */
+            is_default: boolean;
+            /** Name */
+            name: string;
+            /** @description Which staff role this person fills. */
+            role: components["schemas"]["StaffRole"];
+            /**
+             * Source Player Id
+             * @description The roster player this entry was picked from, or omitted for a typed-in name. Must be a player of this same team, otherwise 404. The name is not kept in sync with the player.
+             */
+            source_player_id?: string | null;
         };
         /**
          * TeamCreate
@@ -1921,6 +2040,166 @@ export interface operations {
                 content: {
                     "application/json": string[];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_staff_teams__team_id__staff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffResponse"][];
+                };
+            };
+            /** @description The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_staff_teams__team_id__staff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffResponse"];
+                };
+            };
+            /** @description The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_staff_teams__team_id__staff__staff_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffResponse"];
+                };
+            };
+            /** @description The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_staff_teams__team_id__staff__staff_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                team_id: string;
+                staff_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

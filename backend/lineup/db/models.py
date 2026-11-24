@@ -1,5 +1,5 @@
-"""ORM tables: teams, their members and invitations, players, saved lineups and their frozen
-player snapshots.
+"""ORM tables: teams, their members and invitations, players, team staff, saved lineups and
+their frozen player snapshots.
 
 A saved lineup is a *snapshot*: it copies team, opponent and player names as plain text, so
 deleting a team or player later never changes history. The `source_*_id` columns are nullable
@@ -24,6 +24,7 @@ from sqlalchemy import (
     Integer,
     String,
     Time,
+    false,
     func,
     text,
     true,
@@ -202,6 +203,70 @@ class Player(Base):
     )
 
     team: Mapped["Team"] = relationship("Team", back_populates="players")
+
+
+class StaffRole(str, Enum):
+    """The staff roles a team can keep. Stored as text (not a database enum), like `TeamRole`.
+    There is deliberately no `doctor`: that field stays a per-lineup free text."""
+
+    COACH = "coach"
+    ASSISTANT_COACH = "assistant_coach"
+    TEAM_LEADER = "team_leader"
+    BALL_THROWER = "ball_thrower"
+
+
+_STAFF_ROLE_CHECK = (
+    "role IN ('coach', 'assistant_coach', 'team_leader', 'ball_thrower')"
+)
+
+
+class TeamStaff(Base):
+    """A staff entry kept per team (coach, assistant coach, team leader, ball thrower), so it
+    does not have to be retyped for every lineup. A separate entity from `Player`: staff are not
+    on the roster and have no NSSZ number. Personal data: a name, nothing else (G4).
+
+    `name` is a *copy*. When the entry is picked from the roster, `source_player_id` records
+    which player it came from, but the name is not kept in sync: deleting the player nulls the
+    link (`ON DELETE SET NULL`) and the staff entry keeps its name, the same snapshot idea as
+    saved lineups. `is_default` marks the entry the creator pre-fills for its role; the partial
+    unique index `ux_team_staff_default_role` is the database's guarantee that a team has at most
+    one default per role (the service clears the old default in the same transaction). The rows
+    are deleted with their team (`ON DELETE CASCADE`); no saved lineup refers to them.
+
+    """
+
+    __tablename__ = "team_staff"
+    __table_args__ = (
+        CheckConstraint(_STAFF_ROLE_CHECK, name="ck_team_staff_role"),
+        Index("ix_team_staff_team_id", "team_id"),
+        # Postgres does not index foreign keys itself: this makes each `SET NULL` a lookup.
+        Index("ix_team_staff_source_player_id", "source_player_id"),
+        Index(
+            "ux_team_staff_default_role",
+            "team_id",
+            "role",
+            unique=True,
+            postgresql_where=text("is_default"),
+            sqlite_where=text("is_default"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(
+        UUID, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_player_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID, ForeignKey("players.id", ondelete="SET NULL"), nullable=True
+    )
+    is_default: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
+    created_by: Mapped[uuid.UUID] = mapped_column(UUID, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
 
 class SavedLineup(Base):

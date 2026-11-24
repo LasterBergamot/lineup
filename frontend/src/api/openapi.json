@@ -1044,6 +1044,112 @@
         "title": "SavedLineupResponse",
         "type": "object"
       },
+      "StaffResponse": {
+        "description": "A staff entry as returned by the API.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/StaffRole"
+          },
+          "source_player_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The roster player it was picked from; `null` for a typed-in name or once that player was deleted.",
+            "title": "Source Player Id"
+          },
+          "team_id": {
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "team_id",
+          "role",
+          "name",
+          "source_player_id",
+          "is_default",
+          "created_at"
+        ],
+        "title": "StaffResponse",
+        "type": "object"
+      },
+      "StaffRole": {
+        "description": "The staff roles a team can keep. Stored as text (not a database enum), like `TeamRole`.\nThere is deliberately no `doctor`: that field stays a per-lineup free text.",
+        "enum": [
+          "coach",
+          "assistant_coach",
+          "team_leader",
+          "ball_thrower"
+        ],
+        "title": "StaffRole",
+        "type": "string"
+      },
+      "StaffWrite": {
+        "description": "Body for creating a staff entry or replacing one (`PUT` overwrites every field).\n\n`name` is trimmed, must not be blank or contain control characters. It is stored as a copy:\nwhen you pick a roster player, send their name here and their id as `source_player_id`; the\nentry then keeps the name even after the player is deleted or renamed.",
+        "properties": {
+          "is_default": {
+            "default": false,
+            "description": "Make this the team's default for its role. The previous default of that role, if any, stops being the default in the same transaction.",
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/StaffRole",
+            "description": "Which staff role this person fills."
+          },
+          "source_player_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The roster player this entry was picked from, or omitted for a typed-in name. Must be a player of this same team, otherwise 404. The name is not kept in sync with the player.",
+            "title": "Source Player Id"
+          }
+        },
+        "required": [
+          "role",
+          "name"
+        ],
+        "title": "StaffWrite",
+        "type": "object"
+      },
       "TeamCreate": {
         "description": "Body for creating a team. `division` is the team's usual division (optional, at most 100\ncharacters), which the lineup creator pre-fills. The name is trimmed and must not be blank or contain control\ncharacters.",
         "properties": {
@@ -2748,6 +2854,247 @@
         "summary": "Recent Opponents",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/teams/{team_id}/staff": {
+      "get": {
+        "description": "List the team's staff entries (all roles, a plain list in creation order). A role can\nhave several entries; at most one per role has `is_default: true`. 404 if the team is\nunknown or you are not a member.",
+        "operationId": "list_staff_teams__team_id__staff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffResponse"
+                  },
+                  "title": "Response List Staff Teams  Team Id  Staff Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Staff",
+        "tags": [
+          "staff"
+        ]
+      },
+      "post": {
+        "description": "Add a staff entry, typed in or picked from the roster (`source_player_id`, with the\nplayer's name copied into `name`). Any member may. With `is_default: true` it becomes the\ndefault for its role and the previous default of that role is cleared in the same\ntransaction. 404 if the team is not yours or `source_player_id` is not on this team's roster.",
+        "operationId": "create_staff_teams__team_id__staff_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Staff",
+        "tags": [
+          "staff"
+        ]
+      }
+    },
+    "/teams/{team_id}/staff/{staff_id}": {
+      "delete": {
+        "description": "Delete a staff entry (204). If it was its role's default, the role has no default\nafterwards. 404 if the team or the entry is not reachable.",
+        "operationId": "delete_staff_teams__team_id__staff__staff_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "staff_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Staff Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Staff",
+        "tags": [
+          "staff"
+        ]
+      },
+      "put": {
+        "description": "Replace every field of a staff entry (role, name, source player, default flag). Setting\n`is_default: true` clears the other default of the resulting role atomically. 404 if the\nteam, the staff entry or the `source_player_id` is not reachable.",
+        "operationId": "update_staff_teams__team_id__staff__staff_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "staff_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Staff Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "The team does not exist or you are not a member of it, or the `source_player_id` is not a player of this team. The two cases look the same."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Staff",
+        "tags": [
+          "staff"
         ]
       }
     },
