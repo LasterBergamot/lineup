@@ -1,4 +1,4 @@
-"""The data-changing migrations `a3d5f7c91e26`, `e5b8c2d41f70` and `c8f3a1d6e472`, run for real against a
+"""The data-changing migrations `a3d5f7c91e26`, `e5b8c2d41f70`, `c8f3a1d6e472` and `d1b6e4a97c53`, run for real against a
 throw-away SQLite file.
 
 Schema drift is checked by `task migrate-check`; this proves what happens to *existing rows*:
@@ -326,3 +326,29 @@ def test_the_nssz_migration_can_be_undone(roster_database):
             (_id(), team, user),
         )
         db.commit()
+
+
+# --- d1b6e4a97c53: default division per team (#288) -------------------------------------------
+
+AFTER_DIVISION = "d1b6e4a97c53"
+
+
+def _team_columns(path) -> set[str]:
+    with closing(sqlite3.connect(path)) as db:
+        return {r[1] for r in db.execute("PRAGMA table_info(teams)")}
+
+
+def test_the_division_column_is_added_empty_and_removed_again(roster_database):
+    ids = _seed_roster(roster_database, [])
+    alembic(roster_database, "upgrade", AFTER_NSSZ)
+    assert "division" not in _team_columns(roster_database)
+    alembic(roster_database, "upgrade", AFTER_DIVISION)
+    assert "division" in _team_columns(roster_database)
+    with closing(sqlite3.connect(roster_database)) as db:
+        divisions = [r[0] for r in db.execute("SELECT division FROM teams")]
+        assert divisions == [None, None]  # existing teams have no default
+        db.execute("UPDATE teams SET division = 'OB II.' WHERE id = ?", (ids["A"],))
+        db.commit()
+    alembic(roster_database, "downgrade", AFTER_NSSZ)
+    assert "division" not in _team_columns(roster_database)
+    assert _count(roster_database, "SELECT count(*) FROM teams") == 2

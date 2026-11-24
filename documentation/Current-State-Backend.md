@@ -128,7 +128,7 @@ so rendering, headers and error handling live in one place:
 | `GET`/`POST` | `/teams` | `GET`: paginated list of the teams **you belong to**, each with your `role`. `POST`: create a team, you become its `owner` |
 | `GET` | `/teams/pool?search=&limit=` | Shared opponent pool (sign-in required) — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
 | `GET` | `/teams/{id}/opponents/recent?limit=` | Distinct opponent names from this team's saved lineups, newest first (`limit` 1–50). Members only. Together with the pool and free text it feeds the opponent combobox |
-| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, and `is_public` to list/unlist in the pool) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
+| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, `is_public` to list/unlist in the pool, and `division`, the team's default division that the creator pre-fills; omitted fields are kept) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
 
 ### Players
 
@@ -211,6 +211,7 @@ erDiagram
         string name
         uuid created_by "Supabase user id of the creator, audit only"
         boolean is_public "true for opponent pool"
+        string division "nullable, default division pre-filled in the creator"
     }
     TEAM_MEMBERS {
         uuid team_id PK_FK

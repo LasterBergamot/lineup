@@ -66,6 +66,29 @@ class TestCreateTeam:
         )
         assert response.json()["is_public"] is False
 
+    async def test_create_team_without_division_has_none(
+        self, async_client: AsyncClient
+    ):
+        response = await async_client.post("/teams", json={"name": "SZVTK"})
+        assert response.json()["division"] is None
+
+    async def test_create_team_with_division(self, async_client: AsyncClient):
+        response = await async_client.post(
+            "/teams", json={"name": "SZVTK", "division": "  OB II.  "}
+        )
+        assert response.status_code == 201
+        assert response.json()["division"] == "OB II."
+        got = await async_client.get(f"/teams/{response.json()['id']}")
+        assert got.json()["division"] == "OB II."
+
+    async def test_create_team_division_too_long_returns_422(
+        self, async_client: AsyncClient
+    ):
+        response = await async_client.post(
+            "/teams", json={"name": "SZVTK", "division": "x" * 101}
+        )
+        assert response.status_code == 422
+
     async def test_creator_becomes_the_owner_member(
         self,
         async_client: AsyncClient,
@@ -185,6 +208,39 @@ class TestUpdateTeam:
         team = await _create_team(async_client, "Club", is_public=False)
         response = await async_client.put(f"/teams/{team['id']}", json={"name": "New"})
         assert response.json()["is_public"] is False
+
+    async def test_update_team_sets_and_keeps_the_division(
+        self, async_client: AsyncClient
+    ):
+        team = await _create_team(async_client, "Club")
+        response = await async_client.put(
+            f"/teams/{team['id']}", json={"name": "Club", "division": "OB II."}
+        )
+        assert response.json()["division"] == "OB II."
+        response = await async_client.put(f"/teams/{team['id']}", json={"name": "Club"})
+        assert response.json()["division"] == "OB II."
+        response = await async_client.put(
+            f"/teams/{team['id']}", json={"name": "Club", "division": "OB I."}
+        )
+        assert response.json()["division"] == "OB I."
+
+    async def test_a_plain_member_cannot_change_the_division(
+        self,
+        async_client: AsyncClient,
+        db_session: AsyncSession,
+        current_user: CurrentUser,
+    ):
+        team = await _create_team(async_client, "Club")
+        member = uuid.uuid4()
+        await _join(db_session, team["id"], member, "member")
+        current_user.id = member
+        response = await async_client.put(
+            f"/teams/{team['id']}", json={"name": "Club", "division": "OB I."}
+        )
+        assert response.status_code == 403
+        assert (await async_client.get(f"/teams/{team['id']}")).json()[
+            "division"
+        ] is None
 
     async def test_a_plain_member_cannot_update_the_team(
         self,

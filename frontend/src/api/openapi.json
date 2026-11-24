@@ -964,8 +964,21 @@
         "type": "object"
       },
       "TeamCreate": {
-        "description": "Body for creating a team. The name is trimmed and must not be blank or contain control\ncharacters.",
+        "description": "Body for creating a team. `division` is the team's usual division (optional, at most 100\ncharacters), which the lineup creator pre-fills. The name is trimmed and must not be blank or contain control\ncharacters.",
         "properties": {
+          "division": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Division"
+          },
           "is_public": {
             "default": true,
             "title": "Is Public",
@@ -1030,7 +1043,7 @@
         "type": "object"
       },
       "TeamResponse": {
-        "description": "A team as returned by the API, from the signed-in caller's point of view.\n\n`role` is the caller's role in the team (`owner` or `member`); `created_by` is who created\nit (audit only, it grants nothing). `is_public` means \"listed in the opponent directory\".",
+        "description": "A team as returned by the API, from the signed-in caller's point of view.\n\n`role` is the caller's role in the team (`owner` or `member`); `created_by` is who created\nit (audit only, it grants nothing). `is_public` means \"listed in the opponent directory\".\n`division` is the team's default division (`null` when unset), used to pre-fill new lineups.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -1041,6 +1054,17 @@
             "format": "uuid",
             "title": "Created By",
             "type": "string"
+          },
+          "division": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Division"
           },
           "id": {
             "format": "uuid",
@@ -1065,6 +1089,7 @@
           "name",
           "created_by",
           "is_public",
+          "division",
           "created_at",
           "role"
         ],
@@ -1072,8 +1097,21 @@
         "type": "object"
       },
       "TeamUpdate": {
-        "description": "Body for updating a team (owners only). `name` is always required; `is_public` lists or\nunlists the team in the opponent directory and is left unchanged when omitted.",
+        "description": "Body for updating a team (owners only). `name` is always required; `is_public` lists or\nunlists the team in the opponent directory and `division` sets its default division; both are\nleft unchanged when omitted (so a division cannot be cleared once set, only replaced).",
         "properties": {
+          "division": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Division"
+          },
           "is_public": {
             "anyOf": [
               {
@@ -2018,7 +2056,7 @@
         ]
       },
       "post": {
-        "description": "Create a team; you become its owner. `is_public` (default true) lists its name in the\nopponent directory, which never reveals anything else about the team.",
+        "description": "Create a team; you become its owner. `is_public` (default true) lists its name in the\nopponent directory, which never reveals anything else about the team. `division` (optional)\nis the team's usual division; the lineup creator pre-fills it.",
         "operationId": "create_team_teams_post",
         "requestBody": {
           "content": {
@@ -2233,7 +2271,7 @@
         ]
       },
       "put": {
-        "description": "Rename a team and/or list or unlist it in the opponent directory (`is_public`, left\nunchanged when omitted). Owners only: 403 for other members, 404 for non-members.",
+        "description": "Rename a team and/or list or unlist it in the opponent directory (`is_public`, left\nunchanged when omitted) and/or set its default `division` (also unchanged when omitted).\nOwners only: 403 for other members, 404 for non-members.",
         "operationId": "update_team_teams__team_id__put",
         "parameters": [
           {

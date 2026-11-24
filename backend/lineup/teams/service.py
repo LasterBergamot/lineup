@@ -26,6 +26,7 @@ async def create_team(
     created_by: uuid.UUID,
     is_public: bool,
     display_name: str | None = None,
+    division: str | None = None,
 ) -> TeamWithRole:
     """Create a team; its creator becomes its `owner`, listed under `display_name`."""
     team = await repository.create_team(
@@ -34,6 +35,7 @@ async def create_team(
         created_by=created_by,
         is_public=is_public,
         display_name=display_name,
+        division=division,
     )
     return team, TeamRole.OWNER.value
 
@@ -112,11 +114,13 @@ async def update_team(
     name: str,
     is_public: bool | None,
     user_id: uuid.UUID,
+    division: str | None = None,
 ) -> TeamWithRole:
-    """Rename a team and/or list/unlist it in the opponent directory. Owner only."""
+    """Rename a team, list/unlist it in the opponent directory and/or set its default division.
+    Owner only."""
     team = await get_owned_team_or_404(session, team_id=team_id, user_id=user_id)
     team = await repository.update_team(
-        session, team=team, name=name, is_public=is_public
+        session, team=team, name=name, is_public=is_public, division=division
     )
     return team, TeamRole.OWNER.value
 

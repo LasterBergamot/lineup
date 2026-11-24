@@ -252,7 +252,8 @@ export interface paths {
         /**
          * Create Team
          * @description Create a team; you become its owner. `is_public` (default true) lists its name in the
-         *     opponent directory, which never reveals anything else about the team.
+         *     opponent directory, which never reveals anything else about the team. `division` (optional)
+         *     is the team's usual division; the lineup creator pre-fills it.
          */
         post: operations["create_team_teams_post"];
         delete?: never;
@@ -298,7 +299,8 @@ export interface paths {
         /**
          * Update Team
          * @description Rename a team and/or list or unlist it in the opponent directory (`is_public`, left
-         *     unchanged when omitted). Owners only: 403 for other members, 404 for non-members.
+         *     unchanged when omitted) and/or set its default `division` (also unchanged when omitted).
+         *     Owners only: 403 for other members, 404 for non-members.
          */
         put: operations["update_team_teams__team_id__put"];
         post?: never;
@@ -875,10 +877,13 @@ export interface components {
         };
         /**
          * TeamCreate
-         * @description Body for creating a team. The name is trimmed and must not be blank or contain control
+         * @description Body for creating a team. `division` is the team's usual division (optional, at most 100
+         *     characters), which the lineup creator pre-fills. The name is trimmed and must not be blank or contain control
          *     characters.
          */
         TeamCreate: {
+            /** Division */
+            division?: string | null;
             /**
              * Is Public
              * @default true
@@ -922,6 +927,7 @@ export interface components {
          *
          *     `role` is the caller's role in the team (`owner` or `member`); `created_by` is who created
          *     it (audit only, it grants nothing). `is_public` means "listed in the opponent directory".
+         *     `division` is the team's default division (`null` when unset), used to pre-fill new lineups.
          */
         TeamResponse: {
             /**
@@ -934,6 +940,8 @@ export interface components {
              * Format: uuid
              */
             created_by: string;
+            /** Division */
+            division: string | null;
             /**
              * Id
              * Format: uuid
@@ -949,9 +957,12 @@ export interface components {
         /**
          * TeamUpdate
          * @description Body for updating a team (owners only). `name` is always required; `is_public` lists or
-         *     unlists the team in the opponent directory and is left unchanged when omitted.
+         *     unlists the team in the opponent directory and `division` sets its default division; both are
+         *     left unchanged when omitted (so a division cannot be cleared once set, only replaced).
          */
         TeamUpdate: {
+            /** Division */
+            division?: string | null;
             /** Is Public */
             is_public?: boolean | null;
             /** Name */

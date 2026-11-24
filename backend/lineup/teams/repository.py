@@ -35,10 +35,17 @@ async def create_team(
     created_by: uuid.UUID,
     is_public: bool,
     display_name: str | None = None,
+    division: str | None = None,
 ) -> Team:
     """Insert a team and its creator's `owner` membership (carrying their `display_name`) in one
     transaction, commit, and return the team with database-generated fields loaded."""
-    team = Team(id=uuid.uuid4(), name=name, created_by=created_by, is_public=is_public)
+    team = Team(
+        id=uuid.uuid4(),
+        name=name,
+        created_by=created_by,
+        is_public=is_public,
+        division=division,
+    )
     session.add(team)
     session.add(
         TeamMember(
@@ -218,10 +225,13 @@ async def update_team(
     team: Team,
     name: str,
     is_public: bool | None,
+    division: str | None = None,
 ) -> Team:
-    """Rename a team and, when `is_public` is given, list or unlist it. Commits and returns the
-    refreshed row."""
+    """Rename a team and, when `is_public` / `division` are given, list or unlist it / set its
+    default division. Commits and returns the refreshed row."""
     team.name = name
+    if division is not None:
+        team.division = division
     if is_public is not None:
         team.is_public = is_public
     await session.commit()

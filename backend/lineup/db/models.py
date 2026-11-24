@@ -58,6 +58,9 @@ class Team(Base):
     is_public: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=true(), nullable=False
     )
+    # The division the team normally plays in (e.g. "OB II."); the lineup creator pre-fills it.
+    # Optional, and each saved lineup keeps its own copy in `saved_lineups.division`.
+    division: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
     )
