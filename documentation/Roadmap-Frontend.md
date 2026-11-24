@@ -74,6 +74,11 @@ there:
 
 ## Still open
 
+- The first round of feedback from the dev preview (`PLAN.md` Phase 7, #281–#296):
+  - **Lineup creator and Quick sheet:** 15 fixed cap rows, a searchable roster picker, today's date by default, staff pickers, a Home/Away toggle, a warning on unsaved changes.
+  - **Roster:** players in alphabetical order, no duplicate players, a Staff card.
+  - **Team settings:** a default division.
+  - **Saved lineups:** edit in place, an optional location, search by opponent and date, the preview only on the Preview button.
 - The strict Content-Security-Policy for Cloudflare Pages (#97); the baseline headers are in `frontend/public/_headers` already.
 - Whether the production API gets a custom domain (and so a same-site frontend) or stays on the
   provider's hostname.
