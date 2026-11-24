@@ -10,16 +10,20 @@ access (it raises `MissingGreenlet`).
 
 import uuid
 from datetime import UTC, datetime
+from datetime import date as date_type
+from datetime import time as time_type
 from enum import Enum
 
 from sqlalchemy import (
     UUID,
     Boolean,
     CheckConstraint,
+    Date,
     ForeignKey,
     Index,
     Integer,
     String,
+    Time,
     func,
     text,
     true,
@@ -235,6 +239,11 @@ class SavedLineup(Base):
     # "Fehér" or "Kék" — validated at the API layer via Pydantic
     cap: Mapped[str] = mapped_column(String(10), nullable=False)
     date: Mapped[str] = mapped_column(String(50), nullable=False)
+    # The same date structured, for filtering by date range. NULL for a lineup saved with only
+    # free text (or a legacy one the backfill could not parse): `date` above is always kept and
+    # is what gets printed. `match_time` is only ever set together with `match_date`.
+    match_date: Mapped[date_type | None] = mapped_column(Date, nullable=True)
+    match_time: Mapped[time_type | None] = mapped_column(Time, nullable=True)
     coach: Mapped[str] = mapped_column(String(200), nullable=False)
     doctor: Mapped[str | None] = mapped_column(String(200), nullable=True)
     assistant_coach: Mapped[str | None] = mapped_column(String(200), nullable=True)

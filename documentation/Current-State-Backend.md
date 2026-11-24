@@ -194,6 +194,27 @@ future sign-in uses an `Authorization` header, not cookies), and only `GET/POST/
 `Authorization` and `Content-Type` headers are allowed. `Content-Disposition` is exposed so the
 frontend can read the download file name.
 
+### The match date
+
+A saved lineup holds its date twice. `date` is the text printed on the sheet and is always
+kept. `match_date` (DATE) and `match_time` (TIME) are the same date structured, so saved
+lineups can be filtered by date range (#295). Both are nullable (#287, migration `a7c3e9f15b24`).
+
+`POST /lineups/saved` takes the date one of two ways. **Structured**: send `match_date`
+(`YYYY-MM-DD`) and optionally `match_time` (`HH:MM`); the server composes `date` itself as
+`YYYY. MM. DD.`, plus ` HH:MM` when there is a time (`2026. 11. 24. 18:30`), and any `date`
+text sent alongside is replaced, so the printed text and the stored fields cannot disagree.
+**Free text**: send only `date`; it is printed as typed and the structured fields stay
+`NULL`. One of the two is required (`422` otherwise), `match_time` without `match_date` is
+`422`, a time has minute precision (seconds are dropped) and a timezone offset is rejected.
+`SavedLineupResponse` returns `match_date` and `match_time`. `POST /lineups` (the Quick sheet)
+is unchanged: it stays stateless and takes the printed `date` text only.
+
+**Backfill**: the migration parses existing `date` values of the form `YYYY. MM. DD.` or
+`YYYY. MM. DD. HH:MM` (a real calendar date and time) into the two columns. Anything else
+stays `NULL`: the text is kept, but that lineup cannot be found by a date filter. The
+downgrade drops the columns and leaves the text alone.
+
 ## Data model
 
 ```mermaid
@@ -242,6 +263,9 @@ erDiagram
         uuid id PK
         string team_name "frozen snapshot"
         string opponent_name "frozen snapshot"
+        string date "printed text, always kept"
+        date match_date "nullable, structured date for search"
+        time match_time "nullable, only with match_date"
         uuid team_id FK "the workspace, required, ondelete RESTRICT"
         uuid created_by "audit only"
         uuid source_team_id "nullable, ondelete SET NULL"

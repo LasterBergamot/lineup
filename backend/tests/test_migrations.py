@@ -352,3 +352,62 @@ def test_the_division_column_is_added_empty_and_removed_again(roster_database):
     alembic(roster_database, "downgrade", AFTER_NSSZ)
     assert "division" not in _team_columns(roster_database)
     assert _count(roster_database, "SELECT count(*) FROM teams") == 2
+
+
+# --- a7c3e9f15b24: structured match date (#287) ------------------------------------------------
+
+AFTER_MATCH_DATE = "a7c3e9f15b24"
+
+LEGACY_DATES = {
+    "plain": ("2024. 12. 21.", "2024-12-21", None),
+    "timed": ("2026. 11. 24. 18:30", "2026-11-24", "18:30:00.000000"),
+    "unpadded": ("2025. 3. 9.", "2025-03-09", None),
+    "words": ("2024. december 21.", None, None),
+    "empty": ("", None, None),
+    "impossible_day": ("2025. 02. 30.", None, None),
+    "impossible_time": ("2025. 02. 20. 25:61", None, None),
+    "extra_text": ("2024. 12. 21. Szeged", None, None),
+}
+
+
+def _seed_dated_lineups(path) -> dict[str, str]:
+    ids = {key: _id() for key in LEGACY_DATES}
+    with closing(sqlite3.connect(path)) as db:
+        for key, (text, _, _) in LEGACY_DATES.items():
+            db.execute(
+                "INSERT INTO saved_lineups (id, team_id, team_name, opponent_name, "
+                "match_name, division, cap, date, coach, created_by, created_at) "
+                "VALUES (?, ?, 'A', 'B', 'A - B', 'D', 'Fehér', ?, 'c', ?, "
+                "'2026-11-01 10:00:00')",
+                (ids[key], _id(), text, _id()),
+            )
+        db.commit()
+    return ids
+
+
+def test_match_date_is_backfilled_from_parseable_text_only(roster_database):
+    ids = _seed_dated_lineups(roster_database)
+    alembic(roster_database, "upgrade", AFTER_DIVISION)
+    alembic(roster_database, "upgrade", AFTER_MATCH_DATE)
+    with closing(sqlite3.connect(roster_database)) as db:
+        rows = {
+            r[0]: r[1:]
+            for r in db.execute(
+                "SELECT id, date, match_date, match_time FROM saved_lineups"
+            )
+        }
+    for key, (text, match_date, match_time) in LEGACY_DATES.items():
+        # the printed text is never touched; unparseable rows stay NULL
+        assert rows[ids[key]] == (text, match_date, match_time), key
+
+
+def test_the_match_date_migration_can_be_undone(roster_database):
+    ids = _seed_dated_lineups(roster_database)
+    alembic(roster_database, "upgrade", AFTER_MATCH_DATE)
+    alembic(roster_database, "downgrade", AFTER_DIVISION)
+    with closing(sqlite3.connect(roster_database)) as db:
+        columns = {r[1] for r in db.execute("PRAGMA table_info(saved_lineups)")}
+        texts = {r[0]: r[1] for r in db.execute("SELECT id, date FROM saved_lineups")}
+    assert not {"match_date", "match_time"} & columns
+    assert texts[ids["timed"]] == "2026. 11. 24. 18:30"
+    assert len(texts) == len(LEGACY_DATES)

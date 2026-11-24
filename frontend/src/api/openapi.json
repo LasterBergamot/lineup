@@ -553,7 +553,7 @@
         "type": "object"
       },
       "SavedLineupCreate": {
-        "description": "Body for saving a lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.",
+        "description": "Body for saving a lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.\n\nThe match date comes in one of two ways. Send `match_date` (and optionally `match_time`,\nwhich needs a `match_date`) and the server composes the printed `date` text itself as\n`YYYY. MM. DD.` plus ` HH:MM` when a time is set; any `date` text sent alongside is\nreplaced. Or send only the free-text `date`, which is printed as typed and stores no\nstructured fields. One of the two is required. A time is minute precision and has no\ntimezone: seconds are dropped and an offset is rejected.",
         "properties": {
           "assistant_coach": {
             "anyOf": [
@@ -596,10 +596,17 @@
             "type": "string"
           },
           "date": {
-            "maxLength": 50,
-            "minLength": 1,
-            "title": "Date",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
           },
           "division": {
             "maxLength": 100,
@@ -620,6 +627,18 @@
             ],
             "title": "Doctor"
           },
+          "match_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Date"
+          },
           "match_name": {
             "anyOf": [
               {
@@ -632,6 +651,18 @@
               }
             ],
             "title": "Match Name"
+          },
+          "match_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Time"
           },
           "opponent_name": {
             "anyOf": [
@@ -715,7 +746,6 @@
           "team_id",
           "division",
           "cap",
-          "date",
           "coach",
           "players"
         ],
@@ -881,9 +911,33 @@
             "title": "Id",
             "type": "string"
           },
+          "match_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Date"
+          },
           "match_name": {
             "title": "Match Name",
             "type": "string"
+          },
+          "match_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Time"
           },
           "opponent_name": {
             "title": "Opponent Name",
@@ -950,6 +1004,8 @@
           "division",
           "cap",
           "date",
+          "match_date",
+          "match_time",
           "coach",
           "doctor",
           "assistant_coach",

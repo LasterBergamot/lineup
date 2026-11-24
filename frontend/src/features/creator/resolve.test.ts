@@ -99,6 +99,8 @@ const saved = (patch: Partial<SavedLineup> = {}): SavedLineup => ({
   division: "OB I.",
   cap: "Kék",
   date: "2026. 10. 1.",
+  match_date: null,
+  match_time: null,
   coach: "Kovács",
   doctor: "Dr. Kis",
   assistant_coach: null,
