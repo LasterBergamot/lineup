@@ -282,7 +282,7 @@ Backed by a SQLite database (in-memory for tests, file-backed at `backend/lineup
 | `GET` | `/teams/{id}/members` | Members of the team: user id, role, join date, `display_name` (`null` until that member next opens the app), `is_you` (any member) |
 | `DELETE` | `/teams/{id}/members/{member_id}` | Owner removes a member, or a member removes themselves (leave). **409** for the last owner |
 | `POST` | `/teams/{id}/transfer-ownership` | Owner-only: `{"user_id"}` becomes the owner, you become a member |
-| `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename and list-or-unlist (`is_public`) / delete a team. Update and delete are owner-only (**403** for other members). Delete returns **409** while the team has players or saved lineups |
+| `GET`/`PUT`/`DELETE` | `/teams/{id}` | Get / rename, list-or-unlist (`is_public`) and set the default `division` / delete a team. Update and delete are owner-only (**403** for other members). Delete returns **409** while the team has players or saved lineups |
 | `GET`/`POST` | `/players` | List the players of your teams (optionally `?team_id=`) / add a player to a team's roster (`team_id` is required and must be a team you belong to, else **404** `Team not found`; **409** if the team's roster already has that NSSZ number, compared ignoring case) |
 | `GET`/`PUT`/`DELETE` | `/players/{id}` | Get / update (moving to a team you're not in is a **404**; an NSSZ number already on the target roster is a **409**) / delete a player. Delete is always safe (204) — saved lineups are frozen snapshots, so deleting a player never breaks them |
 | `GET`/`POST` | `/lineups/saved` | List the saved lineups of your teams (optionally `?team_id=` or `?source_team_id=`) / create one in a team's workspace (`team_id`, required) |
