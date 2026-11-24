@@ -3,8 +3,8 @@ import { expect, test } from "./fixtures";
 
 /** Types into the creator so it holds unsaved changes. */
 async function makeDirty(app: Page) {
-  await app.getByLabel("Division").fill("OB I");
-  await expect(app.getByLabel("Division")).toHaveValue("OB I");
+  await app.getByLabel("Division").filter({ visible: true }).fill("OB I");
+  await expect(app.getByLabel("Division").filter({ visible: true })).toHaveValue("OB I");
 }
 
 const nav = (app: Page, isMobile: boolean) =>
@@ -31,7 +31,7 @@ for (const theme of ["light", "dark"] as const) {
     await app.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await expect(app).toHaveURL(/\/$/);
-    await expect(app.getByLabel("Division")).toHaveValue("OB I");
+    await expect(app.getByLabel("Division").filter({ visible: true })).toHaveValue("OB I");
 
     await nav(app, isMobile).getByRole("link", { name: "Roster" }).click();
     await dialog.getByRole("button", { name: "Discard" }).click();
@@ -51,12 +51,12 @@ test("the browser asks before closing the tab while the creator is dirty, not af
   const prompt = await asked;
   expect(prompt.type()).toBe("beforeunload");
   await prompt.dismiss();
-  await expect(app.getByLabel("Division")).toHaveValue("OB I");
+  await expect(app.getByLabel("Division").filter({ visible: true })).toHaveValue("OB I");
 
   // Filled in and saved: nothing to lose, so the navigation goes straight through.
-  await app.getByLabel("Opponent", { exact: true }).fill("Opponent X");
-  await app.getByLabel("Date").fill("2026. 11. 1.");
-  await app.getByLabel("Coach", { exact: true }).fill("Coach Carter");
+  await app.getByLabel("Opponent", { exact: true }).filter({ visible: true }).fill("Opponent X");
+  await app.getByLabel("Date").filter({ visible: true }).fill("2026. 11. 1.");
+  await app.getByLabel("Coach", { exact: true }).filter({ visible: true }).fill("Coach Carter");
   await app.getByLabel("Player from the roster").first().selectOption({ label: "Player 01" });
   await app.getByRole("button", { name: "Save lineup" }).click();
   await expect(app.getByRole("region", { name: "Notifications" })).toContainText("Lineup saved");
