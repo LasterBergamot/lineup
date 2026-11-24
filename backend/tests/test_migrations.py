@@ -411,3 +411,24 @@ def test_the_match_date_migration_can_be_undone(roster_database):
     assert not {"match_date", "match_time"} & columns
     assert texts[ids["timed"]] == "2026. 11. 24. 18:30"
     assert len(texts) == len(LEGACY_DATES)
+
+
+# --- c4f8a2d6e913: match location (#294) -------------------------------------------------------
+
+AFTER_LOCATION = "c4f8a2d6e913"
+
+
+def test_location_is_added_nullable_and_can_be_undone(roster_database):
+    ids = _seed_dated_lineups(roster_database)
+    alembic(roster_database, "upgrade", AFTER_LOCATION)
+    with closing(sqlite3.connect(roster_database)) as db:
+        columns = {r[1] for r in db.execute("PRAGMA table_info(saved_lineups)")}
+        locations = {r[0] for r in db.execute("SELECT location FROM saved_lineups")}
+    assert "location" in columns
+    assert locations == {None}
+    alembic(roster_database, "downgrade", AFTER_MATCH_DATE)
+    with closing(sqlite3.connect(roster_database)) as db:
+        columns = {r[1] for r in db.execute("PRAGMA table_info(saved_lineups)")}
+        count = db.execute("SELECT count(*) FROM saved_lineups").fetchone()[0]
+    assert "location" not in columns
+    assert count == len(ids)

@@ -758,6 +758,9 @@ export interface components {
          *     replaced. Or send only the free-text `date`, which is printed as typed and stores no
          *     structured fields. One of the two is required. A time is minute precision and has no
          *     timezone: seconds are dropped and an offset is rejected.
+         *
+         *     `location` is an optional venue (up to 200 characters, blank counts as not provided). It is
+         *     only stored and shown in the history; it is never printed on the generated sheet.
          */
         SavedLineupCreate: {
             /** Assistant Coach */
@@ -777,6 +780,8 @@ export interface components {
             division: string;
             /** Doctor */
             doctor?: string | null;
+            /** Location */
+            location?: string | null;
             /** Match Date */
             match_date?: string | null;
             /** Match Name */
@@ -866,6 +871,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Location */
+            location: string | null;
             /** Match Date */
             match_date: string | null;
             /** Match Name */

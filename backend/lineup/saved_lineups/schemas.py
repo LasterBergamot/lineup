@@ -66,6 +66,9 @@ class SavedLineupCreate(BaseModel):
     replaced. Or send only the free-text `date`, which is printed as typed and stores no
     structured fields. One of the two is required. A time is minute precision and has no
     timezone: seconds are dropped and an offset is rejected.
+
+    `location` is an optional venue (up to 200 characters, blank counts as not provided). It is
+    only stored and shown in the history; it is never printed on the generated sheet.
     """
 
     team_id: uuid.UUID
@@ -79,6 +82,7 @@ class SavedLineupCreate(BaseModel):
     date: OptionalCleanStr50 = None
     match_date: dt.date | None = None
     match_time: dt.time | None = None
+    location: OptionalCleanStr200 = None
     coach: CleanStr200
     doctor: OptionalCleanStr200 = None
     assistant_coach: OptionalCleanStr200 = None
@@ -172,6 +176,7 @@ class SavedLineupResponse(BaseModel):
     date: str
     match_date: dt.date | None
     match_time: dt.time | None
+    location: str | None
     coach: str
     doctor: str | None
     assistant_coach: str | None

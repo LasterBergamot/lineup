@@ -553,7 +553,7 @@
         "type": "object"
       },
       "SavedLineupCreate": {
-        "description": "Body for saving a lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.\n\nThe match date comes in one of two ways. Send `match_date` (and optionally `match_time`,\nwhich needs a `match_date`) and the server composes the printed `date` text itself as\n`YYYY. MM. DD.` plus ` HH:MM` when a time is set; any `date` text sent alongside is\nreplaced. Or send only the free-text `date`, which is printed as typed and stores no\nstructured fields. One of the two is required. A time is minute precision and has no\ntimezone: seconds are dropped and an offset is rejected.",
+        "description": "Body for saving a lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.\n\nThe match date comes in one of two ways. Send `match_date` (and optionally `match_time`,\nwhich needs a `match_date`) and the server composes the printed `date` text itself as\n`YYYY. MM. DD.` plus ` HH:MM` when a time is set; any `date` text sent alongside is\nreplaced. Or send only the free-text `date`, which is printed as typed and stores no\nstructured fields. One of the two is required. A time is minute precision and has no\ntimezone: seconds are dropped and an offset is rejected.\n\n`location` is an optional venue (up to 200 characters, blank counts as not provided). It is\nonly stored and shown in the history; it is never printed on the generated sheet.",
         "properties": {
           "assistant_coach": {
             "anyOf": [
@@ -626,6 +626,19 @@
               }
             ],
             "title": "Doctor"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "match_date": {
             "anyOf": [
@@ -911,6 +924,17 @@
             "title": "Id",
             "type": "string"
           },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
           "match_date": {
             "anyOf": [
               {
@@ -1006,6 +1030,7 @@
           "date",
           "match_date",
           "match_time",
+          "location",
           "coach",
           "doctor",
           "assistant_coach",
