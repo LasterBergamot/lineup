@@ -1,4 +1,5 @@
-"""HTTP endpoints under `/lineups/saved`: store lineups as snapshots and render them later."""
+"""HTTP endpoints under `/lineups/saved`: store lineups as snapshots, edit them in place and
+render them later."""
 
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from lineup.saved_lineups.schemas import (
     PaginatedSavedLineups,
     SavedLineupCreate,
     SavedLineupResponse,
+    SavedLineupUpdate,
 )
 from lineup.security.rate_limit import (
     RATE_LIMIT_RESPONSES,
@@ -65,15 +67,49 @@ async def create_saved_lineup(
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> SavedLineupResponse:
-    """Save a lineup as a frozen snapshot in the workspace of `team_id` (a team you belong to).
+    """Save a lineup as a snapshot in the workspace of `team_id` (a team you belong to).
 
     For the team, the opponent and each player, send either a `source_*_id` (the current name
     and NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ
     numbers must be unique within the lineup. Your own team and players must belong to a team you are in,
     the opponent may also be a team listed in the directory; anything else is a 404. Deleting
-    the source team or player later does not change a saved lineup.
+    the source team or player later does not change a saved lineup; only an edit
+    (`PUT /lineups/saved/{id}`) does.
     """
     return await service.create_saved_lineup(session, data=body, user_id=user_id)
+
+
+@router.put(
+    "/{lineup_id}",
+    response_model=SavedLineupResponse,
+    responses={
+        404: {"description": "Unknown lineup, or one of a team you are not in."},
+        409: {
+            "description": "Someone saved this lineup after you loaded it "
+            "(`expected_updated_at` is stale). Nothing was changed: reload it."
+        },
+        413: {"description": "Request body larger than the server limit."},
+    },
+)
+async def update_saved_lineup(
+    lineup_id: uuid.UUID,
+    body: SavedLineupUpdate,
+    session: AsyncSession = Depends(get_session),
+    user_id: uuid.UUID = Depends(get_current_user_id),
+) -> SavedLineupResponse:
+    """Edit a saved lineup in place: same id, same team, new content.
+
+    Any member of the lineup's team may edit it. The body is the same as for saving a new lineup,
+    without `team_id`, plus `expected_updated_at`: the `updated_at` of the version you loaded.
+    Every field is replaced and the player list replaces all the old slots. Roster ids are
+    resolved again, so a roster player picked now is copied with their current name and NSSZ
+    number; the same rules, 404s and 422s apply as when saving a new lineup. If the lineup was
+    saved by someone else since you loaded it, the answer is 409 and nothing changes. Returns
+    the new version, with a new `updated_at`.
+    """
+    return await service.update_saved_lineup(
+        session, lineup_id=lineup_id, data=body, user_id=user_id
+    )
 
 
 @router.get("/{lineup_id}", response_model=SavedLineupResponse)

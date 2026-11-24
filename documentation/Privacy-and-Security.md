@@ -64,7 +64,7 @@ choice). Every column of the data model is listed; a new column needs a row here
 | Inviter's display name | `team_invitations.invited_by_name` | Account holders | Show "invited by …" on the join page before sign-in | Art. 6(1)(f) | Link deleted 7 days after it expires (enforced whenever an owner creates or lists links) |
 | Invite code | `team_invitations.invite_code_hash` | n/a | Check a link. Only the SHA-256 hash is stored; the code cannot be recovered (S4) | n/a | as above |
 | Invitation e-mail | `team_invitations.email` | n/a | **Unused**: no code reads or writes it. Do not start using it without updating this page | n/a | as above |
-| Timestamps | `*.created_at`, `expires_at`, `revoked_at` | Account holders | Ordering, expiry | Art. 6(1)(f) | with the row |
+| Timestamps | `*.created_at`, `saved_lineups.updated_at`, `expires_at`, `revoked_at` | Account holders | Ordering, expiry; `updated_at` (#290) is when a saved lineup was last saved and the token that refuses a stale concurrent edit (409). It does not record *who* edited: there is no `updated_by` column (G4) | Art. 6(1)(f) | with the row |
 
 The database holds **no** date of birth, photo, address, phone number, e-mail address or health
 data for players or staff (G4). Mixed-in free text is the only way such data could arrive: the
@@ -132,7 +132,7 @@ The lineup form keeps no drafts. Nothing else is stored client-side.
 | Generated files | Never stored. The lineup creator's PDF preview lives only in browser memory (a `Blob` that is dropped when the panel closes), rendered by pdf.js whose worker is bundled with the app, so no third party sees it | Yes, by construction and tested (`no-store`) |
 | Team staff | Until the club deletes the entry, or its team (deleted with it, enforced by the foreign key). The name is a copy: deleting a player does **not** remove the same person from the staff list | Yes for the team; per person it is manual until #95 |
 | Players, saved lineups, teams | Until the club deletes them. Deleting a team needs its players and lineups gone first (409 otherwise) | Manual by the club; a club that stops using the service is cleaned up by the operator on request |
-| Saved-lineup snapshots | Keep the player's name/NSSZ **as it was when saved**, so deleting a player does not remove them from old lineups | **Gap**: erasure of one person across snapshots needs a tool (#95) |
+| Saved-lineup snapshots | Keep the player's name/NSSZ **as it was when saved or last edited**, so deleting a player does not remove them from old lineups. An edit (`PUT /lineups/saved/{id}`, #290) overwrites the old values in place; no earlier version is kept | Rectification of one lineup: yes, in the app. **Gap**: erasure of one person across snapshots needs a tool (#95) |
 | Accounts | Until deleted | **Gap**: no self-service deletion (#95); manual on request |
 | Inactive accounts | Proposed: ask the owner and delete after 24 months without sign-in | **Not implemented** (#95) |
 | Backups | Section 7 | n/a |
@@ -203,7 +203,11 @@ and tell the clubs (the terms promise advance notice).
    alone.
 3. **Access / export:** ask the club to use the app, or run read-only queries for the person's rows
    as the owner role, and send the result to the club.
-4. **Correction:** the club edits the player.
+4. **Correction (Art. 16, G6):** the club edits the player, and corrects any saved lineup that
+   holds the wrong value by editing it (`PUT /lineups/saved/{id}`, #290; the Edit button in the app
+   follows with the frontend part of #290):
+   the edit overwrites the stored name or NSSZ number, and re-picking the roster player copies their
+   corrected values. Old lineups are not changed by editing the player alone.
 5. **Erasure:** delete the player, then the matching `lineup_player_snapshots` rows (by name and NSSZ
    number), the matching `team_staff` rows (by name; a staff entry keeps its own copy of the name
    after the player is deleted) and, if needed, the saved lineup. Write what was deleted to the private request log.

@@ -1,14 +1,17 @@
 """Request and response shapes for `/lineups/saved`, including the rules that keep a snapshot
 unambiguous: exactly one of source id / free text per field, unique cap and NSSZ numbers.
+
+Create (`SavedLineupCreate`) and edit (`SavedLineupUpdate`) share every field and rule through
+`SavedLineupFields`, so an edit is validated exactly like a new lineup.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import uuid
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from lineup.common.types import (
     CleanStr100,
@@ -29,7 +32,8 @@ def format_match_date(match_date: dt.date, match_time: dt.time | None) -> str:
 
 class SavedLineupPlayerCreate(BaseModel):
     """One player slot: reference an existing roster player (whose current
-    name/NSSZ number is frozen at save time) or supply free text directly, never both."""
+    name/NSSZ number is copied in when the lineup is saved or edited) or supply free text
+    directly, never both."""
 
     source_player_id: uuid.UUID | None = None
     name: OptionalCleanStr200 = None
@@ -51,12 +55,10 @@ class SavedLineupPlayerCreate(BaseModel):
         return self
 
 
-class SavedLineupCreate(BaseModel):
-    """Body for saving a lineup.
+class SavedLineupFields(BaseModel):
+    """The content of a saved lineup, shared by the create and the edit body.
 
-    `team_id` is the workspace the lineup is saved in (a team you belong to); every member of
-    that team can then see it. It is independent of `source_team_id`, which only says where the
-    team *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
+    Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
     defaults to "<team> - <opponent>". Blank optional values count as not provided. Cap numbers
     must be unique, and no roster player may appear twice.
 
@@ -71,7 +73,6 @@ class SavedLineupCreate(BaseModel):
     only stored and shown in the history; it is never printed on the generated sheet.
     """
 
-    team_id: uuid.UUID
     source_team_id: uuid.UUID | None = None
     team_name: OptionalCleanStr120 = None
     source_opponent_id: uuid.UUID | None = None
@@ -115,7 +116,7 @@ class SavedLineupCreate(BaseModel):
         return players
 
     @model_validator(mode="after")
-    def compose_match_date(self) -> SavedLineupCreate:
+    def compose_match_date(self) -> Self:
         """Require a date, and print the structured one as `YYYY. MM. DD.[ HH:MM]`."""
         if self.match_date is None:
             if self.match_time is not None:
@@ -131,7 +132,7 @@ class SavedLineupCreate(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def require_team_identity(self) -> SavedLineupCreate:
+    def require_team_identity(self) -> Self:
         """Enforce "exactly one of source id or name" for both the team and the opponent."""
         for source_id, name, label in (
             (self.source_team_id, self.team_name, "team"),
@@ -148,8 +149,37 @@ class SavedLineupCreate(BaseModel):
         return self
 
 
+class SavedLineupCreate(SavedLineupFields):
+    """Body for saving a new lineup.
+
+    `team_id` is the workspace the lineup is saved in (a team you belong to); every member of
+    that team can then see it. It is independent of `source_team_id`, which only says where the
+    team *name* comes from. The other fields and their rules are described on `SavedLineupFields`.
+    """
+
+    team_id: uuid.UUID
+
+
+class SavedLineupUpdate(SavedLineupFields):
+    """Body for editing a saved lineup in place (`PUT /lineups/saved/{id}`).
+
+    The same fields and rules as a new lineup, without `team_id`: a lineup never moves to another
+    team. Every field is replaced, and the player list replaces all the old player slots. A
+    `source_*_id` is resolved again, so a roster player picked now is copied with their current
+    name and NSSZ number. A slot whose roster player was deleted comes back from `GET` with
+    `source_player_id: null`, so send it as free text (`name` and `nssz_number`).
+
+    `expected_updated_at` is the `updated_at` of the version you loaded. If someone saved a newer
+    version in the meantime, the edit is refused with 409 and nothing changes: reload the lineup
+    and apply your change to the new version. It must carry a timezone (the API returns UTC with
+    one), so send back exactly the value you received.
+    """
+
+    expected_updated_at: AwareDatetime
+
+
 class SavedLineupPlayerResponse(BaseModel):
-    """A player slot of a saved lineup, as frozen when it was saved."""
+    """A player slot of a saved lineup, as copied when it was saved or last edited."""
 
     id: uuid.UUID
     cap_number: int
@@ -161,9 +191,12 @@ class SavedLineupPlayerResponse(BaseModel):
 
 
 class SavedLineupResponse(BaseModel):
-    """A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`
-    fields are soft references and become null if the source is deleted. `team_id` is the
-    workspace the lineup lives in.
+    """A saved lineup as returned by the API. All text is the copy taken when it was saved or
+    last edited; `source_*_id` fields are soft references and become null if the source is
+    deleted. `team_id` is the workspace the lineup lives in.
+
+    `updated_at` is when it was last saved: equal to `created_at` until the first edit. Send it
+    back as `expected_updated_at` when you edit the lineup.
     """
 
     id: uuid.UUID
@@ -186,6 +219,7 @@ class SavedLineupResponse(BaseModel):
     source_opponent_id: uuid.UUID | None
     players: list[SavedLineupPlayerResponse]
     created_at: dt.datetime
+    updated_at: dt.datetime
 
     model_config = {"from_attributes": True}
 

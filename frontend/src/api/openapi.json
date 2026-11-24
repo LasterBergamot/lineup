@@ -553,7 +553,7 @@
         "type": "object"
       },
       "SavedLineupCreate": {
-        "description": "Body for saving a lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`\ndefaults to \"<team> - <opponent>\". Blank optional values count as not provided. Cap numbers\nmust be unique, and no roster player may appear twice.\n\nThe match date comes in one of two ways. Send `match_date` (and optionally `match_time`,\nwhich needs a `match_date`) and the server composes the printed `date` text itself as\n`YYYY. MM. DD.` plus ` HH:MM` when a time is set; any `date` text sent alongside is\nreplaced. Or send only the free-text `date`, which is printed as typed and stores no\nstructured fields. One of the two is required. A time is minute precision and has no\ntimezone: seconds are dropped and an offset is rejected.\n\n`location` is an optional venue (up to 200 characters, blank counts as not provided). It is\nonly stored and shown in the history; it is never printed on the generated sheet.",
+        "description": "Body for saving a new lineup.\n\n`team_id` is the workspace the lineup is saved in (a team you belong to); every member of\nthat team can then see it. It is independent of `source_team_id`, which only says where the\nteam *name* comes from. The other fields and their rules are described on `SavedLineupFields`.",
         "properties": {
           "assistant_coach": {
             "anyOf": [
@@ -756,17 +756,17 @@
           }
         },
         "required": [
-          "team_id",
           "division",
           "cap",
           "coach",
-          "players"
+          "players",
+          "team_id"
         ],
         "title": "SavedLineupCreate",
         "type": "object"
       },
       "SavedLineupPlayerCreate": {
-        "description": "One player slot: reference an existing roster player (whose current\nname/NSSZ number is frozen at save time) or supply free text directly, never both.",
+        "description": "One player slot: reference an existing roster player (whose current\nname/NSSZ number is copied in when the lineup is saved or edited) or supply free text\ndirectly, never both.",
         "properties": {
           "cap_number": {
             "maximum": 15.0,
@@ -820,7 +820,7 @@
         "type": "object"
       },
       "SavedLineupPlayerResponse": {
-        "description": "A player slot of a saved lineup, as frozen when it was saved.",
+        "description": "A player slot of a saved lineup, as copied when it was saved or last edited.",
         "properties": {
           "cap_number": {
             "title": "Cap Number",
@@ -863,7 +863,7 @@
         "type": "object"
       },
       "SavedLineupResponse": {
-        "description": "A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`\nfields are soft references and become null if the source is deleted. `team_id` is the\nworkspace the lineup lives in.",
+        "description": "A saved lineup as returned by the API. All text is the copy taken when it was saved or\nlast edited; `source_*_id` fields are soft references and become null if the source is\ndeleted. `team_id` is the workspace the lineup lives in.\n\n`updated_at` is when it was last saved: equal to `created_at` until the first edit. Send it\nback as `expected_updated_at` when you edit the lineup.",
         "properties": {
           "assistant_coach": {
             "anyOf": [
@@ -1017,6 +1017,11 @@
           "team_name": {
             "title": "Team Name",
             "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
           }
         },
         "required": [
@@ -1039,9 +1044,223 @@
           "source_team_id",
           "source_opponent_id",
           "players",
-          "created_at"
+          "created_at",
+          "updated_at"
         ],
         "title": "SavedLineupResponse",
+        "type": "object"
+      },
+      "SavedLineupUpdate": {
+        "description": "Body for editing a saved lineup in place (`PUT /lineups/saved/{id}`).\n\nThe same fields and rules as a new lineup, without `team_id`: a lineup never moves to another\nteam. Every field is replaced, and the player list replaces all the old player slots. A\n`source_*_id` is resolved again, so a roster player picked now is copied with their current\nname and NSSZ number. A slot whose roster player was deleted comes back from `GET` with\n`source_player_id: null`, so send it as free text (`name` and `nssz_number`).\n\n`expected_updated_at` is the `updated_at` of the version you loaded. If someone saved a newer\nversion in the meantime, the edit is refused with 409 and nothing changes: reload the lineup\nand apply your change to the new version. It must carry a timezone (the API returns UTC with\none), so send back exactly the value you received.",
+        "properties": {
+          "assistant_coach": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Coach"
+          },
+          "ball_thrower": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ball Thrower"
+          },
+          "cap": {
+            "enum": [
+              "Fehér",
+              "Kék"
+            ],
+            "title": "Cap",
+            "type": "string"
+          },
+          "coach": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Coach",
+            "type": "string"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "division": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Division",
+            "type": "string"
+          },
+          "doctor": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doctor"
+          },
+          "expected_updated_at": {
+            "format": "date-time",
+            "title": "Expected Updated At",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "match_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Date"
+          },
+          "match_name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Name"
+          },
+          "match_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Time"
+          },
+          "opponent_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Name"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/SavedLineupPlayerCreate"
+            },
+            "maxItems": 15,
+            "minItems": 1,
+            "title": "Players",
+            "type": "array"
+          },
+          "source_opponent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Opponent Id"
+          },
+          "source_team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Team Id"
+          },
+          "team_leader": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Leader"
+          },
+          "team_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Name"
+          }
+        },
+        "required": [
+          "division",
+          "cap",
+          "coach",
+          "players",
+          "expected_updated_at"
+        ],
+        "title": "SavedLineupUpdate",
         "type": "object"
       },
       "StaffResponse": {
@@ -1703,7 +1922,7 @@
         ]
       },
       "post": {
-        "description": "Save a lineup as a frozen snapshot in the workspace of `team_id` (a team you belong to).\n\nFor the team, the opponent and each player, send either a `source_*_id` (the current name\nand NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ\nnumbers must be unique within the lineup. Your own team and players must belong to a team you are in,\nthe opponent may also be a team listed in the directory; anything else is a 404. Deleting\nthe source team or player later does not change a saved lineup.",
+        "description": "Save a lineup as a snapshot in the workspace of `team_id` (a team you belong to).\n\nFor the team, the opponent and each player, send either a `source_*_id` (the current name\nand NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ\nnumbers must be unique within the lineup. Your own team and players must belong to a team you are in,\nthe opponent may also be a team listed in the directory; anything else is a 404. Deleting\nthe source team or player later does not change a saved lineup; only an edit\n(`PUT /lineups/saved/{id}`) does.",
         "operationId": "create_saved_lineup_lineups_saved_post",
         "requestBody": {
           "content": {
@@ -1835,6 +2054,72 @@
           }
         ],
         "summary": "Get Saved Lineup",
+        "tags": [
+          "saved-lineups"
+        ]
+      },
+      "put": {
+        "description": "Edit a saved lineup in place: same id, same team, new content.\n\nAny member of the lineup's team may edit it. The body is the same as for saving a new lineup,\nwithout `team_id`, plus `expected_updated_at`: the `updated_at` of the version you loaded.\nEvery field is replaced and the player list replaces all the old slots. Roster ids are\nresolved again, so a roster player picked now is copied with their current name and NSSZ\nnumber; the same rules, 404s and 422s apply as when saving a new lineup. If the lineup was\nsaved by someone else since you loaded it, the answer is 409 and nothing changes. Returns\nthe new version, with a new `updated_at`.",
+        "operationId": "update_saved_lineup_lineups_saved__lineup_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lineup_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lineup Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedLineupUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedLineupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Unknown lineup, or one of a team you are not in."
+          },
+          "409": {
+            "description": "Someone saved this lineup after you loaded it (`expected_updated_at` is stale). Nothing was changed: reload it."
+          },
+          "413": {
+            "description": "Request body larger than the server limit."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Saved Lineup",
         "tags": [
           "saved-lineups"
         ]

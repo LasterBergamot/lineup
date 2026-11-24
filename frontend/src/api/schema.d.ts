@@ -114,13 +114,14 @@ export interface paths {
         put?: never;
         /**
          * Create Saved Lineup
-         * @description Save a lineup as a frozen snapshot in the workspace of `team_id` (a team you belong to).
+         * @description Save a lineup as a snapshot in the workspace of `team_id` (a team you belong to).
          *
          *     For the team, the opponent and each player, send either a `source_*_id` (the current name
          *     and NSSZ number are copied from the roster) or free text, never both. Cap numbers and NSSZ
          *     numbers must be unique within the lineup. Your own team and players must belong to a team you are in,
          *     the opponent may also be a team listed in the directory; anything else is a 404. Deleting
-         *     the source team or player later does not change a saved lineup.
+         *     the source team or player later does not change a saved lineup; only an edit
+         *     (`PUT /lineups/saved/{id}`) does.
          */
         post: operations["create_saved_lineup_lineups_saved_post"];
         delete?: never;
@@ -141,7 +142,19 @@ export interface paths {
          * @description Get one saved lineup by id, with its players ordered by cap number (404 if unknown).
          */
         get: operations["get_saved_lineup_lineups_saved__lineup_id__get"];
-        put?: never;
+        /**
+         * Update Saved Lineup
+         * @description Edit a saved lineup in place: same id, same team, new content.
+         *
+         *     Any member of the lineup's team may edit it. The body is the same as for saving a new lineup,
+         *     without `team_id`, plus `expected_updated_at`: the `updated_at` of the version you loaded.
+         *     Every field is replaced and the player list replaces all the old slots. Roster ids are
+         *     resolved again, so a roster player picked now is copied with their current name and NSSZ
+         *     number; the same rules, 404s and 422s apply as when saving a new lineup. If the lineup was
+         *     saved by someone else since you loaded it, the answer is 409 and nothing changes. Returns
+         *     the new version, with a new `updated_at`.
+         */
+        put: operations["update_saved_lineup_lineups_saved__lineup_id__put"];
         post?: never;
         /**
          * Delete Saved Lineup
@@ -800,23 +813,11 @@ export interface components {
         };
         /**
          * SavedLineupCreate
-         * @description Body for saving a lineup.
+         * @description Body for saving a new lineup.
          *
          *     `team_id` is the workspace the lineup is saved in (a team you belong to); every member of
          *     that team can then see it. It is independent of `source_team_id`, which only says where the
-         *     team *name* comes from. Team and opponent each need either a `source_*_id` or a name, never both. `match_name`
-         *     defaults to "<team> - <opponent>". Blank optional values count as not provided. Cap numbers
-         *     must be unique, and no roster player may appear twice.
-         *
-         *     The match date comes in one of two ways. Send `match_date` (and optionally `match_time`,
-         *     which needs a `match_date`) and the server composes the printed `date` text itself as
-         *     `YYYY. MM. DD.` plus ` HH:MM` when a time is set; any `date` text sent alongside is
-         *     replaced. Or send only the free-text `date`, which is printed as typed and stores no
-         *     structured fields. One of the two is required. A time is minute precision and has no
-         *     timezone: seconds are dropped and an offset is rejected.
-         *
-         *     `location` is an optional venue (up to 200 characters, blank counts as not provided). It is
-         *     only stored and shown in the history; it is never printed on the generated sheet.
+         *     team *name* comes from. The other fields and their rules are described on `SavedLineupFields`.
          */
         SavedLineupCreate: {
             /** Assistant Coach */
@@ -865,7 +866,8 @@ export interface components {
         /**
          * SavedLineupPlayerCreate
          * @description One player slot: reference an existing roster player (whose current
-         *     name/NSSZ number is frozen at save time) or supply free text directly, never both.
+         *     name/NSSZ number is copied in when the lineup is saved or edited) or supply free text
+         *     directly, never both.
          */
         SavedLineupPlayerCreate: {
             /** Cap Number */
@@ -879,7 +881,7 @@ export interface components {
         };
         /**
          * SavedLineupPlayerResponse
-         * @description A player slot of a saved lineup, as frozen when it was saved.
+         * @description A player slot of a saved lineup, as copied when it was saved or last edited.
          */
         SavedLineupPlayerResponse: {
             /** Cap Number */
@@ -898,9 +900,12 @@ export interface components {
         };
         /**
          * SavedLineupResponse
-         * @description A saved lineup as returned by the API. All text is the frozen copy; `source_*_id`
-         *     fields are soft references and become null if the source is deleted. `team_id` is the
-         *     workspace the lineup lives in.
+         * @description A saved lineup as returned by the API. All text is the copy taken when it was saved or
+         *     last edited; `source_*_id` fields are soft references and become null if the source is
+         *     deleted. `team_id` is the workspace the lineup lives in.
+         *
+         *     `updated_at` is when it was last saved: equal to `created_at` until the first edit. Send it
+         *     back as `expected_updated_at` when you edit the lineup.
          */
         SavedLineupResponse: {
             /** Assistant Coach */
@@ -952,6 +957,70 @@ export interface components {
             team_leader: string | null;
             /** Team Name */
             team_name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SavedLineupUpdate
+         * @description Body for editing a saved lineup in place (`PUT /lineups/saved/{id}`).
+         *
+         *     The same fields and rules as a new lineup, without `team_id`: a lineup never moves to another
+         *     team. Every field is replaced, and the player list replaces all the old player slots. A
+         *     `source_*_id` is resolved again, so a roster player picked now is copied with their current
+         *     name and NSSZ number. A slot whose roster player was deleted comes back from `GET` with
+         *     `source_player_id: null`, so send it as free text (`name` and `nssz_number`).
+         *
+         *     `expected_updated_at` is the `updated_at` of the version you loaded. If someone saved a newer
+         *     version in the meantime, the edit is refused with 409 and nothing changes: reload the lineup
+         *     and apply your change to the new version. It must carry a timezone (the API returns UTC with
+         *     one), so send back exactly the value you received.
+         */
+        SavedLineupUpdate: {
+            /** Assistant Coach */
+            assistant_coach?: string | null;
+            /** Ball Thrower */
+            ball_thrower?: string | null;
+            /**
+             * Cap
+             * @enum {string}
+             */
+            cap: "Fehér" | "Kék";
+            /** Coach */
+            coach: string;
+            /** Date */
+            date?: string | null;
+            /** Division */
+            division: string;
+            /** Doctor */
+            doctor?: string | null;
+            /**
+             * Expected Updated At
+             * Format: date-time
+             */
+            expected_updated_at: string;
+            /** Location */
+            location?: string | null;
+            /** Match Date */
+            match_date?: string | null;
+            /** Match Name */
+            match_name?: string | null;
+            /** Match Time */
+            match_time?: string | null;
+            /** Opponent Name */
+            opponent_name?: string | null;
+            /** Players */
+            players: components["schemas"]["SavedLineupPlayerCreate"][];
+            /** Source Opponent Id */
+            source_opponent_id?: string | null;
+            /** Source Team Id */
+            source_team_id?: string | null;
+            /** Team Leader */
+            team_leader?: string | null;
+            /** Team Name */
+            team_name?: string | null;
         };
         /**
          * StaffResponse
@@ -1401,6 +1470,62 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SavedLineupResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_saved_lineup_lineups_saved__lineup_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavedLineupUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SavedLineupResponse"];
+                };
+            };
+            /** @description Unknown lineup, or one of a team you are not in. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Someone saved this lineup after you loaded it (`expected_updated_at` is stale). Nothing was changed: reload it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request body larger than the server limit. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -166,8 +166,8 @@ roster. There is no `doctor` role (the doctor stays a free-text field on each sa
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/lineups/saved` | A saved lineup is a frozen snapshot (team/opponent name, per-player name/NSSZ) taken at creation time. It lives in a team's workspace: `POST` requires `team_id` (a team you belong to), `GET` lists the lineups of all your teams and can filter by `team_id` or `source_team_id` |
-| `GET`/`DELETE` | `/lineups/saved/{id}` | |
+| `GET`/`POST` | `/lineups/saved` | A saved lineup is a snapshot (team/opponent name, per-player name/NSSZ) copied when it is saved, and again when it is edited. It lives in a team's workspace: `POST` requires `team_id` (a team you belong to), `GET` lists the lineups of all your teams and can filter by `team_id` or `source_team_id` |
+| `GET`/`PUT`/`DELETE` | `/lineups/saved/{id}` | `PUT` edits the lineup in place (see *Editing a saved lineup* below): any member of its team, `409` on a stale `expected_updated_at` |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Renders the document from the snapshot (same rendering/headers/errors as `POST /lineups`, see above) |
 
 Team/opponent/player can be supplied either as `source_*_id` (resolved from the live roster
@@ -175,11 +175,45 @@ at save time) or as free text — **exactly one** of the two per field. Sending 
 this rule, free text silently overrode the roster value, which hid typos. The same NSSZ number can't
 appear twice in a lineup (`422`); on saved lineups this is checked on the *resolved* numbers, since a
 roster player's number is only known after the lookup. Deleting the source team/player afterwards
-never changes an already-saved lineup. The ids are looked up **as the caller**: `source_team_id` and
+never changes an already-saved lineup; only an edit does. The ids are looked up **as the caller**: `source_team_id` and
 `source_player_id` must belong to a team the caller is a member of, and `source_opponent_id` to such a team or
 one listed in the opponent pool (`is_public`). Anything else is the same `404` as an unknown id, so
 the API never confirms that someone else's row exists (otherwise anyone who knew a UUID could copy
 another user's team name or a player's name and NSSZ number into their own lineup).
+
+### Editing a saved lineup
+
+`PUT /lineups/saved/{id}` (#290) changes a saved lineup in place: the id, the team (`team_id`),
+`created_by` and `created_at` stay, everything else is replaced. Before it existed, fixing a typo
+meant cloning, saving and deleting the old lineup.
+
+- **Who:** any member of the lineup's team, the same rule as delete. A lineup of a team you are
+  not in is `404 Saved lineup not found`, never `403`.
+- **Body** (`SavedLineupUpdate`): the same fields and rules as `POST` (`SavedLineupCreate`; both
+  inherit `SavedLineupFields`), without `team_id`, plus the required `expected_updated_at`. A
+  `team_id` sent anyway is ignored, so a lineup never moves to another team. That includes
+  `location`, and `match_date`/`match_time` composed into `date` exactly as on create; switching
+  back to a free-text `date` clears the structured fields.
+- **Snapshots are re-resolved.** All the old player slots are deleted and the new list is inserted,
+  in one transaction with the column update. Every `source_*_id` is looked up again as the caller
+  (the same `404`s and `422`s as a create, the shared `service._resolve_content`), so a roster
+  player picked during the edit is copied with their **current** name and NSSZ number. A slot whose
+  roster player was deleted comes back from `GET` with `source_player_id: null`, and the client sends
+  it as free text, so it stays as typed. The old slots are deleted before the new ones are inserted,
+  because the unique `(saved_lineup_id, cap_number)` index would otherwise see a cap number twice.
+- **`updated_at`** (timestamptz, `NOT NULL`, migration `b3e8d1f6a924`): when the lineup was last
+  saved. A new lineup has it equal to `created_at` (one clock reading), every edit moves it on, and
+  `SavedLineupResponse` returns it. The migration backfilled existing rows with their `created_at`.
+- **Optimistic concurrency:** the client sends back the `updated_at` it loaded as
+  `expected_updated_at`, a body field (with a timezone; a naive value is `422`). If it is no longer
+  the stored value, someone else saved in the meantime, and the answer is `409` with a fixed text
+  ("changed since you loaded it, reload"), nothing changed. The service checks it first, and the
+  repository's `UPDATE ... WHERE id = … AND updated_at = …` checks it again atomically: on Postgres
+  a second concurrent edit waits for the first one's row lock, then matches no row, so exactly one
+  of two simultaneous edits wins. A body field was chosen over `If-Match` because HTTP defines a
+  failed `If-Match` as `412`, and this API answers a conflict with `409` everywhere else.
+- **Rectification:** this is also how a club corrects a name or NSSZ number in a stored lineup
+  (GDPR Art. 16). The old values are overwritten, not kept as a history.
 
 ### Input rules
 
@@ -227,7 +261,7 @@ match was played. `POST /lineups/saved` takes an optional `location` (trimmed; b
 lineup and a clone all carry it. It is stored for the history and for search (#295) only: it is
 never part of the data sent to document generation, so the PDF/DOCX is byte-identical with and
 without it (a test checks this). `POST /lineups` (the Quick sheet) does not save, so it has no
-such field. Existing lineups are `null`. The edit body (#290) will get the field when it lands.
+such field. Existing lineups are `null`. The edit body (`PUT /lineups/saved/{id}`) takes it the same way.
 
 ### The match date
 
@@ -308,14 +342,16 @@ erDiagram
     }
     SAVED_LINEUPS {
         uuid id PK
-        string team_name "frozen snapshot"
-        string opponent_name "frozen snapshot"
+        string team_name "snapshot, replaced by an edit"
+        string opponent_name "snapshot, replaced by an edit"
         string date "printed text, always kept"
         date match_date "nullable, structured date for search"
         time match_time "nullable, only with match_date"
         string location "nullable venue, never printed"
         uuid team_id FK "the workspace, required, ondelete RESTRICT"
         uuid created_by "audit only"
+        datetime created_at
+        datetime updated_at "last save, the edit's concurrency token"
         uuid source_team_id "nullable, ondelete SET NULL"
         uuid source_opponent_id "nullable, ondelete SET NULL"
     }
@@ -323,8 +359,8 @@ erDiagram
         uuid id PK
         uuid saved_lineup_id FK "CASCADE"
         int cap_number
-        string name "frozen snapshot"
-        string nssz_number "frozen snapshot"
+        string name "snapshot, replaced by an edit"
+        string nssz_number "snapshot, replaced by an edit"
         uuid source_player_id "nullable, ondelete SET NULL"
     }
 ```
@@ -337,7 +373,9 @@ freezes `name`/`nssz_number`/`cap_number` plus a nullable soft FK `source_player
 `(saved_lineup_id, cap_number)`: Pydantic gives the friendly 422, the database is the guarantee), and the
 three soft-reference columns are indexed, because Postgres does not index foreign keys by itself and
 each `SET NULL` would otherwise scan the table. Rendering a lineup relies **only** on the frozen
-fields — no joins to live tables — so editing or deleting master data never breaks history.
+fields — no joins to live tables — so editing or deleting master data never breaks history. The
+snapshot changes only when someone edits the lineup itself (`PUT /lineups/saved/{id}`, see *Editing
+a saved lineup*), which replaces the columns and all slots at once and moves `updated_at` on.
 `Player.team_id` and `SavedLineup.team_id` → `teams.id` use `ondelete="RESTRICT"`. Team deletion
 checks first, so the caller gets a clear 409 ("it still has N player(s)"), but the database is the real
 guard: a player added between the check and the delete makes `RESTRICT` refuse, and the repository
@@ -368,7 +406,7 @@ and every member of that team can read and change it. `teams.created_by`, `playe
 `saved_lineups.created_by` (`NOT NULL`) only record who made the row. The access rule is a single
 subquery, `teams.repository.member_team_ids(user_id)`, used by every repository, which keeps the code, the
 tests and the later RLS policies on one rule. `saved_lineups.team_id` is unrelated to the soft
-`source_team_id` / `source_opponent_id` references, which only say where the frozen names came from.
+`source_team_id` / `source_opponent_id` references, which only say where the copied names came from.
 
 The migrations that introduced this (`a3d5f7c91e26`, `e5b8c2d41f70`) *deleted* rows that could no longer
 be reached (no owner, player without a team, lineup whose creator is in no team) and moved every other

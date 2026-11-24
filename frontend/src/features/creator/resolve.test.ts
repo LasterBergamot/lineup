@@ -159,6 +159,7 @@ const saved = (patch: Partial<SavedLineup> = {}): SavedLineup => ({
   source_team_id: "t",
   source_opponent_id: null,
   created_at: "",
+  updated_at: "",
   players: [
     { id: "x1", cap_number: 1, name: "Nagy Bence", nssz_number: "N1", source_player_id: "p-1" },
     { id: "x2", cap_number: 2, name: "Töröltem", nssz_number: "N2", source_player_id: "gone" },

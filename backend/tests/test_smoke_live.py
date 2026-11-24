@@ -93,6 +93,19 @@ async def test_every_step_passes_and_nothing_is_left_behind(two_users):
     assert any("a revoked link is gone" in line for line in log)
     assert any("add typed-in staff as the new default" in line for line in log)
     assert any("non-member cannot list staff" in line for line in log)
+    assert any("a stale edit is refused" in line for line in log)
+    assert any("non-member cannot edit a lineup" in line for line in log)
+    assert await teams_of_owner(two_users) == []
+
+
+async def test_an_edit_that_does_not_apply_fails_the_run(two_users):
+    def edit_is_ignored(method, path):
+        if method == "PUT" and path.startswith("/lineups/saved/"):
+            return smoke_live.Reply(200, body=b'{"id": "x", "updated_at": "same"}')
+
+    passed, log = await run_script(two_users, edit_is_ignored)
+    assert not passed
+    assert any(line.startswith("FAIL edit lineup:") for line in log)
     assert await teams_of_owner(two_users) == []
 
 

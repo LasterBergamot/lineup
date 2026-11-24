@@ -96,7 +96,8 @@ Three things in this picture surprise newcomers:
   players"); a *repository* only talks to the database. Keeping them apart makes each easy to test.
 - **Migration**: a script that changes the database schema one step; Alembic applies them in order.
 - **Snapshot**: a saved lineup copies names as text instead of pointing at live rows, so later edits
-  or deletions never change history.
+  or deletions of players and teams never change history. Only editing the lineup itself
+  (`PUT /lineups/saved/{id}`) replaces the copy.
 - **Soft reference**: a nullable id that *remembers* where a snapshot came from but isn't required
   (`source_team_id`). The database sets it to `NULL` if the source is deleted.
 - **Pooler**: a proxy in front of Postgres (Supabase's) that shares connections; it needs special
