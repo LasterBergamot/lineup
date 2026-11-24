@@ -6,6 +6,7 @@ import { Brand } from "@/components/brand";
 import { LanguageSwitch } from "@/components/language-switch";
 import { NAV_ITEMS } from "@/components/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard";
 import { TeamGate } from "@/features/teams/team-gate";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,8 @@ import { cn } from "@/lib/utils";
  * below it. It renders without waiting for any API call, so a cold-starting backend never
  * blanks the screen; routed pages fill the `<main>` area (behind the team gate, which shows the
  * onboarding screen to a user with no team), under the backend status banner. The account block
- * shows the current team and signs out.
+ * shows the current team and signs out. The pages sit inside `UnsavedChangesGuard`, which asks
+ * before a navigation drops a form's unsaved input.
  */
 export function AppShell() {
   const { t } = useTranslation();
@@ -64,7 +66,9 @@ export function AppShell() {
         <BackendStatusBanner />
         <main className="mx-auto w-full max-w-[1200px] flex-1 p-4 pb-24 md:p-8 md:pb-8">
           <TeamGate>
-            <Outlet />
+            <UnsavedChangesGuard>
+              <Outlet />
+            </UnsavedChangesGuard>
           </TeamGate>
         </main>
       </div>

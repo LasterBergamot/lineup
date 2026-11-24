@@ -5,6 +5,7 @@ import { afterEach, beforeEach } from "vitest";
 import { i18n } from "@/i18n";
 import { ApiError } from "@/api/errors";
 import { LineupForm, SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
+import { unsavedProbe } from "@/test/unsaved";
 
 const { generateLineup, saveFile } = vi.hoisted(() => ({
   generateLineup: vi.fn(),
@@ -15,11 +16,15 @@ vi.mock("@/features/lineup/download", () => ({ saveFile }));
 
 function renderForm() {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-  return render(
+  const unsaved = unsavedProbe();
+  const view = render(
     <QueryClientProvider client={client}>
-      <LineupForm />
+      <unsaved.Wrapper>
+        <LineupForm />
+      </unsaved.Wrapper>
     </QueryClientProvider>,
   );
+  return { ...view, isDirty: unsaved.isDirty };
 }
 
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
@@ -46,6 +51,32 @@ beforeEach(() => {
   saveFile.mockReset();
 });
 afterEach(() => vi.useRealTimers());
+
+describe("LineupForm unsaved changes", () => {
+  it("guards the page from the first edit until the sheet is downloaded", async () => {
+    generateLineup.mockResolvedValue({ blob: new Blob(["%PDF"]), filename: "sheet.pdf" });
+    const user = userEvent.setup();
+    const { isDirty } = renderForm();
+    expect(isDirty()).toBe(false);
+    await fillValidForm(user);
+    expect(isDirty()).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    await vi.waitFor(() => expect(saveFile).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(isDirty()).toBe(false));
+    await user.type(screen.getByLabelText("Match"), "!");
+    expect(isDirty()).toBe(true);
+  });
+
+  it("keeps guarding when the download fails", async () => {
+    generateLineup.mockRejectedValue(new ApiError(503));
+    const user = userEvent.setup();
+    const { isDirty } = renderForm();
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(isDirty()).toBe(true);
+  });
+});
 
 describe("LineupForm", () => {
   it("starts with one player row and the white caps selected", () => {

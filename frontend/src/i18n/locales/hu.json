@@ -283,5 +283,12 @@
   "toast": {
     "region": "Értesítések",
     "dismiss": "Bezárás"
+  },
+  "unsaved": {
+    "title": "Elveti a módosításokat?",
+    "description": "Vannak nem mentett módosítások. Ha elhagyja ezt az oldalt, elvesznek.",
+    "stay": "Maradás",
+    "discard": "Elvetés",
+    "close": "Maradás az oldalon"
   }
 }

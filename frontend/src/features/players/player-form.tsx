@@ -9,6 +9,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import type { Player } from "@/features/players/api";
 import { playerFormSchema, type PlayerFormValues } from "@/features/players/schema";
+import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /** API body field -> form field, for mapping a server 422 onto the right input. */
 const SERVER_FIELDS = { name: "name", nssz_number: "nsszNumber" } as const;
@@ -30,7 +31,8 @@ const nameKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase()
  * saves. Changing the name takes the warning back. `otherPlayers` is the rest of the roster (not
  * the player being edited); the check runs here, on data the page already loaded.
  *
- * The values live in this form's state only: never in storage, a query key or a log.
+ * The values live in this form's state only: never in storage, a query key or a log. Unsaved input
+ * is guarded (`useUnsavedChangesGuard`).
  */
 export function PlayerForm({
   label,
@@ -63,8 +65,11 @@ export function PlayerForm({
     setError,
     reset,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<PlayerFormValues>({ resolver: zodResolver(playerFormSchema), defaultValues });
+  // Typed-in but unsaved player data asks before leaving the page; a save that resets the form,
+  // or closing the edit form (which unmounts it), turns the guard off.
+  useUnsavedChangesGuard(isDirty);
 
   // The name key the user has already been warned about (and so may now confirm), if any.
   const [warnedKey, setWarnedKey] = useState<string | null>(null);

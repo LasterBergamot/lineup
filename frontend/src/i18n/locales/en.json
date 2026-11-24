@@ -283,5 +283,12 @@
   "toast": {
     "region": "Notifications",
     "dismiss": "Dismiss"
+  },
+  "unsaved": {
+    "title": "Discard changes?",
+    "description": "You have changes that are not saved. If you leave this page, they are lost.",
+    "stay": "Stay",
+    "discard": "Discard",
+    "close": "Stay on this page"
   }
 }

@@ -13,7 +13,7 @@ and `PLAN.md`). The backend it talks to is described in [[Current State: Backend
 | Language and UI | React 19 + TypeScript, built by Vite | Mainstream, fast dev server, one static bundle to host |
 | Styling | Tailwind CSS v4 with the **Lineup design system** (`frontend/DESIGN.md`) as CSS variables in `src/index.css`, light and dark | Components use semantic tokens (`bg-primary`) and never raw colors, so the theme can change in one file |
 | Components | shadcn-style, copied into `src/components/ui/` (Button, Card, Input/Select, Field, Skeleton, Badge, Tabs, Dialog, Toast); only Button's `asChild` uses a Radix primitive (Slot), Dialog is the native `<dialog>` and Tabs and Toast are hand-written | We own the code and can restyle it in one place |
-| Routing | React Router (`src/app.tsx`) | Client-side navigation; `/sign-in` and `/join/:code` are public, `/`, `/roster`, `/saved`, `/members` need a signed-in user |
+| Routing | React Router as a **data router**: the route table in `src/routes.tsx`, mounted by `createBrowserRouter` + `RouterProvider` in `src/app.tsx` (tests use `createMemoryRouter` on the same table) | Client-side navigation; `/sign-in` and `/join/:code` are public, `/`, `/roster`, `/saved`, `/members` need a signed-in user. A data router is needed for `useBlocker`, which holds a navigation while a form has unsaved changes (see *Unsaved changes* below) |
 | Sign-in | `@supabase/supabase-js`, for sign-in only | Supabase Auth runs the Google flow; the browser never queries Supabase's Data API, every piece of data goes through our API, which checks the token |
 | Language | `react-i18next` with `src/i18n/locales/hu.json` and `en.json`, Hungarian by default | The users and the generated document are Hungarian; both files ship in the bundle, so there is no extra request and no loading state (see *Language* below) |
 | Forms | React Hook Form + a Zod schema (`src/features/lineup/schema.ts`) | Validation runs in the browser first, with the same limits as the API, so a slow request is not wasted on input the API would reject |
@@ -41,6 +41,33 @@ from one list (`src/components/nav-items.ts`). The dark theme is a `dark` class 
 before first paint by `public/theme-init.js` (a separate file instead of an inline script, so a
 strict Content-Security-Policy stays possible) and remembered in localStorage.
 
+### Unsaved changes
+
+Leaving a form with unsaved input asks first (#293). Each guarded form calls
+`useUnsavedChangesGuard(isDirty)` (`src/lib/unsaved-changes.ts`) with react-hook-form's
+`formState.isDirty`; `UnsavedChangesGuard` (`src/components/unsaved-changes-guard.tsx`), mounted
+once in the app shell around the pages, collects those flags. While any form on the page is dirty:
+
+- **Leaving inside the app** (a nav item, a link, the back button) is held by React Router's
+  `useBlocker`, and a modal "Discard changes?" dialog asks: **Stay** (also Esc, the close button
+  or a click on the backdrop) keeps the form as it is, **Discard** carries the navigation out.
+  Clicking the nav item of the page you are already on is not held, because nothing would be lost.
+- **Reloading or closing the tab** triggers the browser's own prompt through a `beforeunload`
+  listener that only exists while a form is dirty. Browsers show their own text there.
+
+React Router allows **one blocker per router**, which is why there is a single guard that watches
+every form instead of a blocker per form (the Roster page has several forms at once). The guard turns
+off as soon as the form is clean again: after a successful save (the form resets to the saved
+values), after Discard (the page and its forms unmount), or when a form closes. Signing out is never
+held: the sign-in redirect unmounts the shell, and the guard with it, first.
+
+Guarded today: the lineup creator for a new lineup (also when it starts from a clone; an untouched
+clone is not dirty), the Quick sheet, the add and edit player forms and the team settings. The
+**edit mode** of a saved lineup (#290) is not built yet; it gets the same guard when it lands. The
+switch between the creator and the Quick sheet on the Lineup page is not a navigation, so it is not
+held. The guard only ever knows *whether* a form is dirty: the values stay in the form's memory, and
+there is no draft in browser storage to come back to, because the forms hold names and NSSZ numbers.
+
 ### Phones, installing and browser tests
 
 - **Touch**: on a touch screen (`pointer-coarse:`) buttons and text fields are 44 px tall, on a
@@ -64,7 +91,9 @@ strict Content-Security-Policy stays possible) and remembered in localStorage.
   the light and dark theme, that the page does not scroll sideways and has no serious or critical
   axe violation (including WCAG 2.5.3 label-in-name), in English and Hungarian, plus the sign-in
   page, onboarding and the creator's preview (these three in light and dark), the preview dialog's
-  Esc and focus return, the "Lineup saved" toast, the Saved page's highlighted row, the invite page
+  Esc and focus return, the "Lineup saved" toast, the "Discard changes?" dialog (axe in light and
+  dark, Stay keeps the input, Discard leaves) and the browser's prompt on closing a dirty tab
+  (`e2e/unsaved.e2e.ts`), the Saved page's highlighted row, the invite page
   `/join/:code` (public preview, a second explicit click to join, expired and unknown links) and the
   404 page. The last two run in English and the light theme only (the join page once more in
   Hungarian); the four main screens cover both languages and themes. A test fails when the app calls an API route the fixture does not know.
@@ -262,6 +291,9 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
 - **Save.** `POST /lineups/saved` (a "Lineup saved" toast confirms it); afterwards "Saved" stays until the next edit, the PDF/DOCX
   download buttons use `POST /lineups/saved/{id}/generate`, and the saved and recent-opponent
   queries are refreshed. A 422 is mapped onto the fields (`formPath()`).
+- **Unsaved changes.** From the first edit until the lineup is saved, leaving the page asks first
+  and a reload or tab close triggers the browser's prompt (see *Unsaved changes* above). A failed
+  save keeps the guard on. Editing a saved lineup (#290) will get the same guard.
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
   lineup and `valuesFromSaved()` starts the creator from it (staff, division, players; not the
   match, opponent or date). Only the id travels in the history state, never the lineup itself.
@@ -288,6 +320,9 @@ since #96 the endpoint it calls requires the token too (rate limited: a `429` co
   form, so `ő`/`ű` survive), with path characters stripped, and falls back to `lineup.pdf` / `.docx`.
 - **Errors.** 503 ("busy or starting up"), 504 ("took too long"), a dropped connection and anything
   else each get a short generic sentence (`describeError`); server error text is never shown.
+- **Unsaved changes.** Nothing is saved here, so a finished download counts as done: from the first
+  edit until a download succeeds, leaving the page asks first and a reload or tab close triggers the
+  browser's prompt (see *Unsaved changes* above). The next edit turns the guard on again.
 - **Privacy.** The entered names and NSSZ numbers stay in memory: no localStorage/sessionStorage
   drafts, `autocomplete="off"` on the form, nothing logged. (A test asserts that storage stays empty.)
   The error and validation texts follow the UI language (see *Language*).
@@ -304,7 +339,9 @@ owners only, renames the team and switches "list the team's name in the opponent
 off. **Opponent directory** is a search box over the teams that chose to be listed; it shows team
 names only (never rosters or lineups), waits 300 ms after typing, and keeps the last results on
 screen while the next ones load. Names, NSSZ numbers and search terms live in component state and
-the in-memory query cache only: nothing goes to browser storage, the address bar or a log.
+the in-memory query cache only: nothing goes to browser storage, the address bar or a log. A
+half-typed player (add or edit) and an unsaved team rename are guarded like the lineup forms:
+leaving the page asks first (see *Unsaved changes*).
 
 ### Saved lineups
 

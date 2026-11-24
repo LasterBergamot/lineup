@@ -1,14 +1,20 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
 import { beforeEach } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AuthProvider } from "@/auth/provider";
 import { notifyUnauthorized } from "@/auth/events";
 import { BackendStatusProvider } from "@/backend-status/provider";
-import { AppRoutes } from "@/app";
-import { fakeAuthClient, fakeSession, renderApp, teamsPage, testQueryClient } from "@/test/auth";
+import {
+  fakeAuthClient,
+  fakeSession,
+  renderApp,
+  teamsPage,
+  testQueryClient,
+  testRouter,
+} from "@/test/auth";
 
 const { listTeams, createTeam } = vi.hoisted(() => ({ listTeams: vi.fn(), createTeam: vi.fn() }));
 vi.mock("@/features/teams/api", async (importOriginal) => ({
@@ -67,9 +73,7 @@ describe("signed out", () => {
       <BackendStatusProvider probe={async () => "unavailable"}>
         <QueryClientProvider client={testQueryClient()}>
           <AuthProvider client={fakeAuthClient(null).client}>
-            <MemoryRouter initialEntries={["/sign-in"]}>
-              <AppRoutes />
-            </MemoryRouter>
+            <RouterProvider router={testRouter("/sign-in")} />
           </AuthProvider>
         </QueryClientProvider>
       </BackendStatusProvider>,
@@ -84,9 +88,7 @@ describe("signed out", () => {
       <BackendStatusProvider probe={async () => "ok"}>
         <QueryClientProvider client={testQueryClient()}>
           <AuthProvider>
-            <MemoryRouter initialEntries={["/sign-in"]}>
-              <AppRoutes />
-            </MemoryRouter>
+            <RouterProvider router={testRouter("/sign-in")} />
           </AuthProvider>
         </QueryClientProvider>
       </BackendStatusProvider>,
@@ -104,9 +106,7 @@ describe("signed out", () => {
       <BackendStatusProvider probe={async () => "ok"}>
         <QueryClientProvider client={testQueryClient()}>
           <AuthProvider client={auth.client}>
-            <MemoryRouter initialEntries={["/"]}>
-              <AppRoutes />
-            </MemoryRouter>
+            <RouterProvider router={testRouter("/")} />
           </AuthProvider>
         </QueryClientProvider>
       </BackendStatusProvider>,
@@ -124,9 +124,7 @@ describe("signed out", () => {
       <BackendStatusProvider probe={async () => "ok"}>
         <QueryClientProvider client={testQueryClient()}>
           <AuthProvider client={auth.client}>
-            <MemoryRouter initialEntries={["/sign-in"]}>
-              <AppRoutes />
-            </MemoryRouter>
+            <RouterProvider router={testRouter("/sign-in")} />
           </AuthProvider>
         </QueryClientProvider>
       </BackendStatusProvider>,
