@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { ApiError, describeError } from "@/api/errors";
@@ -24,9 +24,6 @@ import type { Team } from "@/features/teams/api";
 import { cn } from "@/lib/utils";
 import { useAfterDelay } from "@/lib/use-after-delay";
 
-/** How long the pointer must rest on a row before its preview loads (hover intent, desktop). */
-export const HOVER_INTENT_MS = 300;
-
 /** How long a PDF may take before we explain that the first one after a break is slower. */
 export const SLOW_PDF_NOTICE_MS = 5000;
 
@@ -38,15 +35,15 @@ const isGone = (error: unknown) => error instanceof ApiError && error.status ===
 
 /**
  * The current team's saved lineups, newest first, each with Preview, PDF/DOCX download, "Clone to
- * new match" and Delete. Previews are the PDF of the frozen snapshot: they load on a tap of the
- * Preview button, or after the pointer rests on a row for {@link HOVER_INTENT_MS} (so moving the
- * mouse across the list does not start a PDF for every row; each one counts against the generate
- * rate limit). A preview is cached in memory per lineup for as long as the page is open
- * (`staleTime: Infinity`: snapshots never change) and never stored or given a URL. Clone opens the
- * Lineup page with only the lineup's id in the router state (`cloneFromId`); the page fetches the
- * lineup itself and pre-fills a new one from it. Router state is kept in the browser's tab history,
- * so it must never carry names or NSSZ numbers. A 404 means another member deleted the lineup meanwhile: the list reloads
- * and says so.
+ * new match" and Delete. Previews are the PDF of the frozen snapshot and load only when the Preview
+ * button is pressed. Hovering a row never starts one: each PDF counts against the generate rate
+ * limit, and a preview with names should not pop up while the user is just browsing. A preview is
+ * cached in memory per lineup for as long as the page is open (`staleTime: Infinity`: snapshots
+ * never change) and never stored or given a URL. Clone opens the Lineup page with only the
+ * lineup's id in the router state (`cloneFromId`); the page fetches the lineup itself and pre-fills
+ * a new one from it. Router state is kept in the browser's tab history, so it must never carry names
+ * or NSSZ numbers. A 404 means another member deleted the lineup meanwhile: the list reloads and
+ * says so.
  */
 export function SavedLineups({ team }: { team: Team }) {
   const { t } = useTranslation();
@@ -55,7 +52,6 @@ export function SavedLineups({ team }: { team: Team }) {
   const navigate = useNavigate();
   const listKey = savedLineupsKey(userId, team.id);
   const [selected, setSelected] = useState<SavedLineup | null>(null);
-  const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const lineups = useQuery({ queryKey: listKey, queryFn: () => listSavedLineups(team.id) });
   const refresh = () => queryClient.invalidateQueries({ queryKey: listKey, exact: true });
@@ -84,13 +80,6 @@ export function SavedLineups({ team }: { team: Team }) {
     },
     onSettled: refresh,
   });
-
-  useEffect(() => () => clearTimeout(hoverTimer.current), []);
-
-  function hoverStart(lineup: SavedLineup) {
-    clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => setSelected(lineup), HOVER_INTENT_MS);
-  }
 
   const pending = download.isPending ? download.variables : undefined;
   const slowPdf = useAfterDelay(
@@ -128,8 +117,6 @@ export function SavedLineups({ team }: { team: Team }) {
                   selected?.id === lineup.id && "bg-accent",
                 )}
                 aria-current={selected?.id === lineup.id ? "true" : undefined}
-                onMouseEnter={() => hoverStart(lineup)}
-                onMouseLeave={() => clearTimeout(hoverTimer.current)}
               >
                 <div className="flex flex-col gap-1">
                   <p
