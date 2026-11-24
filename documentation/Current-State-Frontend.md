@@ -239,8 +239,8 @@ Chromium at phone and desktop sizes against the local stack.
 `/` opens the **lineup creator** (`src/features/creator/`, #203) for the current team; the page loads
 the team's roster first (`QueryBoundary` + skeleton). A lineup is built like this:
 
-- **Players.** Each slot has a cap number and either a roster player (a select; the name and NSSZ
-  number are copied in and locked, and a player already used in another slot is disabled) or free
+- **Players.** Each slot has a cap number and either a roster player (a select, in Hungarian
+  alphabetical order; the name and NSSZ number are copied in and locked, and a player already used in another slot is disabled) or free
   text. A roster pick is saved as `source_player_id`, so the server freezes the current values.
 - **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
   directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
@@ -295,7 +295,8 @@ since #96 the endpoint it calls requires the token too (rate limited: a `429` co
 ### The roster
 
 The **Roster** page (`/roster`) is three cards for the current team (#197). **Players** lists the
-team's players and lets any member add one (name and NSSZ number, nothing else), edit one in
+team's players in Hungarian alphabetical order (#283; the API order is kept and the sort runs in the
+browser) and lets any member add one (name and NSSZ number, nothing else), edit one in
 place or delete one (a second click confirms). The whole team shares the roster, so no role is
 needed. Deleting a player does not change lineups that were already saved: they keep the name and
 NSSZ number as they were when saved, and a hint under the list says so. **Team settings**, shown to

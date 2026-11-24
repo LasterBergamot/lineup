@@ -33,6 +33,7 @@ import { PdfViewer } from "@/features/preview/pdf-viewer";
 import { PreviewPanel } from "@/features/preview/preview-panel";
 import type { Team } from "@/features/teams/api";
 import { translateError } from "@/i18n/error-key";
+import { sortByName } from "@/lib/sort-by-name";
 import { useAfterDelay } from "@/lib/use-after-delay";
 
 /** Sample values for the placeholders: real Hungarian data formats, the same in both languages. */
@@ -297,7 +298,7 @@ export function LineupCreator({
                         onChange={(event) => pickPlayer(index, event.target.value)}
                       >
                         <option value="">{t("creator.typedIn")}</option>
-                        {roster.map((player) => (
+                        {sortByName(roster).map((player) => (
                           <option
                             key={player.id}
                             value={player.id}

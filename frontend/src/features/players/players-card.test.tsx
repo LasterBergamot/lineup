@@ -72,7 +72,7 @@ beforeEach(() => {
 });
 
 describe("players card", () => {
-  it("shows a skeleton, then the roster in the API's order", async () => {
+  it("shows a skeleton, then the roster in Hungarian alphabetical order", async () => {
     let resolve!: (players: Player[]) => void;
     mocks.listPlayers.mockReturnValue(new Promise((r) => (resolve = r)));
     renderCard();
@@ -81,10 +81,10 @@ describe("players card", () => {
     const list = await screen.findByRole("list", { name: "Players of SZVTK" });
     const rows = within(list).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent)).toEqual([
-      expect.stringContaining("Nagy Bence"),
       expect.stringContaining("Kovács Anna"),
+      expect.stringContaining("Nagy Bence"),
     ]);
-    expect(within(rows[0]!).getByText("NSSZ number: MVLSZ2")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("NSSZ number: MVLSZ2")).toBeInTheDocument();
     expect(mocks.listPlayers).toHaveBeenCalledWith(TEAM);
     expect(screen.getByText(/does not change lineups you have already saved/)).toBeInTheDocument();
   });
@@ -138,6 +138,19 @@ describe("adding", () => {
     await waitFor(() => expect(mocks.listPlayers).toHaveBeenCalledTimes(2));
     expect(within(addForm()).getByLabelText("Name")).toHaveValue("");
     expect(within(addForm()).getByLabelText("NSSZ number")).toHaveValue("");
+  });
+
+  it("puts a player added later in its alphabetical place once the list reloads", async () => {
+    const ABEL = { ...ANN, id: "p-abel", name: "Ábel Gábor", nssz_number: "MVLSZ4" };
+    mocks.createPlayer.mockResolvedValue(ABEL);
+    renderCard();
+    await screen.findByText("Kovács Anna");
+    mocks.listPlayers.mockResolvedValue([ANN, BEN, ABEL]);
+    await fill(addForm(), "Ábel Gábor", "MVLSZ4");
+    await userEvent.click(screen.getByRole("button", { name: "Add player" }));
+    const list = screen.getByRole("list", { name: "Players of SZVTK" });
+    await waitFor(() => expect(within(list).getAllByRole("listitem")).toHaveLength(3));
+    expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent("Ábel Gábor");
   });
 
   it("checks the fields before sending anything", async () => {

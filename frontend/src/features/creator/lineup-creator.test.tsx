@@ -140,6 +140,15 @@ describe("LineupCreator form", () => {
     expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
   });
 
+  it("lists the roster in Hungarian alphabetical order, whatever order the API sent", async () => {
+    renderCreator({ roster: [BEN, ANN] });
+    await screen.findByLabelText("Opponent");
+    const options = within(slot(1))
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(options.slice(-2)).toEqual(["Kovács Anna", "Nagy Bence"]);
+  });
+
   it("fills a slot from the roster, locks it, and leaves the player out of the other slots", async () => {
     const user = userEvent.setup();
     renderCreator();
