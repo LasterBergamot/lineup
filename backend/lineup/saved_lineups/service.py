@@ -1,8 +1,9 @@
-"""Business rules for saved lineups: turning a create request into a frozen snapshot.
+"""Business rules for saved lineups: turning a create or edit request into a snapshot.
 
 Team, opponent and each player come either from the live roster (`source_*_id`, whose current
 name/NSSZ is copied in) or from free text, exactly one of the two (enforced by the schemas).
-Nothing here is a live reference afterwards.
+Nothing here is a live reference afterwards. Create and edit share the resolution
+(`_resolve_content`), so an edit follows exactly the same lookups, 404s and 422s as a create.
 """
 
 from __future__ import annotations
@@ -17,11 +18,17 @@ from lineup.players import repository as player_repo
 from lineup.saved_lineups import repository
 from lineup.saved_lineups.schemas import (
     SavedLineupCreate,
+    SavedLineupFields,
     SavedLineupPlayerCreate,
     SavedLineupPlayerResponse,
     SavedLineupResponse,
+    SavedLineupUpdate,
 )
 from lineup.teams import repository as team_repo
+
+STALE_EDIT_DETAIL = (
+    "This saved lineup was changed since you loaded it. Reload it and edit it again."
+)
 
 
 async def _resolve_team_name(
@@ -117,7 +124,57 @@ def _build_response(lineup: SavedLineup) -> SavedLineupResponse:
             for snapshot in lineup.player_snapshots
         ],
         created_at=lineup.created_at,
+        updated_at=lineup.updated_at,
     )
+
+
+async def _resolve_content(
+    session: AsyncSession,
+    data: SavedLineupFields,
+    user_id: uuid.UUID,
+) -> tuple[dict, list[LineupPlayerSnapshot]]:
+    """The column values and player snapshots for a create or edit request, resolved as the caller.
+
+    Resolves team and opponent names (404 if a source id is unknown or not reachable for the
+    caller), defaults the match name to "<team> - <opponent>", builds the player snapshots
+    (404 if a source player is unknown) and rejects duplicate NSSZ numbers with 422, checked on
+    the resolved values. Returns the editable columns as a dict (every column except the
+    workspace, the audit fields and the timestamps) and the snapshots, not yet attached.
+    """
+    team_name = await _resolve_team_name(
+        session, data.source_team_id, data.team_name, "Team not found", user_id, False
+    )
+    opponent_name = await _resolve_team_name(
+        session,
+        data.source_opponent_id,
+        data.opponent_name,
+        "Opponent team not found",
+        user_id,
+        True,
+    )
+    player_snapshots = [
+        await _build_player_snapshot(session, entry, user_id) for entry in data.players
+    ]
+    _ensure_unique_nssz(player_snapshots)
+    fields = {
+        "team_name": team_name,
+        "opponent_name": opponent_name,
+        "match_name": data.match_name or f"{team_name} - {opponent_name}",
+        "division": data.division,
+        "cap": data.cap,
+        "date": data.date,
+        "match_date": data.match_date,
+        "match_time": data.match_time,
+        "location": data.location,
+        "coach": data.coach,
+        "doctor": data.doctor,
+        "assistant_coach": data.assistant_coach,
+        "team_leader": data.team_leader,
+        "ball_thrower": data.ball_thrower,
+        "source_team_id": data.source_team_id,
+        "source_opponent_id": data.source_opponent_id,
+    }
+    return fields, player_snapshots
 
 
 async def create_saved_lineup(
@@ -134,47 +191,50 @@ async def create_saved_lineup(
     workspace = await team_repo.get_team(session, team_id=data.team_id, user_id=user_id)
     if workspace is None:
         raise HTTPException(status_code=404, detail="Team not found")
-    team_name = await _resolve_team_name(
-        session, data.source_team_id, data.team_name, "Team not found", user_id, False
-    )
-    opponent_name = await _resolve_team_name(
-        session,
-        data.source_opponent_id,
-        data.opponent_name,
-        "Opponent team not found",
-        user_id,
-        True,
-    )
-    match_name = data.match_name or f"{team_name} - {opponent_name}"
-
-    player_snapshots = [
-        await _build_player_snapshot(session, entry, user_id) for entry in data.players
-    ]
-    _ensure_unique_nssz(player_snapshots)
-
+    fields, player_snapshots = await _resolve_content(session, data, user_id)
     lineup = await repository.create_saved_lineup(
         session,
-        team_name=team_name,
-        opponent_name=opponent_name,
-        match_name=match_name,
-        division=data.division,
-        cap=data.cap,
-        date=data.date,
-        match_date=data.match_date,
-        match_time=data.match_time,
-        location=data.location,
-        coach=data.coach,
-        doctor=data.doctor,
-        assistant_coach=data.assistant_coach,
-        team_leader=data.team_leader,
-        ball_thrower=data.ball_thrower,
+        **fields,
         created_by=user_id,
         team_id=data.team_id,
-        source_team_id=data.source_team_id,
-        source_opponent_id=data.source_opponent_id,
         player_snapshots=player_snapshots,
     )
     return _build_response(lineup)
+
+
+async def update_saved_lineup(
+    session: AsyncSession,
+    lineup_id: uuid.UUID,
+    data: SavedLineupUpdate,
+    user_id: uuid.UUID,
+) -> SavedLineupResponse:
+    """Edit a saved lineup in place (same id, same team) and return the new version.
+
+    Any member of the lineup's team may edit it, as with delete; a lineup of a team the caller
+    is not in is 404 "Saved lineup not found". The content is resolved exactly like a create
+    (`_resolve_content`: the same 404s and 422s), then every column and all player snapshots
+    are replaced in one transaction. Raises 409 when `data.expected_updated_at` is not the
+    lineup's current `updated_at`, which means someone saved it in the meantime; nothing is
+    changed then. The 409 body is a fixed text that names no one and echoes no stored value.
+    """
+    lineup = await repository.get_saved_lineup(
+        session, lineup_id=lineup_id, user_id=user_id
+    )
+    if lineup is None:
+        raise HTTPException(status_code=404, detail="Saved lineup not found")
+    if lineup.updated_at != data.expected_updated_at:
+        raise HTTPException(status_code=409, detail=STALE_EDIT_DETAIL)
+    fields, player_snapshots = await _resolve_content(session, data, user_id)
+    updated = await repository.update_saved_lineup(
+        session,
+        lineup_id=lineup_id,
+        expected_updated_at=data.expected_updated_at,
+        fields=fields,
+        player_snapshots=player_snapshots,
+    )
+    if updated is None:  # another edit committed between the check above and the update
+        raise HTTPException(status_code=409, detail=STALE_EDIT_DETAIL)
+    return _build_response(updated)
 
 
 async def get_saved_lineup_or_404(

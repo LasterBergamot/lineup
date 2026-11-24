@@ -1,23 +1,26 @@
 """
-Tests for GET/POST /lineups/saved and GET/DELETE /lineups/saved/{id}.
-Also covers the snapshot/soft-reference design: lineups freeze team/opponent/
-player data as text at creation time, so deleting the source team or player
+Tests for GET/POST /lineups/saved and GET/PUT/DELETE /lineups/saved/{id}.
+Also covers the snapshot/soft-reference design: lineups copy team/opponent/
+player data as text when they are saved or edited, so deleting the source team or player
 afterwards has zero effect on a previously saved lineup.
 """
 
 import io
 import uuid
 import zipfile
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lineup.db.models import LineupPlayerSnapshot, TeamMember
+from lineup.db.models import LineupPlayerSnapshot, SavedLineup, TeamMember
 from lineup.saved_lineups import repository as saved_lineup_repo
+from lineup.saved_lineups import service as saved_lineup_service
 from lineup.teams import repository as team_repo
-from tests.helpers import create_player, ensure_team
+from tests.helpers import create_player, ensure_team, join_team
 
 FAKE_PDF = b"%PDF-1.4 fake"
 
@@ -736,3 +739,366 @@ class TestSavedLineupRepositoryMembership:
             db_session, user_id=user, team_id=first.team_id
         )
         assert (total, [i.id for i in items]) == (1, [first.id])
+
+
+class TestUpdateSavedLineup:
+    """PUT /lineups/saved/{id} (#290): an edit replaces the content in place, re-resolves roster
+    ids like a create, and refuses a stale `expected_updated_at` with 409."""
+
+    async def _setup(self, async_client: AsyncClient) -> tuple[dict, dict, dict]:
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        created = await async_client.post(
+            "/lineups/saved", json=_lineup_payload(team["id"], player["id"])
+        )
+        assert created.status_code == 201
+        return team, player, created.json()
+
+    @staticmethod
+    def _edit_body(lineup: dict, **changes) -> dict:
+        """An edit body from a loaded lineup: its content as the creator would send it."""
+        body = {
+            "source_team_id": lineup["source_team_id"],
+            "opponent_name": lineup["opponent_name"],
+            "division": lineup["division"],
+            "cap": lineup["cap"],
+            "date": lineup["date"],
+            "coach": lineup["coach"],
+            "players": [
+                {
+                    "source_player_id": p["source_player_id"],
+                    "cap_number": p["cap_number"],
+                }
+                for p in lineup["players"]
+            ],
+            "expected_updated_at": lineup["updated_at"],
+        }
+        return body | changes
+
+    async def _put(self, async_client: AsyncClient, lineup: dict, **changes):
+        return await async_client.put(
+            f"/lineups/saved/{lineup['id']}", json=self._edit_body(lineup, **changes)
+        )
+
+    async def test_a_new_lineup_has_updated_at_equal_to_created_at(
+        self, async_client: AsyncClient
+    ):
+        _, _, lineup = await self._setup(async_client)
+        assert lineup["updated_at"] == lineup["created_at"]
+
+    async def test_an_edit_changes_the_lineup_in_place(self, async_client: AsyncClient):
+        team, _, lineup = await self._setup(async_client)
+        response = await self._put(
+            async_client, lineup, coach="Új Edző", division="OB I.", doctor=None
+        )
+        assert response.status_code == 200, response.text
+        edited = response.json()
+        assert edited["id"] == lineup["id"]
+        assert edited["team_id"] == team["id"]
+        assert (edited["coach"], edited["division"]) == ("Új Edző", "OB I.")
+        assert edited["doctor"] is None
+        assert edited["created_at"] == lineup["created_at"]
+        assert edited["updated_at"] > lineup["updated_at"]
+        fetched = (await async_client.get(f"/lineups/saved/{lineup['id']}")).json()
+        assert fetched == edited
+        listed = (await async_client.get("/lineups/saved")).json()
+        assert listed["total"] == 1
+        assert listed["items"][0]["coach"] == "Új Edző"
+
+    async def test_the_player_list_replaces_every_old_slot(
+        self, async_client: AsyncClient
+    ):
+        _, player, lineup = await self._setup(async_client)
+        other = await _create_player(async_client, "Kiss Béla", "MVLSZ002")
+        # the old cap 1 goes to someone else and the old player moves to cap 2
+        players = [
+            {"source_player_id": other["id"], "cap_number": 1},
+            {"source_player_id": player["id"], "cap_number": 2},
+            {"name": "Szabó Ádám", "nssz_number": "FREE01", "cap_number": 13},
+        ]
+        response = await self._put(async_client, lineup, players=players)
+        assert response.status_code == 200, response.text
+        slots = [
+            (p["cap_number"], p["name"], p["nssz_number"])
+            for p in response.json()["players"]
+        ]
+        assert slots == [
+            (1, "Kiss Béla", "MVLSZ002"),
+            (2, "Török András", "MVLSZ001"),
+            (13, "Szabó Ádám", "FREE01"),
+        ]
+        old_ids = {p["id"] for p in lineup["players"]}
+        assert not old_ids & {p["id"] for p in response.json()["players"]}
+
+    async def test_a_roster_player_is_re_frozen_with_their_current_values(
+        self, async_client: AsyncClient
+    ):
+        team, player, lineup = await self._setup(async_client)
+        renamed = await async_client.put(
+            f"/players/{player['id']}",
+            json={
+                "name": "Török Bence",
+                "nssz_number": "MVLSZ009",
+                "team_id": team["id"],
+            },
+        )
+        assert renamed.status_code == 200
+        unchanged = (await async_client.get(f"/lineups/saved/{lineup['id']}")).json()
+        assert unchanged["players"][0]["name"] == "Török András"
+
+        edited = (await self._put(async_client, unchanged)).json()
+        assert edited["players"][0]["name"] == "Török Bence"
+        assert edited["players"][0]["nssz_number"] == "MVLSZ009"
+        assert edited["players"][0]["source_player_id"] == player["id"]
+
+    async def test_a_slot_whose_player_was_deleted_stays_as_typed_text(
+        self, async_client: AsyncClient
+    ):
+        _, player, lineup = await self._setup(async_client)
+        assert (
+            await async_client.delete(f"/players/{player['id']}")
+        ).status_code == 204
+        loaded = (await async_client.get(f"/lineups/saved/{lineup['id']}")).json()
+        slot = loaded["players"][0]
+        assert slot["source_player_id"] is None
+        players = [
+            {
+                "name": slot["name"],
+                "nssz_number": slot["nssz_number"],
+                "cap_number": slot["cap_number"],
+            }
+        ]
+        response = await self._put(async_client, loaded, players=players)
+        assert response.status_code == 200, response.text
+        edited = response.json()["players"][0]
+        assert (edited["name"], edited["nssz_number"]) == ("Török András", "MVLSZ001")
+        assert edited["source_player_id"] is None
+
+    async def test_a_deleted_roster_player_cannot_be_picked(
+        self, async_client: AsyncClient
+    ):
+        _, player, lineup = await self._setup(async_client)
+        await async_client.delete(f"/players/{player['id']}")
+        response = await self._put(async_client, lineup)
+        assert response.status_code == 404
+        unchanged = (await async_client.get(f"/lineups/saved/{lineup['id']}")).json()
+        assert unchanged["updated_at"] == lineup["updated_at"]
+
+    async def test_a_stale_version_is_409_and_changes_nothing(
+        self, async_client: AsyncClient
+    ):
+        _, _, lineup = await self._setup(async_client)
+        first = await self._put(async_client, lineup, coach="First Editor")
+        assert first.status_code == 200
+        second = await self._put(async_client, lineup, coach="Second Editor")
+        assert second.status_code == 409
+        detail = second.json()["detail"]
+        assert "Reload" in detail
+        assert "First Editor" not in detail and first.json()["updated_at"] not in detail
+        current = (await async_client.get(f"/lineups/saved/{lineup['id']}")).json()
+        assert current == first.json()
+
+    async def test_the_same_instant_in_another_offset_is_accepted(
+        self, async_client: AsyncClient
+    ):
+        _, _, lineup = await self._setup(async_client)
+        utc = datetime.fromisoformat(lineup["updated_at"])
+        local = utc.astimezone(timezone(timedelta(hours=1))).isoformat()
+        response = await self._put(async_client, lineup, expected_updated_at=local)
+        assert response.status_code == 200, response.text
+
+    @pytest.mark.parametrize(
+        "expected", [None, "2026-11-24T10:00:00", "not a time"], ids=str
+    )
+    async def test_a_missing_or_naive_version_is_422(
+        self, async_client: AsyncClient, expected
+    ):
+        _, _, lineup = await self._setup(async_client)
+        body = self._edit_body(lineup)
+        if expected is None:
+            body.pop("expected_updated_at")
+        else:
+            body["expected_updated_at"] = expected
+        response = await async_client.put(f"/lineups/saved/{lineup['id']}", json=body)
+        assert response.status_code == 422
+
+    async def test_a_concurrent_edit_between_check_and_write_is_409(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        """Another member's edit commits while this one is resolving its players: the
+        compare-and-swap in the repository sees it and nothing of this edit is written."""
+        _, _, lineup = await self._setup(async_client)
+        real_resolve = saved_lineup_service._resolve_content
+
+        async def resolve_then_someone_else_saves(*args, **kwargs):
+            resolved = await real_resolve(*args, **kwargs)
+            await db_session.execute(
+                update(SavedLineup)
+                .where(SavedLineup.id == uuid.UUID(lineup["id"]))
+                .values(coach="Other Member", updated_at=datetime.now(UTC))
+            )
+            await db_session.commit()
+            return resolved
+
+        with patch.object(
+            saved_lineup_service, "_resolve_content", resolve_then_someone_else_saves
+        ):
+            response = await self._put(async_client, lineup, coach="Too Late")
+        assert response.status_code == 409
+        current = (await async_client.get(f"/lineups/saved/{lineup['id']}")).json()
+        assert current["coach"] == "Other Member"
+        assert [p["id"] for p in current["players"]] == [
+            p["id"] for p in lineup["players"]
+        ]
+
+    async def test_unknown_lineup_is_404(self, async_client: AsyncClient):
+        _, _, lineup = await self._setup(async_client)
+        response = await async_client.put(
+            f"/lineups/saved/{uuid.uuid4()}", json=self._edit_body(lineup)
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Saved lineup not found"}
+
+    async def test_a_lineup_of_another_team_is_404(
+        self, async_client: AsyncClient, current_user
+    ):
+        _, _, lineup = await self._setup(async_client)
+        current_user.id = uuid.uuid4()
+        response = await self._put(async_client, lineup, coach="Intruder")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Saved lineup not found"}
+
+    async def test_any_member_of_the_team_may_edit(
+        self, async_client: AsyncClient, db_session: AsyncSession, current_user
+    ):
+        team, _, lineup = await self._setup(async_client)
+        creator = current_user.id
+        colleague = uuid.uuid4()
+        await join_team(db_session, team["id"], colleague)
+        current_user.id = colleague
+        response = await self._put(async_client, lineup, coach="Colleague")
+        assert response.status_code == 200, response.text
+        db_session.expire_all()
+        row = await db_session.get(SavedLineup, uuid.UUID(lineup["id"]))
+        assert row.created_by == creator
+        assert row.coach == "Colleague"
+
+    async def test_a_team_id_in_the_body_does_not_move_the_lineup(
+        self, async_client: AsyncClient
+    ):
+        team, _, lineup = await self._setup(async_client)
+        other = await _create_team(async_client, "Other")
+        response = await self._put(async_client, lineup, team_id=other["id"])
+        assert response.status_code == 200
+        assert response.json()["team_id"] == team["id"]
+
+    async def test_a_player_of_a_team_i_am_not_in_is_404(
+        self, async_client: AsyncClient, current_user
+    ):
+        _, _, lineup = await self._setup(async_client)
+        me = current_user.id
+        current_user.id = uuid.uuid4()
+        foreign = await _create_player(async_client, "Idegen", "FOREIGN1")
+        current_user.id = me
+        players = [{"source_player_id": foreign["id"], "cap_number": 1}]
+        response = await self._put(async_client, lineup, players=players)
+        assert response.status_code == 404
+        assert "Idegen" not in response.text
+
+    async def test_a_duplicate_nssz_after_resolution_is_422(
+        self, async_client: AsyncClient
+    ):
+        _, player, lineup = await self._setup(async_client)
+        players = [
+            {"source_player_id": player["id"], "cap_number": 1},
+            {"name": "Másik", "nssz_number": "mvlsz001", "cap_number": 2},
+        ]
+        response = await self._put(async_client, lineup, players=players)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            {"date": None},
+            {"players": []},
+            {"cap": "Piros"},
+            {"opponent_name": None},
+            {"players": [{"name": "A", "nssz_number": "1", "cap_number": 1}] * 2},
+        ],
+        ids=["no date", "no players", "bad cap", "no opponent", "same cap twice"],
+    )
+    async def test_the_create_rules_apply(self, async_client: AsyncClient, changes):
+        _, _, lineup = await self._setup(async_client)
+        response = await self._put(async_client, lineup, **changes)
+        assert response.status_code == 422
+
+    async def test_the_match_name_is_derived_again(self, async_client: AsyncClient):
+        _, _, lineup = await self._setup(async_client)
+        edited = (await self._put(async_client, lineup, opponent_name="Szentes")).json()
+        assert edited["match_name"] == "SZVTK - Szentes"
+        named = (await self._put(async_client, edited, match_name="Kupadöntő")).json()
+        assert named["match_name"] == "Kupadöntő"
+
+    async def test_the_structured_date_is_handled_like_a_create(
+        self, async_client: AsyncClient
+    ):
+        _, _, lineup = await self._setup(async_client)
+        dated = (
+            await self._put(
+                async_client,
+                lineup,
+                match_date="2026-11-28",
+                match_time="18:30:45",
+            )
+        ).json()
+        assert dated["date"] == "2026. 11. 28. 18:30"
+        assert (dated["match_date"], dated["match_time"]) == ("2026-11-28", "18:30:00")
+        # back to free text: the structured fields are cleared
+        typed = (await self._put(async_client, dated, date="november vége")).json()
+        assert typed["date"] == "november vége"
+        assert (typed["match_date"], typed["match_time"]) == (None, None)
+        bad = await self._put(async_client, typed, match_time="18:30")
+        assert bad.status_code == 422
+
+    async def test_the_location_is_set_and_cleared(self, async_client: AsyncClient):
+        _, _, lineup = await self._setup(async_client)
+        located = (
+            await self._put(async_client, lineup, location="  Szeged, Tisza uszoda ")
+        ).json()
+        assert located["location"] == "Szeged, Tisza uszoda"
+        cleared = (await self._put(async_client, located, location="  ")).json()
+        assert cleared["location"] is None
+
+    async def test_the_generated_document_shows_the_edit(
+        self, async_client: AsyncClient
+    ):
+        _, _, lineup = await self._setup(async_client)
+        await self._put(async_client, lineup, coach="Szerkesztett Edző")
+        response = await async_client.post(
+            f"/lineups/saved/{lineup['id']}/generate?format=docx"
+        )
+        assert response.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+            assert "Szerkesztett Edző" in z.read("word/document.xml").decode()
+
+    async def test_the_repository_refuses_a_stale_version(
+        self, async_client: AsyncClient, db_session: AsyncSession
+    ):
+        _, _, lineup = await self._setup(async_client)
+        lineup_id = uuid.UUID(lineup["id"])
+        stale = datetime.fromisoformat(lineup["updated_at"]) - timedelta(seconds=1)
+        snapshot = LineupPlayerSnapshot(
+            id=uuid.uuid4(), cap_number=5, name="X", nssz_number="X1"
+        )
+        result = await saved_lineup_repo.update_saved_lineup(
+            db_session,
+            lineup_id=lineup_id,
+            expected_updated_at=stale,
+            fields={"coach": "Nobody"},
+            player_snapshots=[snapshot],
+        )
+        assert result is None
+        db_session.expire_all()
+        row = await db_session.get(SavedLineup, lineup_id)
+        assert row.coach == "Török András"
+        assert [s.cap_number for s in row.player_snapshots] == [1]

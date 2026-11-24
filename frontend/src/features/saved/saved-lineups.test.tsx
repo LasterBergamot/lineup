@@ -54,6 +54,7 @@ function lineup(n: number, overrides: Partial<SavedLineup> = {}): SavedLineup {
     source_opponent_id: null,
     players: [],
     created_at: "2026-10-05T10:00:00",
+    updated_at: "2026-10-05T10:00:00",
     ...overrides,
   };
 }

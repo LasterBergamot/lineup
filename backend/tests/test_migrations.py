@@ -1,4 +1,5 @@
-"""The data-changing migrations `a3d5f7c91e26`, `e5b8c2d41f70`, `c8f3a1d6e472` and `d1b6e4a97c53`, run for real against a
+"""The data-changing migrations (`a3d5f7c91e26`, `e5b8c2d41f70`, `c8f3a1d6e472`, `d1b6e4a97c53` and
+later ones, each in its own section below), run for real against a
 throw-away SQLite file.
 
 Schema drift is checked by `task migrate-check`; this proves what happens to *existing rows*:
@@ -525,3 +526,47 @@ def test_the_staff_migration_can_be_undone(staff_database):
     alembic(staff_database, "downgrade", BEFORE_STAFF)
     assert "team_staff" not in _tables(staff_database)
     assert "ux_team_staff_default_role" not in _indexes(staff_database)
+
+
+# --- b3e8d1f6a924: saved lineup updated_at (#290) ---------------------------------------------
+
+AFTER_UPDATED_AT = "b3e8d1f6a924"
+
+
+def _saved_lineup_columns(path) -> dict[str, tuple]:
+    """`PRAGMA table_info` of saved_lineups by column name: (type, notnull, default, ...)."""
+    with closing(sqlite3.connect(path)) as db:
+        return {r[1]: r[2:] for r in db.execute("PRAGMA table_info(saved_lineups)")}
+
+
+def test_updated_at_is_backfilled_from_created_at_and_required(staff_database):
+    ids = _seed_dated_lineups(staff_database)
+    alembic(staff_database, "upgrade", AFTER_STAFF)
+    alembic(staff_database, "upgrade", AFTER_UPDATED_AT)
+    column = _saved_lineup_columns(staff_database)["updated_at"]
+    assert column[1] == 1  # NOT NULL
+    assert column[2] is not None  # a server default, for hand-written inserts
+    with closing(sqlite3.connect(staff_database)) as db:
+        rows = db.execute("SELECT created_at, updated_at FROM saved_lineups").fetchall()
+        assert len(rows) == len(ids)
+        assert all(created == updated for created, updated in rows)
+        # a hand-written insert that never heard of the column still works (on SQLite
+        # created_at has no server default, only on Postgres: f2c8a5d7e931)
+        db.execute(
+            "INSERT INTO saved_lineups (id, team_id, team_name, opponent_name, "
+            "match_name, division, cap, date, coach, created_by, created_at) "
+            "VALUES (?, ?, 'A', 'B', 'A - B', 'D', 'Fehér', 'd', 'c', ?, "
+            "'2026-11-01 10:00:00')",
+            (_id(), _id(), _id()),
+        )
+        assert db.execute(
+            "SELECT count(*) FROM saved_lineups WHERE updated_at IS NULL"
+        ).fetchone() == (0,)
+
+
+def test_the_updated_at_migration_can_be_undone(staff_database):
+    ids = _seed_dated_lineups(staff_database)
+    alembic(staff_database, "upgrade", AFTER_UPDATED_AT)
+    alembic(staff_database, "downgrade", AFTER_STAFF)
+    assert "updated_at" not in _saved_lineup_columns(staff_database)
+    assert _count(staff_database, "SELECT count(*) FROM saved_lineups") == len(ids)

@@ -2,7 +2,8 @@
 their frozen player snapshots.
 
 A saved lineup is a *snapshot*: it copies team, opponent and player names as plain text, so
-deleting a team or player later never changes history. The `source_*_id` columns are nullable
+deleting a team or player later never changes history. Only an explicit edit of the lineup
+(`PUT /lineups/saved/{id}`) replaces the copy. The `source_*_id` columns are nullable
 "soft references" (`ON DELETE SET NULL`) that only remember where a snapshot came from.
 Relationships are `lazy="selectin"` because async SQLAlchemy cannot lazy-load on attribute
 access (it raises `MissingGreenlet`).
@@ -270,9 +271,14 @@ class TeamStaff(Base):
 
 
 class SavedLineup(Base):
-    """A lineup frozen at creation time, ready to be rendered to PDF/DOCX later.
+    """A lineup saved as a snapshot, ready to be rendered to PDF/DOCX later.
 
-    Every text column is a copy, so rendering never joins against `teams` or `players`.
+    Every text column is a copy, so rendering never joins against `teams` or `players`. The copy
+    changes only when a team member edits the lineup, which replaces every column and all of its
+    player snapshots in one transaction and moves `updated_at` on. `updated_at` is also the
+    optimistic-concurrency token: an edit only applies while it still equals the value the
+    editor loaded (a stale edit is a 409), so two members editing at once can't silently
+    overwrite each other.
     `team_id` is the workspace the lineup lives in: every member of that team can see it
     (`ON DELETE RESTRICT`, so a team with saved lineups can't be deleted). `source_team_id` /
     `source_opponent_id` are soft references (set to NULL if the team is deleted) kept for
@@ -321,6 +327,11 @@ class SavedLineup(Base):
     created_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
     )
+    # When the lineup was last saved: equal to `created_at` until the first edit. The repository
+    # sets both from one clock reading, so a never-edited lineup has them identical.
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
+    )
 
     # Optional soft references for reuse/cloning; nulled out if the source is
     # deleted so a saved lineup is never blocked on or broken by that deletion.
@@ -342,7 +353,8 @@ class SavedLineup(Base):
 
 class LineupPlayerSnapshot(Base):
     """One player slot of a saved lineup: the name and NSSZ number as they were when the
-    lineup was saved, plus the cap number. `source_player_id` is a soft reference (NULL once
+    lineup was saved or last edited, plus the cap number. An edit deletes all of a lineup's
+    slots and inserts the new ones (never updates a slot in place). `source_player_id` is a soft reference (NULL once
     the roster player is deleted). Deleted together with its lineup (`ON DELETE CASCADE`).
 
     """

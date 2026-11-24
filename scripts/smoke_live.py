@@ -3,7 +3,8 @@
 
 It drives a running API over HTTP and proves the real path on the real database (Postgres behind
 the Supabase pooler as the `lineup_app` role, so RLS, grants and the pooler are all in play):
-create a team, a player and a saved lineup, read them back, generate a DOCX, keep staff on the team
+create a team, a player and a saved lineup, read them back, edit the lineup in place (and see a
+stale edit refused), generate a DOCX, keep staff on the team
 (picked from the roster, one default per role, hidden from a non-member), then create, preview,
 accept and revoke an invitation as a second user. Every row it writes is synthetic and carries
 a `smoke-<unix time>` marker in its name.
@@ -203,6 +204,7 @@ class Smoke:
             and [p["name"] for p in saved["players"]] == [f"{m} player"],
             "the frozen team or player name is wrong",
         )
+        self.edit_lineup(saved)
 
         docx = self.call(
             "generate DOCX",
@@ -225,6 +227,41 @@ class Smoke:
 
         self.staff()
         self.invitations()
+
+    def edit_lineup(self, saved: dict) -> None:
+        """Edit the saved lineup in place (#290, migration `b3e8d1f6a924` added `updated_at`):
+        the edit keeps the id and moves `updated_at` on, a second edit from the same loaded
+        version is a 409, and a non-member's edit is a 404. Needs the lineup from `run`."""
+        path = f"/lineups/saved/{self.lineup_id}"
+        body = {
+            "source_team_id": self.team_id,
+            "opponent_name": f"{self.marker} opponent",
+            "division": "OB II.",
+            "cap": "Kék",
+            "match_date": "2026-01-02",
+            "location": f"{self.marker} pool",
+            "coach": "Smoke Coach",
+            "players": [{"source_player_id": self.player_id, "cap_number": 2}],
+            "expected_updated_at": saved["updated_at"],
+        }
+        edited = self.call("edit lineup", "PUT", path, 200, body=body).json()
+        self.expect(
+            "edit lineup",
+            edited["id"] == self.lineup_id
+            and edited["updated_at"] != saved["updated_at"]
+            and (edited["cap"], edited["date"]) == ("Kék", "2026. 01. 02.")
+            and [p["cap_number"] for p in edited["players"]] == [2],
+            "the edit did not replace the lineup in place",
+        )
+        self.call("a stale edit is refused", "PUT", path, 409, body=body)
+        self.call(
+            "non-member cannot edit a lineup",
+            "PUT",
+            path,
+            404,
+            who="member",
+            body=body | {"expected_updated_at": edited["updated_at"]},
+        )
 
     def staff(self) -> None:
         """Team staff (#292): pick one from the roster, replace the role's default, check the

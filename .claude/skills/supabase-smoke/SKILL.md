@@ -77,7 +77,10 @@ python3 scripts/smoke_live.py --base-url http://127.0.0.1:8000 \
 It needs no `jq`. It marks every row `smoke-<unix time>`, and it:
 
 - checks that an anonymous request gets 401;
-- creates a team, a player and a saved lineup, reads the lineup back (frozen names), generates a DOCX
+- creates a team, a player and a saved lineup, reads the lineup back (frozen names), edits it in place
+  (`PUT`, #290: same id, a new `updated_at`, the structured date composed; migration `b3e8d1f6a924`
+  added `updated_at`), checks that a second edit from the same loaded version is `409` and that a
+  non-member's edit is `404`, generates a DOCX
   (200, a wordprocessingml type, `Cache-Control: no-store`) and searches the opponent pool;
 - runs the invitation path (migration `b7d2e9a41c53` added `invited_by_name`, and this proves it works
   on Postgres): create a link, preview it without a token (team name and inviter `Smoke Owner`), a

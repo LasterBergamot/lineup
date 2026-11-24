@@ -3,15 +3,19 @@
 A saved lineup lives in a team's workspace (`team_id`) and every member of that team may use it,
 so lookups are keyed by the signed-in `user_id` and restricted to teams they belong to
 (`team_repo.member_team_ids`). They return `None` when nothing matches; the service turns that into a 404.
+An edit (`update_saved_lineup`) is a compare-and-swap on `updated_at`, so a concurrent edit is
+detected by the database itself rather than by a read-then-write check.
 """
 
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from datetime import date as date_type
 from datetime import time as time_type
+from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lineup.db.models import LineupPlayerSnapshot, SavedLineup
@@ -44,10 +48,14 @@ async def create_saved_lineup(
 
     The reload matters: right after the commit the in-memory snapshots are still in request
     order, so the relationship is refreshed to apply its cap-number ordering and make the create
-    response match a later GET.
+    response match a later GET. `created_at` and `updated_at` come from one clock reading, so a
+    new lineup has them equal.
     """
+    now = datetime.now(UTC)
     lineup = SavedLineup(
         id=uuid.uuid4(),
+        created_at=now,
+        updated_at=now,
         team_name=team_name,
         opponent_name=opponent_name,
         match_name=match_name,
@@ -74,6 +82,57 @@ async def create_saved_lineup(
     # relationship's order_by (cap number) so POST returns the same order as GET.
     await session.refresh(lineup, ["player_snapshots"])
     return await get_saved_lineup_by_id(session, lineup.id)
+
+
+async def update_saved_lineup(
+    session: AsyncSession,
+    lineup_id: uuid.UUID,
+    expected_updated_at: datetime,
+    fields: dict[str, Any],
+    player_snapshots: list[LineupPlayerSnapshot],
+) -> SavedLineup | None:
+    """Replace a lineup's columns and all of its player snapshots in one transaction.
+
+    `fields` maps column names to their new values (the service passes every editable column).
+    The row is only changed while its `updated_at` still equals `expected_updated_at`, checked
+    by the `UPDATE ... WHERE` itself: on Postgres a concurrent edit waits for this row lock and
+    then matches nothing, so exactly one of two simultaneous edits wins. Returns `None` (and
+    rolls back, changing nothing) when the row no longer matches, which the service reports as
+    409; the caller has already checked that the lineup exists and is the user's. Otherwise
+    returns the reloaded lineup.
+
+    The old snapshots are deleted *before* the new ones are inserted, because the unique index
+    on `(saved_lineup_id, cap_number)` would otherwise see the same cap number twice.
+    """
+    result = await session.execute(
+        update(SavedLineup)
+        .where(
+            SavedLineup.id == lineup_id,
+            SavedLineup.updated_at == expected_updated_at,
+        )
+        .values(**fields, updated_at=datetime.now(UTC))
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount != 1:  # type: ignore[attr-defined]
+        await session.rollback()
+        return None
+    await session.execute(
+        delete(LineupPlayerSnapshot).where(
+            LineupPlayerSnapshot.saved_lineup_id == lineup_id
+        )
+    )
+    for snapshot in player_snapshots:
+        snapshot.saved_lineup_id = lineup_id
+    session.add_all(player_snapshots)
+    await session.commit()
+    # The session may still hold the lineup as loaded before the edit (expire_on_commit is
+    # off), so read it again from the database instead of the identity map.
+    result = await session.execute(
+        select(SavedLineup)
+        .where(SavedLineup.id == lineup_id)
+        .execution_options(populate_existing=True)
+    )
+    return result.scalar_one()
 
 
 async def get_saved_lineup_by_id(
