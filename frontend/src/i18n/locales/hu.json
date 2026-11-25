@@ -303,7 +303,18 @@
     "deleteConfirm": "Rajtlista törlése",
     "deleteOf": "Törlés: {{match}}",
     "gone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A lista frissült.",
-    "previewBadge": "Előnézet"
+    "previewBadge": "Előnézet",
+    "filters": {
+      "label": "Mentett rajtlisták szűrése",
+      "opponent": "Ellenfél",
+      "from": "Dátumtól",
+      "to": "Dátumig",
+      "location": "Helyszín",
+      "clear": "Szűrők törlése",
+      "noMatch": "Egy mentett rajtlista sem felel meg a szűrőknek.",
+      "count": "{{shown}} / {{total}} rajtlista látható",
+      "more": "Továbbiak"
+    }
   },
   "toast": {
     "region": "Értesítések",

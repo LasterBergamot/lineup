@@ -24,28 +24,75 @@ export const savedLineupsKey = (userId: string | null, teamId: string) =>
 export const savedPreviewKey = (userId: string | null, teamId: string, lineupId: string) =>
   [...savedLineupsKey(userId, teamId), "preview", lineupId] as const;
 
-/** The most lineups one request can return (the API caps `limit` at 200). */
-const PAGE_SIZE = 200;
+/** How many lineups one request (and one "Show more" step) returns. The API allows up to 200. */
+export const PAGE_SIZE = 20;
+
+/** The API's limits on the two text filters. */
+export const MAX_OPPONENT_LENGTH = 120;
+export const MAX_LOCATION_LENGTH = 200;
 
 /**
- * Every saved lineup of `teamId`, **newest first**. The API lists the oldest first, and a team
- * saves a sheet for every match, so this reads every page (stopping at `total`, or at an empty page
- * if lineups are deleted meanwhile) and reverses the result. Throws `ApiError` on failure.
+ * What the Saved page's filter bar holds. Text is a case-insensitive "contains", the dates are
+ * `YYYY-MM-DD` (what `<input type="date">` gives) and inclusive; an empty string means "no
+ * filter". Filters are combined, and they live in component state only, never in a URL or storage.
+ */
+export interface SavedFilters {
+  opponent: string;
+  dateFrom: string;
+  dateTo: string;
+  location: string;
+}
+
+/** No filter set: the full list. */
+export const NO_FILTERS: SavedFilters = { opponent: "", dateFrom: "", dateTo: "", location: "" };
+
+/** True when at least one filter has something in it (blank text does not count). */
+export const hasFilters = (filters: SavedFilters) =>
+  Object.values(filters).some((value) => value.trim() !== "");
+
+/**
+ * Query key for one filtered list of a team's saved lineups, under {@link savedLineupsKey}. The
+ * filters are part of the key, so each combination is cached on its own and in memory only.
+ */
+export const savedListKey = (userId: string | null, teamId: string, filters: SavedFilters) =>
+  [...savedLineupsKey(userId, teamId), "list", filters] as const;
+
+/** One page of {@link listSavedLineups}: `total` counts every match, not just this page. */
+export interface SavedPage {
+  items: SavedLineup[];
+  total: number;
+  offset: number;
+}
+
+/**
+ * One page (`PAGE_SIZE` lineups from `offset`) of `teamId`'s saved lineups matching `filters`,
+ * **newest match first** as the API orders them. Blank filters are left out of the request, so no
+ * filter is the plain list. Throws `ApiError` on failure.
  */
 export async function listSavedLineups(
   teamId: string,
+  filters: SavedFilters,
+  offset = 0,
   client: Pick<typeof api, "GET"> = api,
-): Promise<SavedLineup[]> {
-  const lineups: SavedLineup[] = [];
-  for (;;) {
-    const page = await request(
-      client.GET("/lineups/saved", {
-        params: { query: { team_id: teamId, limit: PAGE_SIZE, offset: lineups.length } },
-      }),
-    );
-    lineups.push(...page.items);
-    if (page.items.length === 0 || lineups.length >= page.total) return lineups.reverse();
-  }
+): Promise<SavedPage> {
+  const opponent = filters.opponent.trim();
+  const location = filters.location.trim();
+  const page = await request(
+    client.GET("/lineups/saved", {
+      params: {
+        query: {
+          team_id: teamId,
+          limit: PAGE_SIZE,
+          offset,
+          ...(opponent && { opponent }),
+          ...(filters.dateFrom && { date_from: filters.dateFrom }),
+          ...(filters.dateTo && { date_to: filters.dateTo }),
+          ...(location && { location }),
+        },
+      },
+    }),
+  );
+  return { items: page.items, total: page.total, offset };
 }
 
 /**
