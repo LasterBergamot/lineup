@@ -183,6 +183,27 @@
     "deleteLabel": "Törlés: {{name}}",
     "deleteHint": "Egy játékos törlése nem változtatja meg a már mentett rajtlistákat: azok megőrzik a név és az NSSZ-szám saját másolatát."
   },
+  "staff": {
+    "title": "Stáb",
+    "description": "Az edző, a segédedző, a csapatvezető és a labdabedobó, akiket a rajtlista űrlapjai felajánlanak. A csapat minden tagja módosíthatja őket. Egy új rajtlista minden szerepkörnél az alapértelmezettel indul.",
+    "addTitle": "Stábtag hozzáadása",
+    "add": "Stábtag hozzáadása",
+    "role": "Szerepkör",
+    "isDefault": "Alapértelmezett ebben a szerepkörben",
+    "default": "Alapértelmezett",
+    "empty": "Még nincs stábtag. Add hozzá az elsőt fent.",
+    "edit": "Szerkesztés",
+    "editLabel": "Szerkesztés: {{name}} ({{role}})",
+    "save": "Mentés",
+    "makeDefault": "Legyen alapértelmezett",
+    "makeDefaultLabel": "Legyen alapértelmezett: {{name}} ({{role}})",
+    "delete": "Törlés",
+    "deleteConfirm": "Igen, törlöm",
+    "deleteLabel": "Törlés: {{name}} ({{role}})",
+    "conflict": "Valaki más ugyanekkor módosította ennek a szerepkörnek az alapértelmezettjét. A listát frissítettük, próbáld újra.",
+    "hint": "Egy szerepkörnek legfeljebb egy alapértelmezettje lehet. A stáb módosítása vagy törlése nem változtatja meg a már elmentett rajtlistákat.",
+    "typeOrPick": "Írj be egy nevet, vagy válassz"
+  },
   "invites": {
     "title": "Meghívás",
     "description": "Aki megnyitja a hivatkozást és belép Google-lal, taggá válik, és látja a keretet. Csak olyannak küldje el, akinek ezt szánja.",

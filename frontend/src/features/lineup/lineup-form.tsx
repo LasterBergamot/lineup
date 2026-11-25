@@ -19,6 +19,8 @@ import {
   toQuickSheetRequest,
   type LineupFormValues,
 } from "@/features/lineup/schema";
+import { staffDefaults, type Staff } from "@/features/staff/api";
+import { StaffCombobox } from "@/features/staff/staff-combobox";
 import { translateError } from "@/i18n/error-key";
 import { useAfterDelay } from "@/lib/use-after-delay";
 import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
@@ -34,6 +36,7 @@ const EXAMPLES = {
   team: "SZVTK",
 };
 
+/** The staff fields in form order; all but the doctor pick from the team's staff (#289). */
 const STAFF_FIELDS = [
   ["coach", "fields.coach"],
   ["doctor", "fields.doctor"],
@@ -42,12 +45,18 @@ const STAFF_FIELDS = [
   ["ball_thrower", "fields.ballThrower"],
 ] as const;
 
+/** Every staff field but the doctor, which stays a plain input. */
+const STAFF_PICKERS = ["coach", "assistant_coach", "team_leader", "ball_thrower"] as const;
+
 /**
  * The one-off lineup form: fill in the match, the staff and the players in 15 fixed cap rows (empty
  * rows are left out), then download the sheet as PDF or DOCX. Nothing is saved anywhere: the values live in this component's memory
  * only (no localStorage drafts), because they include players' names and NSSZ numbers.
+ *
+ * The coach, assistant coach, team leader and ball thrower are free text with the current team's
+ * `staff` as suggestions and start with each role's default (#289); the doctor is a plain input.
  */
-export function LineupForm() {
+export function LineupForm({ staff = [] }: { staff?: readonly Staff[] }) {
   const { t } = useTranslation();
   const {
     register,
@@ -60,9 +69,10 @@ export function LineupForm() {
     formState: { errors, isDirty },
   } = useForm<LineupFormValues>({
     resolver: zodResolver(lineupSchema),
-    defaultValues: emptyQuickSheetValues(),
+    defaultValues: emptyQuickSheetValues(staffDefaults(staff)),
   });
   const players = useWatch({ control, name: "players" });
+  const pickedStaff = useWatch({ control, name: [...STAFF_PICKERS] });
   // Nothing is saved here, so a finished download counts as done: it makes the downloaded values
   // the new baseline (the guard turns off until the next edit).
   useUnsavedChangesGuard(isDirty);
@@ -143,7 +153,19 @@ export function LineupForm() {
         <CardContent className="grid gap-4 md:grid-cols-2">
           {STAFF_FIELDS.map(([name, labelKey]) => (
             <Field key={name} label={t(labelKey)} error={errors[name]?.message}>
-              {(props) => <Input {...props} {...register(name)} />}
+              {(props) =>
+                name === "doctor" ? (
+                  <Input {...props} {...register(name)} />
+                ) : (
+                  <StaffCombobox
+                    {...props}
+                    staff={staff}
+                    role={name}
+                    value={pickedStaff[STAFF_PICKERS.indexOf(name)]!}
+                    onChange={(text) => setValue(name, text, { shouldDirty: true })}
+                  />
+                )
+              }
             </Field>
           ))}
         </CardContent>

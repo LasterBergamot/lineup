@@ -8,17 +8,26 @@ import { useAuth } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
 import { ToastProvider } from "@/components/ui/toast";
 import type { Player } from "@/features/players/api";
+import type { Staff } from "@/features/staff/api";
 import type { Team } from "@/features/teams/api";
 import { TeamsContext } from "@/features/teams/context";
 import { LineupPage } from "@/pages/lineup-page";
 import { unsavedProbe } from "@/test/unsaved";
 import { fakeAuthClient, fakeSession, teamsPage, testQueryClient } from "@/test/auth";
 
-const mocks = vi.hoisted(() => ({ listPlayers: vi.fn(), getSavedLineup: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  listPlayers: vi.fn(),
+  getSavedLineup: vi.fn(),
+  listStaff: vi.fn(),
+}));
 vi.mock("@/features/creator/api", () => ({ getSavedLineup: mocks.getSavedLineup }));
 vi.mock("@/features/players/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/players/api")>()),
   listPlayers: mocks.listPlayers,
+}));
+vi.mock("@/features/staff/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/staff/api")>()),
+  listStaff: mocks.listStaff,
 }));
 // Both forms have their own tests; here only what the page hands them and what survives a mode
 // switch matter. Each stand-in keeps one typed value in state and reports it to the guard.
@@ -28,9 +37,11 @@ vi.mock("@/features/creator/lineup-creator", async () => {
   return {
     LineupCreator: ({
       roster,
+      staff,
       initialValues,
     }: {
       roster: Player[];
+      staff: Staff[];
       initialValues?: { division: string; players: { name: string }[] };
     }) => {
       const [typed, setTyped] = useState("");
@@ -38,7 +49,8 @@ vi.mock("@/features/creator/lineup-creator", async () => {
       return (
         <div>
           <p>
-            creator: {roster.length} players, division {initialValues?.division ?? "none"},{" "}
+            creator: {roster.length} players, {staff.length} staff, division{" "}
+            {initialValues?.division ?? "none"},{" "}
             {initialValues?.players.map((p) => p.name).join("+")}
           </p>
           <input
@@ -55,12 +67,12 @@ vi.mock("@/features/lineup/lineup-form", async () => {
   const { useState } = await import("react");
   const { useUnsavedChangesGuard } = await import("@/lib/unsaved-changes");
   return {
-    LineupForm: () => {
+    LineupForm: ({ staff }: { staff: Staff[] }) => {
       const [typed, setTyped] = useState("");
       useUnsavedChangesGuard(typed !== "");
       return (
         <div>
-          <p>quick sheet form</p>
+          <p>quick sheet form, {staff.length} staff</p>
           <input
             aria-label="quick field"
             value={typed}
@@ -92,6 +104,16 @@ const SAVED = {
   players: [
     { id: "x", cap_number: 1, name: "Kovács Anna", nssz_number: "N1", source_player_id: "p-ann" },
   ],
+};
+
+const COACH: Staff = {
+  id: "st-1",
+  team_id: "t-1",
+  role: "coach",
+  name: "Edző Ede",
+  source_player_id: null,
+  is_default: true,
+  created_at: "",
 };
 
 function SignedIn({ current }: { current: Team | undefined }) {
@@ -127,16 +149,22 @@ function renderPage(
 beforeEach(() => {
   mocks.listPlayers.mockReset();
   mocks.getSavedLineup.mockReset();
+  mocks.listStaff.mockReset();
   mocks.listPlayers.mockResolvedValue([ANN]);
   mocks.getSavedLineup.mockResolvedValue(SAVED);
+  mocks.listStaff.mockResolvedValue([COACH]);
 });
 
 describe("LineupPage", () => {
   it("loads the roster, then shows the creator", async () => {
     renderPage();
     expect(await screen.findByRole("status", { name: "Loading" })).toBeInTheDocument();
-    expect(await screen.findByText(/creator: 1 players, division none/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/creator: 1 players, 1 staff, division none/),
+    ).toBeInTheDocument();
     expect(mocks.listPlayers).toHaveBeenCalledWith("t-1");
+    expect(mocks.listStaff).toHaveBeenCalledWith("t-1");
+    expect(screen.getByText("quick sheet form, 1 staff")).not.toBeVisible();
     expect(screen.getByRole("heading", { name: "Lineup" })).toBeInTheDocument();
     expect(screen.getByText(/Build the lineup for SZVTK/)).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "From the roster" })).toHaveAttribute(
@@ -150,15 +178,15 @@ describe("LineupPage", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText(/creator:/);
-    expect(screen.getByText("quick sheet form")).not.toBeVisible();
+    expect(screen.getByText(/quick sheet form/)).not.toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Quick sheet (not saved)" }));
-    expect(screen.getByText("quick sheet form")).toBeVisible();
+    expect(screen.getByText(/quick sheet form/)).toBeVisible();
     expect(screen.getByText(/creator:/)).not.toBeVisible();
     expect(screen.getByText(/Nothing is saved/)).toBeInTheDocument();
     expect(screen.getByRole("tabpanel", { name: "Quick sheet (not saved)" })).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "From the roster" }));
     expect(screen.getByText(/creator:/)).toBeVisible();
-    expect(screen.getByText("quick sheet form")).not.toBeVisible();
+    expect(screen.getByText(/quick sheet form/)).not.toBeVisible();
   });
 
   it("keeps what was typed in either mode across a switch", async () => {
@@ -219,6 +247,22 @@ describe("LineupPage", () => {
     expect(await screen.findByText(/busy or starting up/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText(/creator:/)).toBeInTheDocument();
+  });
+
+  it("waits for the staff in both modes and offers a retry when it cannot be loaded", async () => {
+    mocks.listStaff.mockRejectedValueOnce(new ApiError(503));
+    renderPage();
+    expect(await screen.findAllByText(/busy or starting up/)).toHaveLength(2);
+    expect(screen.queryByText(/creator:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/quick sheet form/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole("button", { name: "Try again" })[0]!);
+    expect(await screen.findByText(/creator: 1 players, 1 staff/)).toBeInTheDocument();
+    expect(screen.getByText("quick sheet form, 1 staff")).toBeInTheDocument();
+  });
+
+  it("hands the staff to a cloned lineup's creator too", async () => {
+    renderPage({ cloneFromId: "s-1" });
+    expect(await screen.findByText(/1 staff, division OB I\./)).toBeInTheDocument();
   });
 
   it("renders nothing without a current team (TeamGate normally prevents it)", () => {

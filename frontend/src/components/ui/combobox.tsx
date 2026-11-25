@@ -27,6 +27,13 @@ function fold(text: string): string {
  * it is how a caller keeps a free-text path next to the list. Disabled options stay visible but
  * cannot be picked. The search text lives in component state only. Spread the props `Field`
  * gives (`id`, `aria-*`) onto it like on any input; options keep the order given.
+ *
+ * With `freeText` (#289) the typed text *is* the value: `value` is the text in the box, every
+ * keystroke calls `onChange` with it, and the options are only suggestions (picking one writes its
+ * `value` into the box). There is no empty choice then (`emptyLabel` is only the placeholder), no
+ * option is highlighted until the user moves into the list (so Enter never swaps what was typed
+ * for a suggestion), Esc closes the list but keeps the text, and the list stays hidden when no
+ * suggestion matches, since any text is a valid answer.
  */
 export function Combobox({
   options,
@@ -34,6 +41,7 @@ export function Combobox({
   onChange,
   emptyLabel,
   noMatchesLabel,
+  freeText = false,
   ...inputProps
 }: {
   options: readonly ComboboxOption[];
@@ -42,8 +50,10 @@ export function Combobox({
   onChange: (value: string) => void;
   /** Text of the first, always-present choice with value `""`. Also the input's placeholder. */
   emptyLabel: string;
-  /** Shown in the list when the typed text matches nothing. */
-  noMatchesLabel: string;
+  /** Shown in the list when the typed text matches nothing (not used with `freeText`). */
+  noMatchesLabel?: string;
+  /** The typed text is the value and the options are suggestions (see above). */
+  freeText?: boolean;
   id?: string;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
@@ -59,12 +69,16 @@ export function Combobox({
   const matches = options.filter(
     (option) => !needle || fold(`${option.label} ${option.hint ?? ""}`).includes(needle),
   );
-  const shown: ComboboxOption[] = [{ value: "", label: emptyLabel }, ...matches];
-  /** Where the list starts when opened: on the current choice (the empty one when none). */
-  const current = Math.max(
-    shown.findIndex((option) => option.value === value),
-    0,
-  );
+  const shown: ComboboxOption[] = freeText
+    ? matches
+    : [{ value: "", label: emptyLabel }, ...matches];
+  /**
+   * Where the list starts when opened: on the current choice (the empty one when none). In
+   * free-text mode the typed text may match no option, and then nothing is highlighted (-1).
+   */
+  const found = shown.findIndex((option) => option.value === value);
+  const current = freeText ? found : Math.max(found, 0);
+  const expanded = open && shown.length > 0;
   const optionId = (index: number) => `${listId}-${index}`;
 
   /** Next enabled index from `from` in `step` direction, staying put at the ends. */
@@ -98,11 +112,18 @@ export function Combobox({
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        show(open ? move(active, 1) : current);
+        show(open ? move(active, 1) : current >= 0 ? current : move(-1, 1));
         break;
       case "ArrowUp":
         event.preventDefault();
-        show(open ? move(active, -1) : current);
+        // In free-text mode nothing may be highlighted yet (-1): Up then starts from the end.
+        show(
+          open
+            ? move(active < 0 ? shown.length : active, -1)
+            : current >= 0
+              ? current
+              : move(shown.length, -1),
+        );
         break;
       case "Home":
       case "End":
@@ -115,7 +136,8 @@ export function Combobox({
       case "Enter":
         // Never submit the form from the picker.
         event.preventDefault();
-        if (open) pick(active);
+        if (open && active >= 0) pick(active);
+        else close();
         break;
       case "Escape":
         if (open) {
@@ -133,16 +155,22 @@ export function Combobox({
       <Input
         {...inputProps}
         role="combobox"
-        aria-expanded={open}
+        aria-expanded={expanded}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={open ? optionId(active) : undefined}
+        aria-activedescendant={expanded && active >= 0 ? optionId(active) : undefined}
         autoComplete="off"
         placeholder={emptyLabel}
-        value={query ?? selected?.label ?? ""}
+        value={freeText ? value : (query ?? selected?.label ?? "")}
         onChange={(event) => {
           const text = event.target.value;
           setQuery(text);
+          if (freeText) {
+            // The text is the answer; the list only suggests, so nothing is highlighted yet.
+            onChange(text);
+            show(-1);
+            return;
+          }
           // Jump to the first real match; with no text, to the current choice's slot.
           const first = fold(text.trim()) ? 1 : 0;
           show(shown.length > first ? first : 0);
@@ -152,7 +180,7 @@ export function Combobox({
         onBlur={close}
       />
       <div
-        hidden={!open}
+        hidden={!expanded}
         className="absolute z-20 mt-1 w-full rounded-md border bg-card text-base shadow-md md:text-sm"
       >
         <ul ref={listRef} id={listId} role="listbox" className="max-h-60 overflow-auto py-1">
@@ -179,7 +207,7 @@ export function Combobox({
             </li>
           ))}
         </ul>
-        {needle && matches.length === 0 && (
+        {!freeText && needle && matches.length === 0 && (
           <p role="status" className="border-t px-3 py-2 text-muted-foreground">
             {noMatchesLabel}
           </p>

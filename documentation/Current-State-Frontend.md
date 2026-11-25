@@ -62,7 +62,7 @@ values), after Discard (the page and its forms unmount), or when a form closes. 
 held: the sign-in redirect unmounts the shell, and the guard with it, first.
 
 Guarded today: the lineup creator for a new lineup (also when it starts from a clone; an untouched
-clone is not dirty), the Quick sheet, the add and edit player forms and the team settings. The
+clone is not dirty), the Quick sheet, the add and edit player and staff forms and the team settings. The
 **edit mode** of a saved lineup (#290) is not built yet; it gets the same guard when it lands. The
 switch between the creator and the Quick sheet on the Lineup page is not a navigation, so the guard
 does not hold it, and it does not need to: both modes stay mounted and the inactive one is `hidden`,
@@ -316,6 +316,13 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
   lineup and `valuesFromSaved()` starts the creator from it (staff, division, players, each in the
   row of their cap number; not the match or opponent; the date is reset to today and the time cleared, as it is a new match). Only the id travels in the history state, never the lineup itself.
+- **Staff (#289).** The coach, assistant coach, team leader and ball thrower are the `Combobox` in
+  free-text mode (`StaffCombobox`, `src/features/staff/`): the box holds the printed name, and the
+  team's staff entries of that role are suggestions, the default first and the rest alphabetical.
+  A new lineup starts with each role's default (the page waits for `GET /teams/{id}/staff`, since
+  the defaults are read once when the form is built); a clone keeps the lineup's own names. A typed
+  name is fine and is never added to the staff list, and the saved lineup stores the name text,
+  not a reference to the entry. The doctor stays a plain input.
 - The doctor, assistant coach, team leader and ball thrower are optional here and in the API.
 
 ### The one-off lineup form ("Quick sheet")
@@ -345,25 +352,35 @@ since #96 the endpoint it calls requires the token too (rate limited: a `429` co
 - **Unsaved changes.** Nothing is saved here, so a finished download counts as done: from the first
   edit until a download succeeds, leaving the page asks first and a reload or tab close triggers the
   browser's prompt (see *Unsaved changes* above). The next edit turns the guard on again.
+- **Staff.** The coach, assistant coach, team leader and ball thrower suggest the current team's
+  staff and start with each role's default, exactly as in the creator; the doctor is a plain input.
 - **Privacy.** The entered names and NSSZ numbers stay in memory: no localStorage/sessionStorage
   drafts, `autocomplete="off"` on the form, nothing logged. (A test asserts that storage stays empty.)
   The error and validation texts follow the UI language (see *Language*).
 
 ### The roster
 
-The **Roster** page (`/roster`) is three cards for the current team (#197). **Players** lists the
+The **Roster** page (`/roster`) is four cards for the current team (#197). **Players** lists the
 team's players in Hungarian alphabetical order (#283; the API order is kept and the sort runs in the
 browser) and lets any member add one (name and NSSZ number, nothing else), edit one in
 place or delete one (a second click confirms). The whole team shares the roster, so no role is
 needed. An NSSZ number already on the roster is refused by the API (409) and shown, in our own translated words, on the NSSZ field of the form (adding and editing alike). A name another player already has is allowed (namesakes exist): the first save shows a non-blocking warning and turns the button into "Save anyway", the second one saves; changing the name takes the warning back. Deleting a player does not change lineups that were already saved: they keep the name and
-NSSZ number as they were when saved, and a hint under the list says so. **Team settings**, shown to
+NSSZ number as they were when saved, and a hint under the list says so. **Staff** (#289), after
+Players, keeps the coach, assistant coach, team leader and ball thrower the lineup forms suggest,
+grouped by role (the default first, with a "Default" badge). Any member adds an entry by picking a
+roster player (the searchable picker; the name is copied in and locked, and later renames of the
+player do not follow) or by typing a name, edits it in place (every field, the role included),
+deletes it (a second click confirms) or makes it the role's default. A role has at most one
+default: the server clears the old one in the same request, and deleting a default promotes
+nobody. A 409 (another member set a different default at the same moment) gets its own message
+and the list reloads. The doctor is not a staff role. **Team settings**, shown to
 owners only, renames the team, sets its default division and switches "list the team's name in the
 opponent directory" on or off. The default division can be replaced but not cleared (the API keeps
 the stored value for a blank). **Opponent directory** is a search box over the teams that chose to be listed; it shows team
 names only (never rosters or lineups), waits 300 ms after typing, and keeps the last results on
-screen while the next ones load. Names, NSSZ numbers and search terms live in component state and
+screen while the next ones load. Names, NSSZ numbers, staff names and search terms live in component state and
 the in-memory query cache only: nothing goes to browser storage, the address bar or a log. A
-half-typed player (add or edit) and an unsaved team rename are guarded like the lineup forms:
+half-typed player or staff entry (add or edit) and an unsaved team rename are guarded like the lineup forms:
 leaving the page asks first (see *Unsaved changes*).
 
 ### Saved lineups

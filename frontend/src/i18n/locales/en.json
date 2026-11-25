@@ -183,6 +183,27 @@
     "deleteLabel": "Delete {{name}}",
     "deleteHint": "Deleting a player does not change lineups you have already saved: they keep their own copy of the name and NSSZ number."
   },
+  "staff": {
+    "title": "Staff",
+    "description": "The coach, assistant coach, team leader and ball thrower the lineup forms suggest. Everyone in the team can change them. A new lineup starts with each role's default.",
+    "addTitle": "Add a staff member",
+    "add": "Add staff member",
+    "role": "Role",
+    "isDefault": "Default for this role",
+    "default": "Default",
+    "empty": "No staff yet. Add the first one above.",
+    "edit": "Edit",
+    "editLabel": "Edit {{name}} ({{role}})",
+    "save": "Save",
+    "makeDefault": "Make default",
+    "makeDefaultLabel": "Make default: {{name}} ({{role}})",
+    "delete": "Delete",
+    "deleteConfirm": "Yes, delete",
+    "deleteLabel": "Delete {{name}} ({{role}})",
+    "conflict": "Someone else changed this role's default at the same time. The list has been reloaded; please try again.",
+    "hint": "A role has at most one default. Changing or deleting staff does not change lineups you have already saved.",
+    "typeOrPick": "Type a name or pick one"
+  },
   "invites": {
     "title": "Invite people",
     "description": "Anyone who opens the link and signs in with Google joins as a member and sees your roster. Send it only to people who should.",

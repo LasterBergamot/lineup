@@ -2,6 +2,7 @@ import { z } from "zod";
 import { errorKey } from "@/i18n/error-key";
 import { capRows, checkCapRows, MAX_PLAYERS, requestPlayers } from "@/features/lineup/cap-rows";
 import type { components } from "@/api/schema";
+import type { StaffRole } from "@/features/staff/api";
 import { cleanText as text } from "@/lib/clean-text";
 import { composeMatchDate, matchDateSchema, matchTimeSchema, todayIso } from "@/lib/match-date";
 
@@ -49,9 +50,18 @@ export const lineupSchema = z.object({
 
 export type LineupFormValues = z.infer<typeof lineupSchema>;
 
-/** The 15 empty cap rows and today's date (read now, no time) the Quick sheet opens with. */
-export function emptyQuickSheetValues(): Partial<LineupFormValues> {
+/**
+ * What the Quick sheet opens with: the 15 empty cap rows, today's date (read now, no time) and
+ * each staff role's default name from `staff` (#289; empty for a role without one).
+ */
+export function emptyQuickSheetValues(
+  staff: Partial<Record<StaffRole, string>> = {},
+): Partial<LineupFormValues> {
   return {
+    coach: staff.coach ?? "",
+    assistant_coach: staff.assistant_coach ?? "",
+    team_leader: staff.team_leader ?? "",
+    ball_thrower: staff.ball_thrower ?? "",
     cap: "Fehér",
     match_date: todayIso(),
     match_time: "",

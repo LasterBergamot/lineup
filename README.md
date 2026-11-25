@@ -395,6 +395,7 @@ lineup/
 │       ├── features/preview/        # PDF preview: pdfjs.ts (lazy loader, bundled worker), pdf-viewer.tsx (sharp at any size), preview-panel.tsx (side panel / modal dialog on a phone), enlarged-preview.tsx (full-size view with zoom)
 │       ├── features/teams/          # Teams of the signed-in user: api.ts (list/create/update), provider/context, team-gate, onboarding, create-team-form, team-settings-card (owners), role.ts
 │       ├── features/players/        # A team's roster: api.ts (list/create/update/delete), schema.ts (Zod), player-form, players-card
+│       ├── features/staff/          # A team's staff (#289): api.ts (CRUD, defaults, suggestions), schema.ts, staff-form, staff-card, staff-combobox (creator + Quick sheet)
 │       ├── features/directory/      # Opponent directory search: api.ts (GET /teams/pool), directory-card (names only)
 │       ├── features/members/        # A team's people: api.ts (list/remove/leave/hand over), members-list
 │       ├── features/invitations/    # Invite links: api.ts, code.ts (parse a pasted link), invite-panel (owner tools), invite-link-form (onboarding)

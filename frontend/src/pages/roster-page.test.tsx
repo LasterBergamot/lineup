@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   listPlayers: vi.fn(),
   createPlayer: vi.fn(),
   searchPool: vi.fn(),
+  listStaff: vi.fn(),
 }));
 vi.mock("@/features/teams/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/teams/api")>()),
@@ -21,6 +22,10 @@ vi.mock("@/features/players/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/players/api")>()),
   listPlayers: mocks.listPlayers,
   createPlayer: mocks.createPlayer,
+}));
+vi.mock("@/features/staff/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/staff/api")>()),
+  listStaff: mocks.listStaff,
 }));
 vi.mock("@/features/directory/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/features/directory/api")>()),
@@ -48,14 +53,17 @@ beforeEach(() => {
     },
   ]);
   mocks.searchPool.mockResolvedValue([{ id: "55555555-5555-4555-8555-555555555555", name: "FTC" }]);
+  mocks.listStaff.mockResolvedValue([]);
 });
 
 describe("roster page", () => {
   it("shows the team's players, its settings and the opponent directory to an owner", async () => {
     renderApp("/roster", fakeSession());
     expect(await screen.findByRole("heading", { name: "Roster" })).toBeInTheDocument();
-    expect(await screen.findByText("Kovács Béla")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Edit Kovács Béla" })).toBeInTheDocument();
     expect(mocks.listPlayers).toHaveBeenCalledWith(TEAM);
+    expect(await screen.findByRole("heading", { name: "Staff" })).toBeInTheDocument();
+    expect(mocks.listStaff).toHaveBeenCalledWith(TEAM);
     expect(await screen.findByRole("heading", { name: "Team settings" })).toBeInTheDocument();
     expect(await screen.findByText("FTC")).toBeInTheDocument();
   });
@@ -63,7 +71,7 @@ describe("roster page", () => {
   it("hides the team settings from a member, who can still edit the roster", async () => {
     asMember();
     renderApp("/roster", fakeSession());
-    expect(await screen.findByText("Kovács Béla")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Edit Kovács Béla" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Kovács Béla" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Team settings" })).not.toBeInTheDocument();
   });
@@ -94,7 +102,7 @@ describe("roster page with unsaved changes", () => {
   it("asks before the navigation drops a typed-in player: Stay keeps it, Discard leaves", async () => {
     const user = userEvent.setup();
     renderApp("/roster", fakeSession());
-    await screen.findByText("Kovács Béla");
+    await screen.findByRole("button", { name: "Edit Kovács Béla" });
     await user.type(within(addForm()).getByLabelText("Name"), "Nagy Péter");
     expect(reloadIsHeld()).toBe(true);
 
@@ -115,7 +123,7 @@ describe("roster page with unsaved changes", () => {
     mocks.createPlayer.mockResolvedValue({});
     const user = userEvent.setup();
     renderApp("/roster", fakeSession());
-    await screen.findByText("Kovács Béla");
+    await screen.findByRole("button", { name: "Edit Kovács Béla" });
     await user.type(within(addForm()).getByLabelText("Name"), "Nagy Péter");
     await user.type(within(addForm()).getByLabelText("NSSZ number"), "HUN-2");
     await user.click(within(addForm()).getByRole("button", { name: "Add player" }));
@@ -129,7 +137,7 @@ describe("roster page with unsaved changes", () => {
   it("guards an unsaved team rename and an open player edit", async () => {
     const user = userEvent.setup();
     renderApp("/roster", fakeSession());
-    await screen.findByText("Kovács Béla");
+    await screen.findByRole("button", { name: "Edit Kovács Béla" });
     const teamName = await screen.findByLabelText("Team name");
     await user.type(teamName, " II");
     expect(reloadIsHeld()).toBe(true);
@@ -148,7 +156,7 @@ describe("roster page with unsaved changes", () => {
   it("never keeps a user who signs out on the page", async () => {
     const user = userEvent.setup();
     renderApp("/roster", fakeSession());
-    await screen.findByText("Kovács Béla");
+    await screen.findByRole("button", { name: "Edit Kovács Béla" });
     await user.type(within(addForm()).getByLabelText("Name"), "Nagy Péter");
     const sidebar = screen.getByRole("complementary");
     await user.click(within(sidebar).getByRole("button", { name: "Sign out" }));

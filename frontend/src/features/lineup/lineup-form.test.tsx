@@ -5,6 +5,7 @@ import { afterEach, beforeEach } from "vitest";
 import { i18n } from "@/i18n";
 import { ApiError } from "@/api/errors";
 import { LineupForm, SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
+import type { Staff } from "@/features/staff/api";
 import { unsavedProbe } from "@/test/unsaved";
 
 const { generateLineup, saveFile } = vi.hoisted(() => ({
@@ -14,13 +15,13 @@ const { generateLineup, saveFile } = vi.hoisted(() => ({
 vi.mock("@/features/lineup/generate", () => ({ generateLineup }));
 vi.mock("@/features/lineup/download", () => ({ saveFile }));
 
-function renderForm() {
+function renderForm(staff?: Staff[]) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   const unsaved = unsavedProbe();
   const view = render(
     <QueryClientProvider client={client}>
       <unsaved.Wrapper>
-        <LineupForm />
+        <LineupForm staff={staff} />
       </unsaved.Wrapper>
     </QueryClientProvider>,
   );
@@ -57,6 +58,69 @@ beforeEach(() => {
   saveFile.mockReset();
 });
 afterEach(() => vi.useRealTimers());
+
+function staffEntry(name: string, role: Staff["role"], is_default = false): Staff {
+  return {
+    id: `st-${name}`,
+    team_id: "t-1",
+    role,
+    name,
+    source_player_id: null,
+    is_default,
+    created_at: "",
+  };
+}
+
+describe("LineupForm staff pickers", () => {
+  it("starts with each role's default, suggests the role's entries and keeps free text", async () => {
+    generateLineup.mockResolvedValue({ blob: new Blob(["%PDF"]), filename: "sheet.pdf" });
+    const user = userEvent.setup();
+    const { isDirty } = renderForm([
+      staffEntry("Edző Ede", "coach", true),
+      staffEntry("Ács Ádám", "coach"),
+      staffEntry("Segéd Sára", "assistant_coach", true),
+    ]);
+    const coach = screen.getByRole("combobox", { name: "Coach" });
+    expect(coach).toHaveValue("Edző Ede");
+    expect(screen.getByRole("combobox", { name: "Assistant coach" })).toHaveValue("Segéd Sára");
+    expect(screen.getByRole("combobox", { name: "Team leader" })).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: "Doctor" })).toHaveValue("");
+    expect(isDirty()).toBe(false);
+    await user.click(coach);
+    const list = screen.getByRole("listbox");
+    expect(
+      within(list)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Edző Ede", "Ács Ádám"]);
+    await user.click(screen.getByRole("option", { name: "Ács Ádám" }));
+    expect(coach).toHaveValue("Ács Ádám");
+    await user.type(screen.getByRole("combobox", { name: "Team leader" }), "Új Vezető");
+    for (const [label, value] of [
+      ["Match", "SZVTK - Csongrád"],
+      ["Division", "OB II."],
+      ["Team name", "SZVTK"],
+      ["Doctor", "Dr. Kis"],
+      ["Ball thrower", "Dobó"],
+    ]) {
+      await user.click(screen.getByLabelText(label!));
+      await user.paste(value!);
+    }
+    await user.click(within(capRow(1)).getByLabelText("Name"));
+    await user.paste("Török András");
+    await user.click(within(capRow(1)).getByLabelText("NSSZ number"));
+    await user.paste("MVLSZ1");
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    await vi.waitFor(() => expect(generateLineup).toHaveBeenCalledOnce());
+    expect(generateLineup.mock.calls[0]![0]).toMatchObject({
+      coach: "Ács Ádám",
+      assistant_coach: "Segéd Sára",
+      team_leader: "Új Vezető",
+      ball_thrower: "Dobó",
+      doctor: "Dr. Kis",
+    });
+  });
+});
 
 describe("LineupForm unsaved changes", () => {
   it("guards the page from the first edit until the sheet is downloaded", async () => {
