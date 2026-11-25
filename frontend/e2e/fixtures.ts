@@ -47,6 +47,9 @@ interface Saved {
   cap: string;
   is_home: boolean | null;
   date: string;
+  match_date: string | null;
+  match_time: string | null;
+  location: string | null;
   coach: string;
   doctor: string | null;
   assistant_coach: string | null;
@@ -163,6 +166,9 @@ export const makeSaved = (t: Team, i: number): Saved => ({
   cap: "Fehér",
   is_home: null,
   date: `2026. 10. ${10 + i}.`,
+  match_date: `2026-10-${10 + i}`,
+  match_time: null,
+  location: i === 2 ? "Szeged, Tisza Volán uszoda" : null,
   coach: "Coach",
   doctor: null,
   assistant_coach: null,
@@ -230,7 +236,23 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
         return json(route, page_(api.players.filter((p) => p.team_id === teamId)));
       }
       if (method === "GET" && path === "/lineups/saved") {
-        return json(route, page_(api.saved.filter((s) => s.team_id === teamId)));
+        // Like the API: the filters are AND-ed, text is a case-insensitive "contains", dates are
+        // inclusive, and the newest match comes first.
+        const q = url.searchParams;
+        const has = (text: string | null, term: string | null) =>
+          !term || (text ?? "").toLowerCase().includes(term.toLowerCase());
+        const rows = api.saved
+          .filter((s) => s.team_id === teamId)
+          .filter(
+            (s) => has(s.opponent_name, q.get("opponent")) && has(s.location, q.get("location")),
+          )
+          .filter((s) => !q.get("date_from") || (s.match_date ?? "") >= q.get("date_from")!)
+          .filter(
+            (s) =>
+              !q.get("date_to") || (s.match_date !== null && s.match_date <= q.get("date_to")!),
+          )
+          .sort((a, b) => (b.match_date ?? "").localeCompare(a.match_date ?? ""));
+        return json(route, page_(rows));
       }
       const invite = /^\/invitations\/([^/]+)(\/accept)?$/.exec(path);
       if (invite) {

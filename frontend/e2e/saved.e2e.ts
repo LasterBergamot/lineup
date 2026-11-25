@@ -51,3 +51,32 @@ test("the saved list shows the side of each lineup, a dash for an old one", asyn
     "Home/away: –",
   );
 });
+
+test("the filter bar narrows the list by opponent, dates and location, and Clear restores it", async ({
+  app,
+  expectAccessible,
+  expectNoHorizontalScroll,
+}) => {
+  await app.goto("/saved");
+  const list = app.getByRole("list", { name: "Saved lineups of SZVTK" });
+  await expect(list.getByRole("listitem")).toHaveCount(3);
+
+  await app.getByRole("searchbox", { name: "Opponent" }).fill("opponent 2");
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("SZVTK - Opponent 2");
+
+  // Filters combine: the opponent matches, but the date range excludes it.
+  await app.getByLabel("From date").fill("2026-10-13");
+  await expect(app.getByText("No saved lineups match these filters.")).toBeVisible();
+  await expectAccessible(app);
+  await expectNoHorizontalScroll(app);
+
+  await app.getByRole("button", { name: "Clear filters" }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(3);
+
+  await app.getByRole("searchbox", { name: "Location" }).fill("szeged");
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("Opponent 2");
+  await app.getByLabel("To date").fill("2026-10-11");
+  await expect(app.getByText("No saved lineups match these filters.")).toBeVisible();
+});

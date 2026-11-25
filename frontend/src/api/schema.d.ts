@@ -106,9 +106,14 @@ export interface paths {
         };
         /**
          * List Saved Lineups
-         * @description List the saved lineups of all teams you belong to, oldest first, optionally only those
-         *     saved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:
-         *     `limit` is 1-200 (default 20), `offset` starts at 0.
+         * @description List the saved lineups of all teams you belong to, newest match first (by `match_date`,
+         *     undated ones last, then by save time), optionally only those saved in one team (`team_id`)
+         *     or made with one team as our team (`source_team_id`).
+         *
+         *     Every filter is optional and the ones you send are combined with AND: `opponent` and
+         *     `location` are case-insensitive "contains" matches, `date_from` / `date_to` are inclusive
+         *     bounds on the match day (`date_from` after `date_to` simply matches nothing). Paginated:
+         *     `limit` is 1-200 (default 20), `offset` starts at 0, `total` counts all matches.
          */
         get: operations["list_saved_lineups_lineups_saved_get"];
         put?: never;
@@ -1402,6 +1407,14 @@ export interface operations {
                 offset?: number;
                 team_id?: string | null;
                 source_team_id?: string | null;
+                /** @description Case-insensitive part of the opponent's name. `%` and `_` are ordinary characters. Blank means no filter. */
+                opponent?: string | null;
+                /** @description Only matches on or after this day (ISO date, inclusive). Lineups without a structured match date never match a date bound. */
+                date_from?: string | null;
+                /** @description Only matches on or before this day (ISO date, inclusive). Lineups without a structured match date never match a date bound. */
+                date_to?: string | null;
+                /** @description Case-insensitive part of the venue. `%` and `_` are ordinary characters. Blank means no filter. Lineups without a location never match. */
+                location?: string | null;
             };
             header?: never;
             path?: never;
