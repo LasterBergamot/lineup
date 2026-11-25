@@ -10,3 +10,10 @@ export const teamFormSchema = z.object({
 });
 
 export type TeamFormValues = z.infer<typeof teamFormSchema>;
+
+/** The owner's team settings: the create form plus the optional home venue (#296), the API's `CleanStr200`. */
+export const teamSettingsSchema = teamFormSchema.extend({
+  homeVenue: optionalCleanText(200, "fields.homeVenue"),
+});
+
+export type TeamSettingsValues = z.infer<typeof teamSettingsSchema>;

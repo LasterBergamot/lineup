@@ -71,6 +71,7 @@
     "division": "Division",
     "teamName": "Team name",
     "capColour": "Cap colour",
+    "homeVenue": "Home venue",
     "location": "Location",
     "date": "Date",
     "time": "Start time (optional)",
@@ -117,6 +118,7 @@
     },
     "form": {
       "teamNamePlaceholder": "e.g. SZVTK",
+      "homeVenuePlaceholder": "e.g. Szeged, Tisza Volán pool",
       "divisionPlaceholder": "e.g. OB II.",
       "listInDirectory": "List the team name in the opponent directory",
       "listInDirectoryHint": "Other teams can then pick you as an opponent. Only the name is shown, never your roster or lineups. You can change this later.",
@@ -261,6 +263,7 @@
     "pages": "Pages of the lineup sheet"
   },
   "creator": {
+    "homeAway": { "label": "Home or away", "home": "Home", "away": "Away" },
     "description": "Build the lineup for {{team}} from the roster, preview the sheet and save it for later.",
     "modes": "Lineup type",
     "modeCreator": "From the roster",
@@ -287,6 +290,8 @@
     "listLabel": "Saved lineups of {{team}}",
     "empty": "No saved lineups yet. Make a lineup on the Lineup page and save it; it shows up here.",
     "location": "Location: {{location}}",
+    "side": "Home/away: {{side}}",
+    "sideUnknown": "–",
     "details": "{{date}} · {{division}} · {{cap}} caps · Opponent: {{opponent}}",
     "preview": "Preview",
     "previewOf": "Preview {{match}}",

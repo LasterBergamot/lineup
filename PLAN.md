@@ -272,7 +272,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [x] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
 - [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
 - [ ] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L)
-- [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M; backend done in PR #330, frontend in Wave C)
+- [x] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M; backend PR #330, frontend PR #NNN)
 - [x] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
 - [ ] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M)
 - [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)

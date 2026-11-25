@@ -141,6 +141,12 @@ export function SavedLineups({ team }: { team: Team }) {
                     })}
                     {lineup.location &&
                       ` · ${t("savedLineups.location", { location: lineup.location })}`}
+                    {` · ${t("savedLineups.side", {
+                      side:
+                        lineup.is_home === null
+                          ? t("savedLineups.sideUnknown")
+                          : t(`creator.homeAway.${lineup.is_home ? "home" : "away"}`),
+                    })}`}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">

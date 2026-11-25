@@ -39,19 +39,25 @@ export async function createTeam(
 /**
  * Renames a team and/or changes whether its name is listed in the opponent directory (owners
  * only). The name and the listing choice are always sent. A blank `division` is left out, which
- * the API reads as "keep the stored one": a default division can be replaced but not cleared. Throws
+ * the API reads as "keep the stored one": a default division can be replaced but not cleared; the
+ * home venue (`homeVenue`, #296) follows the same rule. Throws
  * `ApiError`: 403 for a member who is not the owner, 404 for someone outside the team, 422 with
  * per-field messages (see `fieldErrors`).
  */
 export async function updateTeam(
   teamId: string,
-  body: { name: string; division?: string; isPublic: boolean },
+  body: { name: string; division?: string; homeVenue?: string; isPublic: boolean },
   client: Pick<typeof api, "PUT"> = api,
 ): Promise<Team> {
   return request(
     client.PUT("/teams/{team_id}", {
       params: { path: { team_id: teamId } },
-      body: { name: body.name, division: body.division || undefined, is_public: body.isPublic },
+      body: {
+        name: body.name,
+        division: body.division || undefined,
+        home_venue: body.homeVenue || undefined,
+        is_public: body.isPublic,
+      },
     }),
   );
 }

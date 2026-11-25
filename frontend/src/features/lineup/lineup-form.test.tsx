@@ -216,6 +216,40 @@ describe("LineupForm", () => {
     expect(screen.getByText("(1 of 15)")).toBeInTheDocument();
   });
 
+  it("sets the cap from Home / Away and orders the team in a typed match name", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.type(screen.getByLabelText("Match"), "Csongrád - SZVTK");
+    await user.type(screen.getByLabelText("Team name"), "SZVTK");
+    expect(screen.getByRole("radio", { name: "Home" })).not.toBeChecked();
+    await user.click(screen.getByRole("radio", { name: "Home" }));
+    expect(screen.getByLabelText("Cap colour")).toHaveValue("Fehér");
+    expect(screen.getByLabelText("Match")).toHaveValue("SZVTK - Csongrád");
+    await user.click(screen.getByRole("radio", { name: "Away" }));
+    expect(screen.getByLabelText("Cap colour")).toHaveValue("Kék");
+    expect(screen.getByLabelText("Match")).toHaveValue("Csongrád - SZVTK");
+    // A manual cap change sticks.
+    await user.selectOptions(screen.getByLabelText("Cap colour"), "Fehér");
+    expect(screen.getByRole("radio", { name: "Away" })).toBeChecked();
+    expect(screen.getByLabelText("Cap colour")).toHaveValue("Fehér");
+  });
+
+  it("sends the reordered match name and no side", async () => {
+    const user = userEvent.setup();
+    generateLineup.mockResolvedValue({ blob: new Blob(["x"]), filename: "sheet.pdf" });
+    renderForm();
+    await fillValidForm(user);
+    await user.click(screen.getByRole("radio", { name: "Away" }));
+    expect(screen.getByLabelText("Match")).toHaveValue("Csongrád - SZVTK");
+    await user.click(screen.getByRole("radio", { name: "Away" }));
+    expect(screen.getByLabelText("Match")).toHaveValue("Csongrád - SZVTK");
+    expect(screen.getByLabelText("Cap colour")).toHaveValue("Kék");
+    expect(screen.queryByLabelText(/Location/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Download PDF" }));
+    await screen.findByText("Downloaded sheet.pdf.");
+    expect(generateLineup.mock.calls[0]![0]).not.toHaveProperty("is_home");
+  });
+
   it("submits the trimmed values as PDF and hands the file to the browser", async () => {
     const user = userEvent.setup();
     const file = { blob: new Blob(["x"]), filename: "sheet.pdf" };

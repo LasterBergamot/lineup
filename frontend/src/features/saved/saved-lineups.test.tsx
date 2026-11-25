@@ -123,6 +123,19 @@ describe("SavedLineups", () => {
     expect(items[1]).not.toHaveTextContent("Location");
   });
 
+  it("shows the home/away side, and a dash for an old lineup that never said", async () => {
+    mocks.listSavedLineups.mockResolvedValue([
+      lineup(3, { is_home: true }),
+      lineup(2, { is_home: false }),
+      lineup(1),
+    ]);
+    renderList();
+    const items = within(await screen.findByRole("list")).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("Home/away: Home");
+    expect(items[1]).toHaveTextContent("Home/away: Away");
+    expect(items[2]).toHaveTextContent("Home/away: –");
+  });
+
   it("explains where lineups come from when there are none", async () => {
     mocks.listSavedLineups.mockResolvedValue([]);
     renderList();

@@ -244,3 +244,42 @@ async function fillLineup(app: Page) {
   await app.getByRole("option", { name: /^Player 01/ }).click();
   await expect(app.getByLabel("Name", { exact: true }).first()).toHaveValue("Player 01");
 }
+
+test("Home / Away sets the cap, suggests the match name, pre-fills the venue and is saved", async ({
+  app,
+  api,
+  expectAccessible,
+}) => {
+  api.teams[0]!.home_venue = "Szeged, Alsóvárosi uszoda";
+  await app.goto("/");
+  await fillLineup(app);
+  const visible = (label: string) => app.getByLabel(label).filter({ visible: true });
+  await app.getByRole("radio", { name: "Away" }).filter({ visible: true }).click();
+  await expect(app.getByRole("radio", { name: "Blue" }).filter({ visible: true })).toBeChecked();
+  await expect(visible("Match name (optional)")).toHaveValue("Opponent X - SZVTK");
+  await expect(visible("Location (optional, not printed)")).toHaveValue("");
+  await app.getByRole("radio", { name: "Home" }).filter({ visible: true }).click();
+  await expect(app.getByRole("radio", { name: "White" }).filter({ visible: true })).toBeChecked();
+  await expect(visible("Match name (optional)")).toHaveValue("SZVTK - Opponent X");
+  await expect(visible("Location (optional, not printed)")).toHaveValue(
+    "Szeged, Alsóvárosi uszoda",
+  );
+  await expectAccessible(app);
+  await app.getByRole("button", { name: "Save lineup" }).click();
+  await expect(app.getByText("Saved. You can download it now.")).toBeVisible();
+  expect(api.saves[0]).toMatchObject({
+    is_home: true,
+    cap: "Fehér",
+    match_name: "SZVTK - Opponent X",
+    location: "Szeged, Alsóvárosi uszoda",
+  });
+});
+
+test("the Quick sheet has a Home / Away toggle that sets the cap", async ({ app }) => {
+  await app.goto("/");
+  await app.getByRole("tab", { name: "Quick sheet (not saved)" }).click();
+  await app.getByRole("radio", { name: "Away" }).filter({ visible: true }).click();
+  await expect(app.getByLabel("Cap colour").filter({ visible: true })).toHaveValue("Kék");
+  await app.getByRole("radio", { name: "Home" }).filter({ visible: true }).click();
+  await expect(app.getByLabel("Cap colour").filter({ visible: true })).toHaveValue("Fehér");
+});

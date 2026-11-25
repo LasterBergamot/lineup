@@ -154,6 +154,12 @@ describe("toSavedLineupRequest", () => {
     expect(toSavedLineupRequest(values(), { id: "t" }).location).toBeUndefined();
   });
 
+  it("sends is_home as chosen, or null for 'not said'", () => {
+    expect(toSavedLineupRequest(values({ isHome: true }), { id: "t" }).is_home).toBe(true);
+    expect(toSavedLineupRequest(values({ isHome: false }), { id: "t" }).is_home).toBe(false);
+    expect(toSavedLineupRequest(values(), { id: "t" }).is_home).toBeNull();
+  });
+
   it("does not put the location in the preview request", () => {
     expect(toLineupRequest(values({ location: "Szeged" }), "SZVTK")).not.toHaveProperty("location");
   });
@@ -223,6 +229,12 @@ describe("valuesFromSaved", () => {
 
   it("keeps the location of the saved lineup", () => {
     expect(valuesFromSaved(saved({ location: "Szeged" }), roster).location).toBe("Szeged");
+  });
+
+  it("keeps the home/away side of the saved lineup, null for an old one", () => {
+    expect(valuesFromSaved(saved({ is_home: true }), roster).isHome).toBe(true);
+    expect(valuesFromSaved(saved({ is_home: false }), roster).isHome).toBe(false);
+    expect(valuesFromSaved(saved({ is_home: null }), roster).isHome).toBeNull();
   });
 
   it("falls back to white caps for a colour it does not know", () => {

@@ -284,6 +284,14 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   characters, blank is left out). It is sent only with the save (`location` in `SavedLineupCreate`),
   never in the preview request, and it is not on the sheet. "Clone to new match" keeps it. The Quick
   sheet has no location field: it saves nothing and `POST /lineups` takes no location.
+- **Home / Away.** A two-option toggle in the Match card (#296, `Tabs kind="radio"`, nothing selected
+  at first). Choosing a side sets the cap colour (Home: Fehér, Away: Kék); a later manual change of
+  the cap sticks until the toggle is used again. It also suggests the match name `<home team> - <away
+  team>` from the team and the opponent (`features/creator/home-away.ts`), refreshed as the opponent
+  changes, until the match name is typed by hand (clearing the box hands it back to the suggestion; a
+  name that came in with the initial values counts as typed). Choosing Home fills an empty Location
+  from the team's home venue (`teams.home_venue`, set in team settings). The side is saved as
+  `is_home` (`null` when never chosen) and "Clone to new match" keeps it.
 - **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
   directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
   opponents (`GET /teams/{id}/opponents/recent`). If the typed text equals a listed team's name the
@@ -335,7 +343,10 @@ The Lineup page's "Quick sheet" mode shows the one-off lineup form (`src/feature
 (match, division, team name, cap colour, date and optional start time), five staff names and the same 15 fixed cap rows as
 the creator (name and NSSZ number per cap, a **Clear** button, empty rows left out of the request by
 `toQuickSheetRequest()`). The date starts on today, with the same date and time inputs as the
-creator; the request carries only the composed printed `date` text. Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
+creator; the request carries only the composed printed `date` text. The same Home / Away toggle
+sits above the cap colour (#296): it sets the cap and, when the match name is `A - B` with the team name
+on one side, puts the team on the home or away side. The Quick sheet has no opponent, location or
+stored side. Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
 since #96 the endpoint it calls requires the token too (rate limited: a `429` comes with `Retry-After`).
 
 - **Validation twice.** `schema.ts` mirrors the backend's limits (`CleanStr*` types and the
@@ -378,8 +389,8 @@ deletes it (a second click confirms) or makes it the role's default. A role has 
 default: the server clears the old one in the same request, and deleting a default promotes
 nobody. A 409 (another member set a different default at the same moment) gets its own message
 and the list reloads. The doctor is not a staff role. **Team settings**, shown to
-owners only, renames the team, sets its default division and switches "list the team's name in the
-opponent directory" on or off. The default division can be replaced but not cleared (the API keeps
+owners only, renames the team, sets its default division and its home venue (#296, pre-fills the creator's Location for a home lineup) and switches "list the team's name in the
+opponent directory" on or off. The default division and the home venue can be replaced but not cleared (the API keeps
 the stored value for a blank). **Opponent directory** is a search box over the teams that chose to be listed; it shows team
 names only (never rosters or lineups), waits 300 ms after typing, and keeps the last results on
 screen while the next ones load. Names, NSSZ numbers, staff names and search terms live in component state and
@@ -390,7 +401,7 @@ leaving the page asks first (see *Unsaved changes*).
 ### Saved lineups
 
 The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest first: match
-name, date, division, cap colour, opponent and, when one was entered, the location. Every member sees and manages the same list. Each row
+name, date, division, cap colour, opponent, the location (when one was entered) and Home/Away ("–" for an old lineup that never said). Every member sees and manages the same list. Each row
 has:
 
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in

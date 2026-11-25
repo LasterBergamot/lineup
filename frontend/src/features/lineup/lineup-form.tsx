@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Eraser } from "lucide-react";
+import { useState } from "react";
 import { useForm, useWatch, type FieldPath } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { describeError, fieldErrors } from "@/api/errors";
@@ -8,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
+import { Tabs } from "@/components/ui/tabs";
+import { capFor, orderMatchName, SIDES, sideOf } from "@/features/creator/home-away";
 import { saveFile } from "@/features/lineup/download";
 import { generateLineup, type LineupFormat } from "@/features/lineup/generate";
 import { filledRows, isEmptyRow, rowPath } from "@/features/lineup/cap-rows";
@@ -55,6 +58,8 @@ const STAFF_PICKERS = ["coach", "assistant_coach", "team_leader", "ball_thrower"
  *
  * The coach, assistant coach, team leader and ball thrower are free text with the current team's
  * `staff` as suggestions and start with each role's default (#289); the doctor is a plain input.
+ * The Home / Away toggle (#296) sets the cap colour and orders a match name like "A - B" by the
+ * team name; as nothing is saved, it has no location and no stored side.
  */
 export function LineupForm({ staff = [] }: { staff?: readonly Staff[] }) {
   const { t } = useTranslation();
@@ -64,6 +69,7 @@ export function LineupForm({ staff = [] }: { staff?: readonly Staff[] }) {
     control,
     setError,
     setValue,
+    getValues,
     clearErrors,
     reset,
     formState: { errors, isDirty },
@@ -72,6 +78,8 @@ export function LineupForm({ staff = [] }: { staff?: readonly Staff[] }) {
     defaultValues: emptyQuickSheetValues(staffDefaults(staff)),
   });
   const players = useWatch({ control, name: "players" });
+  // The Home / Away choice (#296) only drives the cap and the match name; nothing is saved here.
+  const [isHome, setIsHome] = useState<boolean | null>(null);
   const pickedStaff = useWatch({ control, name: [...STAFF_PICKERS] });
   // Nothing is saved here, so a finished download counts as done: it makes the downloaded values
   // the new baseline (the guard turns off until the next edit).
@@ -98,6 +106,19 @@ export function LineupForm({ staff = [] }: { staff?: readonly Staff[] }) {
 
   const submitAs = (format: LineupFormat) =>
     handleSubmit((values) => generate.mutate({ values, format }));
+
+  /**
+   * Home / Away: sets the cap (Fehér at home, Kék away) and puts the team on the matching side of
+   * a match name like "SZVTK - Csongrád". The cap can still be changed by hand afterwards.
+   */
+  function chooseSide(side: (typeof SIDES)[number]) {
+    const nextIsHome = side === "home";
+    setIsHome(nextIsHome);
+    setValue("cap", capFor(nextIsHome), { shouldDirty: true });
+    const match = getValues("match");
+    const ordered = orderMatchName(match, getValues("team_name"), nextIsHome);
+    if (ordered !== match) setValue("match", ordered, { shouldDirty: true });
+  }
 
   /** Empties one cap row (and its errors); an empty row is left out of the sheet. */
   function clearRow(index: number) {
@@ -126,6 +147,17 @@ export function LineupForm({ staff = [] }: { staff?: readonly Staff[] }) {
           <Field label={t("fields.teamName")} error={errors.team_name?.message}>
             {(props) => <Input {...props} placeholder={EXAMPLES.team} {...register("team_name")} />}
           </Field>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">{t("creator.homeAway.label")}</span>
+            <Tabs
+              kind="radio"
+              id="quick-home-away"
+              label={t("creator.homeAway.label")}
+              value={sideOf(isHome)}
+              onChange={chooseSide}
+              options={SIDES.map((side) => ({ value: side, label: t(`creator.homeAway.${side}`) }))}
+            />
+          </div>
           <Field label={t("fields.capColour")} error={errors.cap?.message}>
             {(props) => (
               <Select {...props} {...register("cap")}>

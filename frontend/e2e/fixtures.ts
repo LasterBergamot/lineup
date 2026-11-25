@@ -13,6 +13,7 @@ export interface Team {
   name: string;
   created_by: string;
   division: string | null;
+  home_venue: string | null;
   is_public: boolean;
   created_at: string;
   role: "owner" | "member";
@@ -44,6 +45,7 @@ interface Saved {
   match_name: string;
   division: string;
   cap: string;
+  is_home: boolean | null;
   date: string;
   coach: string;
   doctor: string | null;
@@ -65,6 +67,8 @@ export interface FakeApi {
   saved: Saved[];
   /** Every `POST /lineups` body, so a test can check what the preview was asked to render. */
   previews: unknown[];
+  /** Every `POST /lineups/saved` body, so a test can check what the save sent (#296: `is_home`, `location`). */
+  saves: unknown[];
   /** Invite links by code: `active` previews and joins, `gone` answers 410; any other code is a 404. */
   invites: Record<string, "active" | "gone">;
   /** Every code sent to `POST /invitations/{code}/accept`. */
@@ -102,6 +106,7 @@ export const team = (name: string, role: Team["role"] = "owner"): Team => ({
   name,
   created_by: USER_ID,
   division: null,
+  home_venue: null,
   is_public: true,
   created_at: NOW,
   role,
@@ -156,6 +161,7 @@ export const makeSaved = (t: Team, i: number): Saved => ({
   match_name: `${t.name} - Opponent ${i}`,
   division: "OB I",
   cap: "Fehér",
+  is_home: null,
   date: `2026. 10. ${10 + i}.`,
   coach: "Coach",
   doctor: null,
@@ -291,6 +297,7 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
       }
       if (method === "GET" && /^\/teams\/[^/]+\/invitations$/.test(path)) return json(route, []);
       if (method === "POST" && path === "/lineups/saved") {
+        api.saves.push(request.postDataJSON());
         const created = makeSaved(api.teams[0]!, api.saved.length + 1);
         api.saved.push(created);
         return json(route, created, 201);
@@ -330,8 +337,9 @@ export const test = base.extend<Fixtures>({
       teams: [t],
       players: makePlayers(t.id),
       staff: makeStaff(t.id),
-      saved: [makeSaved(t, 1), makeSaved(t, 2), makeSaved(t, 3)],
+      saved: [makeSaved(t, 1), { ...makeSaved(t, 2), is_home: true }, makeSaved(t, 3)],
       previews: [],
+      saves: [],
       invites: {},
       accepted: [],
       unhandled: [],

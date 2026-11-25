@@ -32,6 +32,7 @@ export function emptyValues(
     opponentId: "",
     division,
     cap: "Fehér",
+    isHome: null,
     match_date: todayIso(),
     match_time: "",
     location: "",
@@ -85,6 +86,7 @@ export function toSavedLineupRequest(
     match_name: optional(values.match_name),
     division: values.division,
     cap: values.cap,
+    is_home: values.isHome,
     match_date: values.match_date,
     match_time: optional(values.match_time),
     location: optional(values.location),
@@ -102,7 +104,7 @@ export function toSavedLineupRequest(
 }
 
 /**
- * Starting values for "Clone to new match": the staff, division, cap colour and players of a
+ * Starting values for "Clone to new match": the staff, division, cap colour, home/away side and players of a
  * saved lineup, with the match and opponent left empty (the location is kept, as a venue is often reused), the date reset to today and the time cleared (it is a
  * new match). Each player goes into the row of
  * their `cap_number`; the other rows stay empty. A player who is still on the roster is picked
@@ -116,6 +118,7 @@ export function valuesFromSaved(saved: SavedLineup, roster: readonly Player[]): 
     ...emptyValues(),
     division: saved.division,
     cap: saved.cap === "Kék" ? "Kék" : "Fehér",
+    isHome: saved.is_home,
     location: saved.location ?? "",
     coach: saved.coach,
     doctor: saved.doctor ?? "",

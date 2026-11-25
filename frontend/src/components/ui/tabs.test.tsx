@@ -72,3 +72,18 @@ describe("Tabs as radios", () => {
     expect(screen.getByRole("radio", { name: "Gamma" })).toBeChecked();
   });
 });
+
+describe("Tabs with nothing selected", () => {
+  it("marks none selected and keeps the first option in the tab order", () => {
+    render(
+      <Tabs id="t" label="Side" options={OPTIONS} value="" onChange={() => {}} kind="radio" />,
+    );
+    expect(screen.getAllByRole("radio").map((r) => r.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "false",
+      "false",
+    ]);
+    expect(screen.getByRole("radio", { name: "Alpha" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("radio", { name: "Beta" })).toHaveAttribute("tabindex", "-1");
+  });
+});
