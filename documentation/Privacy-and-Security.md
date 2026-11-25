@@ -108,6 +108,7 @@ replay or third-party fonts (the fonts are self-hosted from the build).
 | `lineup-lang` | localStorage | `hu` or `en` | Only when the visitor clicks the language switch (`Accept-Language` is ignored) |
 | `lineup-theme` | localStorage | `light` or `dark` | When the visitor picks a theme |
 | `lineup-return-to` | sessionStorage | A same-site path (for example the invite page) | Before the Google round trip; cleared afterwards, closing the tab also clears it |
+| Router state (`cloneFromId`, `editFromId`) | The tab's history entry (`window.history.state`) | A saved lineup's **id** only, never its names or NSSZ numbers: the Lineup page fetches the lineup itself | When Clone or Edit (#290) is pressed on the Saved page; the browser keeps it with the tab's history (and may restore it with the session) |
 
 The lineup form keeps no drafts. Nothing else is stored client-side.
 
@@ -204,8 +205,8 @@ and tell the clubs (the terms promise advance notice).
 3. **Access / export:** ask the club to use the app, or run read-only queries for the person's rows
    as the owner role, and send the result to the club.
 4. **Correction (Art. 16, G6):** the club edits the player, and corrects any saved lineup that
-   holds the wrong value by editing it (`PUT /lineups/saved/{id}`, #290; the Edit button in the app
-   follows with the frontend part of #290):
+   holds the wrong value by editing it (the **Edit** button on the Saved page, which sends
+   `PUT /lineups/saved/{id}`, #290):
    the edit overwrites the stored name or NSSZ number, and re-picking the roster player copies their
    corrected values. Old lineups are not changed by editing the player alone.
 5. **Erasure:** delete the player, then the matching `lineup_player_snapshots` rows (by name and NSSZ

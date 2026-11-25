@@ -275,7 +275,16 @@
     "preview": "Preview",
     "saved": "Saved. You can download it now.",
     "seeSaved": "See saved lineups",
-    "savedToast": "Lineup saved"
+    "savedToast": "Lineup saved",
+    "saveChanges": "Save changes",
+    "changesSavedToast": "Changes saved",
+    "cancelEdit": "Cancel",
+    "editTitle": "Editing {{match}}",
+    "editTitleLoading": "Editing a saved lineup",
+    "editDescription": "Change the saved lineup and save it in place. To keep this one as it is and make a new lineup from it, use \"Clone to new match\" on the Saved page instead.",
+    "editConflict": "Someone else changed this lineup after you opened it, so your changes were not saved. Load the latest version and make your changes again.",
+    "reloadLatest": "Load the latest version (discards your changes)",
+    "editGone": "This lineup no longer exists; another member may have deleted it. Your changes were not saved."
   },
   "opponent": {
     "directory": "Listed team",
@@ -300,7 +309,10 @@
     "deleteConfirm": "Delete lineup",
     "deleteOf": "Delete {{match}}",
     "gone": "This lineup no longer exists; another member may have deleted it. The list has been refreshed.",
-    "previewBadge": "Preview"
+    "previewBadge": "Preview",
+    "edit": "Edit",
+    "editOf": "Edit {{match}}",
+    "edited": "Edited {{date}}"
   },
   "toast": {
     "region": "Notifications",

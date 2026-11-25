@@ -31,7 +31,20 @@ const page = (items: SavedLineup[], total: number) =>
 describe("saved lineup keys", () => {
   it("start with the prefix the creator invalidates after saving", () => {
     expect(savedLineupsKey("u", TEAM)).toEqual(["saved", "u", TEAM]);
-    expect(savedPreviewKey("u", TEAM, "l-1")).toEqual(["saved", "u", TEAM, "preview", "l-1"]);
+    expect(savedPreviewKey("u", TEAM, "l-1", "v1")).toEqual([
+      "saved",
+      "u",
+      TEAM,
+      "preview",
+      "l-1",
+      "v1",
+    ]);
+  });
+
+  it("give each version of a lineup its own preview key, so an edit never shows the old file", () => {
+    expect(savedPreviewKey("u", TEAM, "l-1", "v1")).not.toEqual(
+      savedPreviewKey("u", TEAM, "l-1", "v2"),
+    );
   });
 });
 

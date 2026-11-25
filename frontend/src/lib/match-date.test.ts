@@ -1,4 +1,10 @@
-import { composeMatchDate, matchDateSchema, matchTimeSchema, todayIso } from "@/lib/match-date";
+import {
+  composeMatchDate,
+  matchDateSchema,
+  matchTimeSchema,
+  parseMatchDate,
+  todayIso,
+} from "@/lib/match-date";
 
 describe("todayIso", () => {
   it("is the local calendar day, zero-padded", () => {
@@ -19,6 +25,25 @@ describe("composeMatchDate", () => {
     expect(composeMatchDate("2026-11-24", "")).toBe("2026. 11. 24.");
     expect(composeMatchDate("2026-11-24", "18:30")).toBe("2026. 11. 24. 18:30");
   });
+});
+
+describe("parseMatchDate", () => {
+  it("reads the printed date, with and without a time, back into the inputs' values", () => {
+    expect(parseMatchDate("2026. 11. 24.")).toEqual({ date: "2026-11-24", time: "" });
+    expect(parseMatchDate(" 2026. 11. 24. 18:30 ")).toEqual({ date: "2026-11-24", time: "18:30" });
+  });
+
+  it("is the reverse of composeMatchDate", () => {
+    const { date, time } = parseMatchDate(composeMatchDate("2027-01-05", "09:05"))!;
+    expect(composeMatchDate(date, time)).toBe("2027. 01. 05. 09:05");
+  });
+
+  it.each(["", "next Sunday", "2026-11-24", "2026. 11. 24. 25:00", "24. 11. 2026."])(
+    "gives null for %j",
+    (text) => {
+      expect(parseMatchDate(text)).toBeNull();
+    },
+  );
 });
 
 describe("matchDateSchema and matchTimeSchema", () => {

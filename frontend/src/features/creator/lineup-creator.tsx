@@ -4,8 +4,8 @@ import { Eraser } from "lucide-react";
 import { useState } from "react";
 import { useForm, useWatch, type FieldPath } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
-import { describeError, fieldErrors } from "@/api/errors";
+import { Link, useNavigate } from "react-router";
+import { ApiError, describeError, fieldErrors } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
-import { createSavedLineup } from "@/features/creator/api";
+import {
+  createSavedLineup,
+  SavedLineupGoneError,
+  updateSavedLineup,
+  type SavedLineup,
+} from "@/features/creator/api";
 import { recentOpponentsKey } from "@/features/creator/opponent/api";
 import { OpponentCombobox } from "@/features/creator/opponent/opponent-combobox";
 import {
@@ -23,6 +28,7 @@ import {
   formPath,
   toLineupRequest,
   toSavedLineupRequest,
+  toSavedLineupUpdate,
 } from "@/features/creator/resolve";
 import { creatorSchema, type CreatorValues } from "@/features/creator/schema";
 import { saveFile } from "@/features/lineup/download";
@@ -70,24 +76,42 @@ const STAFF_FIELDS = [
  * The form values include players' names and NSSZ numbers: they live in component state only (no
  * storage, no logging), the preview file is a `Blob` that is dropped when the panel closes, and
  * "Save" sends the roster ids so the server freezes the current values itself.
+ *
+ * With `edit` (#290) the form edits that saved lineup in place: start it from `valuesForEdit()`.
+ * "Save changes" sends `PUT /lineups/saved/{id}` with the version the form was loaded from, and
+ * after each successful save the version the server answered, never one a background refetch
+ * brought in: a 409 means another member saved first, and the form says so and offers
+ * `edit.onReload` (load the latest version, dropping these changes) instead of overwriting theirs.
+ * A lineup deleted meanwhile gets its own message. Cancel goes back to the Saved page (the
+ * unsaved-changes guard asks first if something was changed).
  */
 export function LineupCreator({
   team,
   roster,
   staff = [],
   initialValues,
+  edit,
 }: {
   team: Team;
   roster: readonly Player[];
   /** The team's staff entries: the staff fields' suggestions and a new lineup's defaults. */
   staff?: readonly Staff[];
   initialValues?: CreatorValues;
+  /** Edit this saved lineup in place instead of saving a new one. */
+  edit?: { lineup: SavedLineup; onReload: () => void };
 }) {
   const { t } = useTranslation();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { userId } = useAuth();
+  const navigate = useNavigate();
   const [showPreview, setShowPreview] = useState(false);
+  // The version the next edit is based on: the loaded one, then each saved one (see above).
+  const [version, setVersion] = useState(edit?.lineup.updated_at ?? "");
+  // The preview prints the lineup's own team, like the save does (it matters only if the current
+  // team is not the lineup's source team).
+  const sheetTeam =
+    edit && edit.lineup.source_team_id !== team.id ? edit.lineup.team_name : team.name;
   const {
     register,
     handleSubmit,
@@ -123,15 +147,19 @@ export function LineupCreator({
   const preview = useMutation({
     gcTime: 0,
     mutationFn: (values: CreatorValues) =>
-      generateLineup(toLineupRequest(values, team.name), "pdf"),
+      generateLineup(toLineupRequest(values, sheetTeam), "pdf"),
     onError: (error, values) => showServerErrors(error, values),
   });
   const save = useMutation({
-    mutationFn: (values: CreatorValues) => createSavedLineup(toSavedLineupRequest(values, team)),
-    onSuccess: async (_saved, values) => {
+    mutationFn: (values: CreatorValues) =>
+      edit
+        ? updateSavedLineup(edit.lineup.id, toSavedLineupUpdate(values, edit.lineup, version))
+        : createSavedLineup(toSavedLineupRequest(values, team)),
+    onSuccess: async (saved, values) => {
       // Mark the form as unchanged, so "Saved" stays until the next edit.
       reset(values);
-      toast("success", t("creator.savedToast"));
+      setVersion(saved.updated_at);
+      toast("success", t(edit ? "creator.changesSavedToast" : "creator.savedToast"));
       await queryClient.invalidateQueries({ queryKey: ["saved"] });
       await queryClient.invalidateQueries({ queryKey: recentOpponentsKey(userId, team.id) });
     },
@@ -145,6 +173,8 @@ export function LineupCreator({
   const showSlowNotice = useAfterDelay(preview.isPending, SLOW_PDF_NOTICE_MS);
   const saved = save.isSuccess && !isDirty ? save.data : undefined;
   const saveRejected = save.isError && fieldErrors(save.error).length > 0;
+  const saveConflict = save.error instanceof ApiError && save.error.status === 409;
+  const saveGone = save.error instanceof SavedLineupGoneError;
   const previewRejected = preview.isError && fieldErrors(preview.error).length > 0;
 
   const openPreview = handleSubmit((values) => {
@@ -395,12 +425,30 @@ export function LineupCreator({
 
         <div className="flex flex-col gap-3">
           {save.isError && (
-            <p
+            <div
               role="alert"
-              className="rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
+              className="flex flex-col items-start gap-3 rounded-md border border-destructive bg-destructive-soft p-3 text-sm text-destructive-soft-foreground"
             >
-              {saveRejected ? t("errors.serverRejectedFields") : describeError(save.error, t)}
-            </p>
+              <p>
+                {saveConflict
+                  ? t("creator.editConflict")
+                  : saveGone
+                    ? t("creator.editGone")
+                    : saveRejected
+                      ? t("errors.serverRejectedFields")
+                      : describeError(save.error, t)}
+              </p>
+              {saveConflict && edit && (
+                <Button type="button" size="sm" variant="outline" onClick={edit.onReload}>
+                  {t("creator.reloadLatest")}
+                </Button>
+              )}
+              {saveGone && (
+                <Link to="/saved" className="underline">
+                  {t("creator.seeSaved")}
+                </Link>
+              )}
+            </div>
           )}
           {saved && (
             <div role="status" className="flex flex-col gap-3 rounded-md border p-3 text-sm">
@@ -438,7 +486,7 @@ export function LineupCreator({
               loading={save.isPending}
               disabled={save.isPending || Boolean(saved)}
             >
-              {t("creator.save")}
+              {t(edit ? "creator.saveChanges" : "creator.save")}
             </Button>
             <Button
               type="button"
@@ -449,6 +497,11 @@ export function LineupCreator({
             >
               {t("creator.preview")}
             </Button>
+            {edit && (
+              <Button type="button" variant="ghost" onClick={() => void navigate("/saved")}>
+                {t("creator.cancelEdit")}
+              </Button>
+            )}
           </div>
         </div>
       </form>

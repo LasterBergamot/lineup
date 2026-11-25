@@ -3,8 +3,9 @@ import { request } from "@/api/errors";
 import type { components } from "@/api/schema";
 
 /**
- * A saved lineup: a frozen copy of the match, the staff and every player's name and NSSZ number
- * as they were when it was saved. Later roster changes never reach it.
+ * A saved lineup: a copy of the match, the staff and every player's name and NSSZ number as they
+ * were when it was saved or last edited (#290). Later roster changes never reach it by themselves;
+ * only editing the lineup copies a re-picked player's current values in.
  */
 export type SavedLineup = components["schemas"]["SavedLineupResponse"];
 
@@ -18,11 +19,17 @@ export const savedLineupsKey = (userId: string | null, teamId: string) =>
   ["saved", userId, teamId] as const;
 
 /**
- * Query key for the PDF preview of one saved lineup, under {@link savedLineupsKey}. A snapshot
- * never changes, so the cached file never goes stale; it lives in memory only.
+ * Query key for the PDF preview of one version of a saved lineup, under {@link savedLineupsKey}.
+ * `updatedAt` is the lineup's `updated_at`: an edit (#290) makes a new version and so a new key,
+ * which means a cached file never shows an old version, and one version's file never goes stale.
+ * It lives in memory only.
  */
-export const savedPreviewKey = (userId: string | null, teamId: string, lineupId: string) =>
-  [...savedLineupsKey(userId, teamId), "preview", lineupId] as const;
+export const savedPreviewKey = (
+  userId: string | null,
+  teamId: string,
+  lineupId: string,
+  updatedAt: string,
+) => [...savedLineupsKey(userId, teamId), "preview", lineupId, updatedAt] as const;
 
 /** The most lineups one request can return (the API caps `limit` at 200). */
 const PAGE_SIZE = 200;
