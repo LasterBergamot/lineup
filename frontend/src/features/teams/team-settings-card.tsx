@@ -10,12 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { teamsKey, updateTeam, type Team } from "@/features/teams/api";
-import { teamFormSchema, type TeamFormValues } from "@/features/teams/schema";
+import { teamSettingsSchema, type TeamSettingsValues } from "@/features/teams/schema";
 import { useUnsavedChangesGuard } from "@/lib/unsaved-changes";
 
 /**
- * The owner's settings for a team: its name, its default division (pre-filled in the lineup creator; it can be replaced but not
- * cleared, the API keeps the stored value for a blank) and whether that name is listed in the shared
+ * The owner's settings for a team: its name, its default division and its home venue (pre-filled in the lineup creator, the venue
+ * when a lineup is set to Home; both can be replaced but not cleared, the API keeps the stored
+ * value for a blank) and whether that name is listed in the shared
  * opponent directory (only the name is ever shared, which the hint says out loud). Renders
  * nothing for a member: callers should mount it for owners only, this is defence in depth (the
  * server answers a member's update with 403 anyway). On save the teams query is refreshed, so
@@ -27,8 +28,15 @@ export function TeamSettingsCard({ team }: { team: Team }) {
 }
 
 /** The values the form starts from: what the server last said about the team. */
-function savedValues(team: Pick<Team, "name" | "division" | "is_public">): TeamFormValues {
-  return { name: team.name, division: team.division ?? "", isPublic: team.is_public };
+function savedValues(
+  team: Pick<Team, "name" | "division" | "home_venue" | "is_public">,
+): TeamSettingsValues {
+  return {
+    name: team.name,
+    division: team.division ?? "",
+    homeVenue: team.home_venue ?? "",
+    isPublic: team.is_public,
+  };
 }
 
 function TeamSettingsForm({ team }: { team: Team }) {
@@ -41,8 +49,8 @@ function TeamSettingsForm({ team }: { team: Team }) {
     setError,
     reset,
     formState: { errors, isDirty },
-  } = useForm<TeamFormValues>({
-    resolver: zodResolver(teamFormSchema),
+  } = useForm<TeamSettingsValues>({
+    resolver: zodResolver(teamSettingsSchema),
     defaultValues: savedValues(team),
   });
   useUnsavedChangesGuard(isDirty);
@@ -50,11 +58,18 @@ function TeamSettingsForm({ team }: { team: Team }) {
   // The prop is the source of truth: when the teams query brings new values (after a save, or
   // another owner's change), they become the form's new baseline, so "nothing changed" holds.
   useEffect(() => {
-    reset(savedValues({ name: team.name, division: team.division, is_public: team.is_public }));
-  }, [team.id, team.name, team.division, team.is_public, reset]);
+    reset(
+      savedValues({
+        name: team.name,
+        division: team.division,
+        home_venue: team.home_venue,
+        is_public: team.is_public,
+      }),
+    );
+  }, [team.id, team.name, team.division, team.home_venue, team.is_public, reset]);
 
   const save = useMutation({
-    mutationFn: (values: TeamFormValues) => updateTeam(team.id, values),
+    mutationFn: (values: TeamSettingsValues) => updateTeam(team.id, values),
     onSuccess: (updated) => {
       reset(savedValues(updated));
       return queryClient.invalidateQueries({ queryKey: teamsKey(userId) });
@@ -97,6 +112,15 @@ function TeamSettingsForm({ team }: { team: Team }) {
                 {...props}
                 placeholder={t("teams.form.divisionPlaceholder")}
                 {...register("division")}
+              />
+            )}
+          </Field>
+          <Field label={t("fields.homeVenue")} error={errors.homeVenue?.message}>
+            {(props) => (
+              <Input
+                {...props}
+                placeholder={t("teams.form.homeVenuePlaceholder")}
+                {...register("homeVenue")}
               />
             )}
           </Field>

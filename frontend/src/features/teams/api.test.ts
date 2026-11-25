@@ -59,6 +59,19 @@ describe("teams api", () => {
     expect(JSON.parse((await blank()).body)).toEqual({ name: "A", is_public: true });
   });
 
+  it("sends the home venue on update, and leaves a blank one out (the API keeps the stored one)", async () => {
+    const seen = stubFetch(Response.json(teamsPage("A").items[0]));
+    await updateTeam("t", { name: "A", homeVenue: "Szeged", isPublic: true }, client());
+    expect(JSON.parse((await seen()).body)).toEqual({
+      name: "A",
+      home_venue: "Szeged",
+      is_public: true,
+    });
+    const blank = stubFetch(Response.json(teamsPage("A").items[0]));
+    await updateTeam("t", { name: "A", homeVenue: "", isPublic: true }, client());
+    expect(JSON.parse((await blank()).body)).toEqual({ name: "A", is_public: true });
+  });
+
   it("updates a team with PUT, sending both the name and the listing choice", async () => {
     const updated = { ...teamsPage("Renamed").items[0], is_public: false };
     const seen = stubFetch(Response.json(updated));

@@ -71,6 +71,7 @@
     "division": "Osztály",
     "teamName": "Csapat neve",
     "capColour": "Sapka színe",
+    "homeVenue": "Hazai helyszín",
     "location": "Helyszín",
     "date": "Dátum",
     "time": "Kezdés ideje (nem kötelező)",
@@ -117,6 +118,7 @@
     },
     "form": {
       "teamNamePlaceholder": "pl. SZVTK",
+      "homeVenuePlaceholder": "pl. Szeged, Tisza Volán uszoda",
       "divisionPlaceholder": "pl. OB II.",
       "listInDirectory": "A csapat nevének megjelenítése az ellenfélkatalógusban",
       "listInDirectoryHint": "Így más csapatok kiválaszthatják Önt ellenfélként. Csak a név látszik, a keret és a rajtlisták soha. Ezt később módosíthatja.",
@@ -261,6 +263,7 @@
     "pages": "A rajtlista oldalai"
   },
   "creator": {
+    "homeAway": { "label": "Hazai vagy vendég", "home": "Hazai", "away": "Vendég" },
     "description": "Állítsa össze a(z) {{team}} rajtlistáját a keretből, nézze meg az előnézetet, és mentse el későbbre.",
     "modes": "Rajtlista típusa",
     "modeCreator": "Keretből",
@@ -296,6 +299,8 @@
     "listLabel": "A(z) {{team}} mentett rajtlistái",
     "empty": "Még nincs mentett rajtlista. Készítsen egyet a Rajtlista oldalon, és mentse el; itt fog megjelenni.",
     "location": "Helyszín: {{location}}",
+    "side": "Hazai/vendég: {{side}}",
+    "sideUnknown": "–",
     "details": "{{date}} · {{division}} · {{cap}} sapka · Ellenfél: {{opponent}}",
     "preview": "Előnézet",
     "previewOf": "Előnézet: {{match}}",

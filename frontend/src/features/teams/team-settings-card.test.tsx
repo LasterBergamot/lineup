@@ -40,11 +40,15 @@ const saveButton = () => screen.getByRole("button", { name: "Save changes" });
 beforeEach(() => {
   mocks.updateTeam.mockReset();
   mocks.updateTeam.mockImplementation(
-    async (id: string, body: { name: string; division?: string; isPublic: boolean }) => ({
+    async (
+      id: string,
+      body: { name: string; division?: string; homeVenue?: string; isPublic: boolean },
+    ) => ({
       ...OWNED,
       id,
       name: body.name,
       division: body.division || OWNED.division,
+      home_venue: body.homeVenue || OWNED.home_venue,
       is_public: body.isPublic,
     }),
   );
@@ -78,6 +82,7 @@ describe("team settings card", () => {
     expect(mocks.updateTeam).toHaveBeenCalledWith(OWNED.id, {
       name: "SZVTK II",
       division: "",
+      homeVenue: "",
       isPublic: false,
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
@@ -113,10 +118,43 @@ describe("team settings card", () => {
     expect(mocks.updateTeam).toHaveBeenCalledWith(OWNED.id, {
       name: "SZVTK",
       division: "OB I.",
+      homeVenue: "",
       isPublic: true,
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
     expect(division).toHaveValue("OB I.");
+  });
+
+  it("shows the stored home venue and saves a changed one", async () => {
+    renderCard({ ...OWNED, home_venue: "Szeged, Alsóvárosi uszoda" });
+    const venue = screen.getByRole("textbox", { name: "Home venue" });
+    expect(venue).toHaveValue("Szeged, Alsóvárosi uszoda");
+    await userEvent.clear(venue);
+    await userEvent.type(venue, "  Csongrád, uszoda  ");
+    await userEvent.click(saveButton());
+    expect(mocks.updateTeam).toHaveBeenCalledWith(OWNED.id, {
+      name: "SZVTK",
+      division: "",
+      homeVenue: "Csongrád, uszoda",
+      isPublic: true,
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Saved.");
+    expect(venue).toHaveValue("Csongrád, uszoda");
+  });
+
+  it("follows a home venue changed elsewhere", () => {
+    const { rerender } = renderCard();
+    expect(screen.getByRole("textbox", { name: "Home venue" })).toHaveValue("");
+    rerender({ ...OWNED, home_venue: "Szeged" });
+    expect(screen.getByRole("textbox", { name: "Home venue" })).toHaveValue("Szeged");
+  });
+
+  it("rejects a home venue that is too long before sending", async () => {
+    renderCard();
+    await userEvent.type(screen.getByRole("textbox", { name: "Home venue" }), "x".repeat(201));
+    await userEvent.click(saveButton());
+    expect(await screen.findByText(/at most 200 characters/)).toBeInTheDocument();
+    expect(mocks.updateTeam).not.toHaveBeenCalled();
   });
 
   it("follows a division changed elsewhere", () => {

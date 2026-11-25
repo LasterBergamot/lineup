@@ -110,6 +110,7 @@ export function teamsPage(...names: string[]) {
       name,
       created_by: "11111111-1111-4111-8111-111111111111",
       division: null,
+      home_venue: null,
       is_public: true,
       created_at: "2026-10-05T10:00:00",
       role: "owner",

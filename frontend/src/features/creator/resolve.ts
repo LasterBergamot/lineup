@@ -33,6 +33,7 @@ export function emptyValues(
     opponentId: "",
     division,
     cap: "Fehér",
+    isHome: null,
     match_date: todayIso(),
     match_time: "",
     location: "",
@@ -89,6 +90,7 @@ function lineupFields(values: CreatorValues) {
     match_name: optional(values.match_name),
     division: values.division,
     cap: values.cap,
+    is_home: values.isHome,
     match_date: values.match_date,
     match_time: optional(values.match_time),
     location: optional(values.location),
@@ -111,12 +113,11 @@ function lineupFields(values: CreatorValues) {
  * version the form was loaded from (a 409 if someone saved since). The team name keeps coming from
  * the lineup's own source team (or its stored text), so an edit never swaps the team. Every field
  * is replaced, so a blank optional field (the location, a staff role) clears the stored value. The
- * creator has no home/away toggle yet (#296), so the stored `is_home` is sent back unchanged
- * instead of being cleared.
+ * Home / Away toggle's value (`isHome`, #296) goes along with the other fields.
  */
 export function toSavedLineupUpdate(
   values: CreatorValues,
-  saved: Pick<SavedLineup, "source_team_id" | "team_name" | "is_home">,
+  saved: Pick<SavedLineup, "source_team_id" | "team_name">,
   expectedUpdatedAt: string,
 ): SavedLineupUpdate {
   return {
@@ -124,7 +125,6 @@ export function toSavedLineupUpdate(
     ...(saved.source_team_id
       ? { source_team_id: saved.source_team_id }
       : { team_name: saved.team_name }),
-    is_home: saved.is_home,
     expected_updated_at: withZone(expectedUpdatedAt),
   };
 }
@@ -160,7 +160,7 @@ export function valuesForEdit(saved: SavedLineup, roster: readonly Player[]): Cr
 }
 
 /**
- * Starting values for "Clone to new match": the staff, division, cap colour and players of a
+ * Starting values for "Clone to new match": the staff, division, cap colour, home/away side and players of a
  * saved lineup, with the match and opponent left empty (the location is kept, as a venue is often reused), the date reset to today and the time cleared (it is a
  * new match). Each player goes into the row of
  * their `cap_number`; the other rows stay empty. A player who is still on the roster is picked
@@ -174,6 +174,7 @@ export function valuesFromSaved(saved: SavedLineup, roster: readonly Player[]): 
     ...emptyValues(),
     division: saved.division,
     cap: saved.cap === "Kék" ? "Kék" : "Fehér",
+    isHome: saved.is_home,
     location: saved.location ?? "",
     coach: saved.coach,
     doctor: saved.doctor ?? "",

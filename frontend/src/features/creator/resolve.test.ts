@@ -156,6 +156,12 @@ describe("toSavedLineupRequest", () => {
     expect(toSavedLineupRequest(values(), { id: "t" }).location).toBeUndefined();
   });
 
+  it("sends is_home as chosen, or null for 'not said'", () => {
+    expect(toSavedLineupRequest(values({ isHome: true }), { id: "t" }).is_home).toBe(true);
+    expect(toSavedLineupRequest(values({ isHome: false }), { id: "t" }).is_home).toBe(false);
+    expect(toSavedLineupRequest(values(), { id: "t" }).is_home).toBeNull();
+  });
+
   it("does not put the location in the preview request", () => {
     expect(toLineupRequest(values({ location: "Szeged" }), "SZVTK")).not.toHaveProperty("location");
   });
@@ -227,6 +233,12 @@ describe("valuesFromSaved", () => {
     expect(valuesFromSaved(saved({ location: "Szeged" }), roster).location).toBe("Szeged");
   });
 
+  it("keeps the home/away side of the saved lineup, null for an old one", () => {
+    expect(valuesFromSaved(saved({ is_home: true }), roster).isHome).toBe(true);
+    expect(valuesFromSaved(saved({ is_home: false }), roster).isHome).toBe(false);
+    expect(valuesFromSaved(saved({ is_home: null }), roster).isHome).toBeNull();
+  });
+
   it("falls back to white caps for a colour it does not know", () => {
     expect(valuesFromSaved(saved({ cap: "?" }), roster).cap).toBe("Fehér");
   });
@@ -277,12 +289,17 @@ describe("valuesForEdit", () => {
 });
 
 describe("toSavedLineupUpdate", () => {
-  const edited = values({ match_date: "2026-10-01", match_time: "18:30", location: "Komjádi" });
+  const edited = values({
+    match_date: "2026-10-01",
+    match_time: "18:30",
+    location: "Komjádi",
+    isHome: true,
+  });
 
   it("is the save body without team_id, keeps the lineup's own team and sends the version", () => {
     const body = toSavedLineupUpdate(
       edited,
-      { source_team_id: "t-own", team_name: "SZVTK", is_home: true },
+      { source_team_id: "t-own", team_name: "SZVTK" },
       "2026-11-24T10:00:00.123456Z",
     );
     const created: Partial<ReturnType<typeof toSavedLineupRequest>> = toSavedLineupRequest(edited, {
@@ -302,7 +319,7 @@ describe("toSavedLineupUpdate", () => {
   it("sends the stored team name when the lineup has no source team, and clears a blank location", () => {
     const body = toSavedLineupUpdate(
       { ...edited, location: "" },
-      { source_team_id: null, team_name: "SZVTK", is_home: null },
+      { source_team_id: null, team_name: "SZVTK" },
       "2026-11-24T10:00:00+00:00",
     );
     expect(body).toMatchObject({ team_name: "SZVTK", location: undefined });
@@ -313,7 +330,7 @@ describe("toSavedLineupUpdate", () => {
   it("marks a version without a time zone as UTC, keeping its microseconds", () => {
     const body = toSavedLineupUpdate(
       edited,
-      { source_team_id: "t", team_name: "SZVTK", is_home: false },
+      { source_team_id: "t", team_name: "SZVTK" },
       "2026-11-24T10:00:00.123456",
     );
     expect(body.expected_updated_at).toBe("2026-11-24T10:00:00.123456Z");

@@ -42,6 +42,16 @@ test("a saved lineup's preview can be enlarged and closed again", async ({
   await expect(enlarge).toBeFocused();
 });
 
+test("the saved list shows the side of each lineup, a dash for an old one", async ({ app }) => {
+  await app.goto("/saved");
+  await expect(app.getByRole("listitem").filter({ hasText: "SZVTK - Opponent 2" })).toContainText(
+    "Home/away: Home",
+  );
+  await expect(app.getByRole("listitem").filter({ hasText: "SZVTK - Opponent 1" })).toContainText(
+    "Home/away: –",
+  );
+});
+
 test("the filter bar narrows the list by opponent, dates and location, and Clear restores it", async ({
   app,
   expectAccessible,

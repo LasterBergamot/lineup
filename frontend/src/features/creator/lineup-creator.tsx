@@ -23,6 +23,7 @@ import {
 } from "@/features/creator/api";
 import { recentOpponentsKey } from "@/features/creator/opponent/api";
 import { OpponentCombobox } from "@/features/creator/opponent/opponent-combobox";
+import { capFor, SIDES, sideOf, suggestMatchName } from "@/features/creator/home-away";
 import {
   emptyValues,
   formPath,
@@ -118,6 +119,7 @@ export function LineupCreator({
     control,
     setError,
     setValue,
+    getValues,
     clearErrors,
     reset,
     formState: { errors, isDirty },
@@ -130,6 +132,10 @@ export function LineupCreator({
   const players = useWatch({ control, name: "players" });
   const opponent = useWatch({ control, name: "opponent" });
   const cap = useWatch({ control, name: "cap" });
+  const isHome = useWatch({ control, name: "isHome" });
+  // Once the match name is typed by hand it is no longer suggested (#296); a name that came with
+  // the initial values (an edit) counts as typed.
+  const [matchNameTyped, setMatchNameTyped] = useState(Boolean(initialValues?.match_name));
   const staffValues = useWatch({
     control,
     name: ["coach", "assistant_coach", "team_leader", "ball_thrower"],
@@ -188,6 +194,29 @@ export function LineupCreator({
     preview.reset();
   }
 
+  /** Suggests "<home team> - <away team>" for the match name, unless it was typed by hand. */
+  function suggestName(nextOpponent: string, nextIsHome: boolean | null) {
+    if (matchNameTyped || nextIsHome === null) return;
+    setValue("match_name", suggestMatchName(team.name, nextOpponent, nextIsHome), {
+      shouldDirty: true,
+    });
+  }
+
+  /**
+   * Home / Away (#296): sets the cap (Fehér at home, Kék away; a later manual change of the cap
+   * sticks until the toggle is used again), suggests the match name, and pre-fills an empty
+   * Location with the team's home venue when playing at home.
+   */
+  function chooseSide(side: (typeof SIDES)[number]) {
+    const nextIsHome = side === "home";
+    setValue("isHome", nextIsHome, { shouldDirty: true });
+    setValue("cap", capFor(nextIsHome), { shouldDirty: true });
+    suggestName(opponent, nextIsHome);
+    if (nextIsHome && team.home_venue && !getValues("location")) {
+      setValue("location", team.home_venue, { shouldDirty: true });
+    }
+  }
+
   /** Empties one cap row (and its errors); an empty row is left out of the sheet. */
   function clearRow(index: number) {
     for (const field of ["playerId", "name", "nssz_number"] as const) {
@@ -235,13 +264,21 @@ export function LineupCreator({
                   onChange={(value, match) => {
                     setValue("opponent", value, { shouldDirty: true });
                     setValue("opponentId", match?.directoryId ?? "", { shouldDirty: true });
+                    suggestName(value, isHome);
                   }}
                 />
               )}
             </Field>
             <Field label={t("creator.matchName")} error={errors.match_name?.message}>
               {(props) => (
-                <Input {...props} placeholder={EXAMPLES.match} {...register("match_name")} />
+                <Input
+                  {...props}
+                  placeholder={EXAMPLES.match}
+                  {...register("match_name", {
+                    onChange: (event: { target: { value: string } }) =>
+                      setMatchNameTyped(event.target.value !== ""),
+                  })}
+                />
               )}
             </Field>
             <Field label={t("fields.division")} error={errors.division?.message}>
@@ -249,6 +286,20 @@ export function LineupCreator({
                 <Input {...props} placeholder={EXAMPLES.division} {...register("division")} />
               )}
             </Field>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">{t("creator.homeAway.label")}</span>
+              <Tabs
+                kind="radio"
+                id="home-away"
+                label={t("creator.homeAway.label")}
+                value={sideOf(isHome)}
+                onChange={chooseSide}
+                options={SIDES.map((side) => ({
+                  value: side,
+                  label: t(`creator.homeAway.${side}`),
+                }))}
+              />
+            </div>
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">{t("fields.capColour")}</span>
               <Tabs

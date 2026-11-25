@@ -15,7 +15,8 @@ export interface TabOption<T extends string> {
  * - `kind="radio"`: `role="radiogroup"` / `role="radio"` / `aria-checked`, for choosing a value in
  *   a form (a cap colour, an expiry), where there is no panel to switch.
  *
- * Only the selected option is in the tab order; the arrow keys, Home and End move the selection
+ * Only the selected option is in the tab order (the first one when none is selected, as for a
+ * choice not made yet); the arrow keys, Home and End move the selection
  * (the roving-tabindex pattern), and every option is 44 px tall on touch screens.
  */
 export function Tabs<T extends string>({
@@ -31,13 +32,15 @@ export function Tabs<T extends string>({
   /** Accessible name of the whole control. */
   label: string;
   options: readonly TabOption<T>[];
-  value: T;
+  /** The selected option, or `""` when none is (a choice not made yet). */
+  value: T | "";
   onChange: (value: T) => void;
   kind?: "tab" | "radio";
   className?: string;
 }) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const isTab = kind === "tab";
+  const tabStop = options.some((option) => option.value === value) ? value : options[0]?.value;
 
   function onKeyDown(event: KeyboardEvent, index: number) {
     const last = options.length - 1;
@@ -82,7 +85,7 @@ export function Tabs<T extends string>({
             aria-selected={isTab ? selected : undefined}
             aria-checked={isTab ? undefined : selected}
             aria-controls={isTab ? `${id}-panel` : undefined}
-            tabIndex={selected ? 0 : -1}
+            tabIndex={option.value === tabStop ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
             className={cn(

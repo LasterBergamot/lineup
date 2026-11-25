@@ -272,7 +272,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [x] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
 - [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
 - [x] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L; backend PR #316, frontend PR #332)
-- [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M; backend done in PR #330, frontend in Wave C)
+- [x] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M; backend PR #330, frontend PR #333)
 - [x] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
 - [x] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M; PR #331; the `home` filter waits for #296)
 - [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
@@ -583,6 +583,7 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-25 | #294 frontend: optional location field in the creator (not printed, not in the Quick sheet), shown in the saved list, kept by Clone. | #294; PR #329 |
 | 2026-11-25 | #295: `GET /lineups/saved` takes optional AND-ed `opponent`, `location` (case-insensitive contains, `%`/`_` escaped), `date_from`, `date_to` (inclusive on `match_date`), and lists newest match first; the Saved page gets a debounced filter bar, Clear filters and server-side paging ("Show more"). The `home` filter is left for #296. | #295; PR #331 |
 | 2026-11-25 | #290 frontend: Edit on the Saved page opens the creator in edit mode (`editFromId`, ids only); "Save changes" sends `PUT` with `expected_updated_at`, a 409 keeps the input and offers "Load the latest version", a deleted lineup says so; the preview cache is keyed by `updated_at`; Clone unchanged. | #290; PR #332 |
+| 2026-11-25 | #296 frontend: Home/Away toggle in the creator and Quick sheet (cap colour, suggested match name, home venue pre-fill), `is_home` saved and cloned, "–" for old lineups in the saved list, home venue in team settings. | #296; PR #333 |
 
 ---
 

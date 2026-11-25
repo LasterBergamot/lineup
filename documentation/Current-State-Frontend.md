@@ -281,6 +281,18 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   error, and at least one row must be filled. A roster pick is saved as `source_player_id`, so the
   server freezes the current values. The row model, the skip-empty rule and the shared validation
   live in `src/features/lineup/cap-rows.ts`, used by both forms.
+- **Location.** An optional text box in the Match card, labelled "not printed" (#294, max 200
+  characters, blank is left out). It is sent only with the save (`location` in `SavedLineupCreate`),
+  never in the preview request, and it is not on the sheet. "Clone to new match" keeps it. The Quick
+  sheet has no location field: it saves nothing and `POST /lineups` takes no location.
+- **Home / Away.** A two-option toggle in the Match card (#296, `Tabs kind="radio"`, nothing selected
+  at first). Choosing a side sets the cap colour (Home: Fehér, Away: Kék); a later manual change of
+  the cap sticks until the toggle is used again. It also suggests the match name `<home team> - <away
+  team>` from the team and the opponent (`features/creator/home-away.ts`), refreshed as the opponent
+  changes, until the match name is typed by hand (clearing the box hands it back to the suggestion; a
+  name that came in with the initial values counts as typed). Choosing Home fills an empty Location
+  from the team's home venue (`teams.home_venue`, set in team settings). The side is saved as
+  `is_home` (`null` when never chosen) and "Clone to new match" keeps it.
 - **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
   directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
   opponents (`GET /teams/{id}/opponents/recent`). If the typed text equals a listed team's name the
@@ -331,8 +343,8 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   player's **current** name and NSSZ number; a player deleted since stays as typed-in text. Saving
   sends `PUT /lineups/saved/{id}` (`updateSavedLineup()`, body from `toSavedLineupUpdate()`: no
   `team_id`, the lineup's own source team, and `expected_updated_at`; every field is replaced, so
-  clearing the location or a staff role clears it in the lineup; the stored home/away side,
-  `is_home`, is sent back unchanged until the creator gets its toggle, #296). That version is the
+  clearing the location or a staff role clears it in the lineup; `is_home` comes from the Home / Away
+  toggle, which starts on the stored side and shows neither for an old lineup, #296). That version is the
   `updated_at` the form was loaded with, then the one each successful save returned, never one a
   background refetch brought in, so a concurrent change is never overwritten silently:
   - **409**, someone else saved the lineup after it was opened: nothing was changed, the typed
@@ -357,7 +369,10 @@ The Lineup page's "Quick sheet" mode shows the one-off lineup form (`src/feature
 (match, division, team name, cap colour, date and optional start time), five staff names and the same 15 fixed cap rows as
 the creator (name and NSSZ number per cap, a **Clear** button, empty rows left out of the request by
 `toQuickSheetRequest()`). The date starts on today, with the same date and time inputs as the
-creator; the request carries only the composed printed `date` text. Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
+creator; the request carries only the composed printed `date` text. The same Home / Away toggle
+sits above the cap colour (#296): it sets the cap and, when the match name is `A - B` with the team name
+on one side, puts the team on the home or away side. The Quick sheet has no opponent, location or
+stored side. Nothing is stored anywhere. Like the rest of the app it sits behind sign-in, and
 since #96 the endpoint it calls requires the token too (rate limited: a `429` comes with `Retry-After`).
 
 - **Validation twice.** `schema.ts` mirrors the backend's limits (`CleanStr*` types and the
@@ -400,8 +415,8 @@ deletes it (a second click confirms) or makes it the role's default. A role has 
 default: the server clears the old one in the same request, and deleting a default promotes
 nobody. A 409 (another member set a different default at the same moment) gets its own message
 and the list reloads. The doctor is not a staff role. **Team settings**, shown to
-owners only, renames the team, sets its default division and switches "list the team's name in the
-opponent directory" on or off. The default division can be replaced but not cleared (the API keeps
+owners only, renames the team, sets its default division and its home venue (#296, pre-fills the creator's Location for a home lineup) and switches "list the team's name in the
+opponent directory" on or off. The default division and the home venue can be replaced but not cleared (the API keeps
 the stored value for a blank). **Opponent directory** is a search box over the teams that chose to be listed; it shows team
 names only (never rosters or lineups), waits 300 ms after typing, and keeps the last results on
 screen while the next ones load. Names, NSSZ numbers, staff names and search terms live in component state and
@@ -412,8 +427,8 @@ leaving the page asks first (see *Unsaved changes*).
 ### Saved lineups
 
 The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest match first: match
-name, date, division, cap colour, opponent and, when one was entered, the location. Every member
-sees and manages the same list. A **filter bar** above the list (#295) narrows it:
+name, date, division, cap colour, opponent, the location (when one was entered) and Home/Away ("–" for
+an old lineup that never said). Every member sees and manages the same list. A **filter bar** above the list (#295) narrows it:
 
 - **Opponent** and **Location**: text boxes, a case-insensitive "contains" (typing "csongr" finds
   "Csongrád VVSE"). They are sent once you stop typing for 300 ms.

@@ -90,6 +90,7 @@ function renderCreator(
     staff?: Staff[];
     initialValues?: ReturnType<typeof emptyValues>;
     division?: string | null;
+    homeVenue?: string | null;
     edit?: Parameters<typeof LineupCreator>[0]["edit"];
   } = {},
 ) {
@@ -97,6 +98,7 @@ function renderCreator(
     ...teamsPage("SZVTK").items[0]!,
     id: TEAM_ID,
     division: props.division ?? null,
+    home_venue: props.homeVenue ?? null,
   } as Team;
   const queryClient = testQueryClient();
   const invalidate = vi.spyOn(queryClient, "invalidateQueries");
@@ -850,6 +852,34 @@ describe("LineupCreator edit mode", () => {
   });
 });
 
+describe("LineupCreator edit mode Home / Away", () => {
+  it("shows the stored side and sends the toggle's value, not the stored one", async () => {
+    const user = userEvent.setup();
+    mocks.updateSavedLineup.mockResolvedValue(EDITED);
+    renderEdit();
+    expect(screen.getByRole("radio", { name: "Home" })).toBeChecked();
+    await user.click(screen.getByRole("radio", { name: "Away" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(mocks.updateSavedLineup).toHaveBeenCalledOnce());
+    expect(mocks.updateSavedLineup.mock.calls[0]![1]).toMatchObject({
+      is_home: false,
+      cap: "Kék",
+    });
+  });
+
+  it("shows no side for an old lineup and sends null", async () => {
+    const user = userEvent.setup();
+    mocks.updateSavedLineup.mockResolvedValue(EDITED);
+    renderEdit({ ...EDITED, is_home: null });
+    expect(screen.getByRole("radio", { name: "Home" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Away" })).not.toBeChecked();
+    await user.type(screen.getByLabelText("Coach"), "x");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(mocks.updateSavedLineup).toHaveBeenCalledOnce());
+    expect(mocks.updateSavedLineup.mock.calls[0]![1]).toMatchObject({ is_home: null });
+  });
+});
+
 describe("LineupCreator new lineup", () => {
   it("has no Cancel and says Lineup saved", async () => {
     const user = userEvent.setup();
@@ -860,5 +890,122 @@ describe("LineupCreator new lineup", () => {
     await user.click(screen.getByRole("button", { name: "Save lineup" }));
     expect(await screen.findByText("Lineup saved")).toBeInTheDocument();
     expect(mocks.updateSavedLineup).not.toHaveBeenCalled();
+  });
+});
+
+describe("LineupCreator Home / Away", () => {
+  const home = () => screen.getByRole("radio", { name: "Home" });
+  const away = () => screen.getByRole("radio", { name: "Away" });
+  const matchName = () => screen.getByLabelText("Match name (optional)");
+
+  it("starts with neither side chosen and leaves the match name alone", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.type(await screen.findByLabelText("Opponent"), "Csongrád");
+    expect(home()).not.toBeChecked();
+    expect(away()).not.toBeChecked();
+    expect(home()).toHaveAttribute("tabindex", "0");
+    expect(matchName()).toHaveValue("");
+  });
+
+  it("sets the cap and suggests the match name, home team first", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.type(await screen.findByLabelText("Opponent"), "Csongrád");
+    await user.click(away());
+    expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
+    expect(matchName()).toHaveValue("Csongrád - SZVTK");
+    await user.click(home());
+    expect(screen.getByRole("radio", { name: "White" })).toBeChecked();
+    expect(matchName()).toHaveValue("SZVTK - Csongrád");
+  });
+
+  it("follows the opponent while the match name is not typed by hand", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.click(home());
+    expect(matchName()).toHaveValue("");
+    await user.type(await screen.findByLabelText("Opponent"), "Cs");
+    expect(matchName()).toHaveValue("SZVTK - Cs");
+    await user.type(screen.getByLabelText("Opponent"), "ongrád");
+    expect(matchName()).toHaveValue("SZVTK - Csongrád");
+  });
+
+  it("keeps a match name typed by hand, until it is cleared again", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.type(await screen.findByLabelText("Opponent"), "Csongrád");
+    await user.type(matchName(), "Derby");
+    await user.click(away());
+    expect(matchName()).toHaveValue("Derby");
+    await user.clear(matchName());
+    await user.click(home());
+    expect(matchName()).toHaveValue("SZVTK - Csongrád");
+  });
+
+  it("does not suggest over a match name that came with the initial values", async () => {
+    const user = userEvent.setup();
+    renderCreator({ initialValues: { ...emptyValues(), match_name: "Cup final", opponent: "X" } });
+    await user.click(home());
+    expect(matchName()).toHaveValue("Cup final");
+  });
+
+  it("lets a manual cap change stick until the toggle is used again", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.click(home());
+    await user.click(screen.getByRole("radio", { name: "Blue" }));
+    expect(home()).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
+    await user.click(away());
+    await user.click(home());
+    expect(screen.getByRole("radio", { name: "White" })).toBeChecked();
+  });
+
+  it("pre-fills an empty Location with the home venue at home only", async () => {
+    const user = userEvent.setup();
+    renderCreator({ homeVenue: "Szeged, Alsóvárosi uszoda" });
+    const location = screen.getByLabelText(/^Location/);
+    await user.click(away());
+    expect(location).toHaveValue("");
+    await user.click(home());
+    expect(location).toHaveValue("Szeged, Alsóvárosi uszoda");
+    await user.clear(location);
+    await user.type(location, "Elsewhere");
+    await user.click(away());
+    await user.click(home());
+    expect(location).toHaveValue("Elsewhere");
+  });
+
+  it("leaves Location empty when the team has no home venue", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await user.click(home());
+    expect(screen.getByLabelText(/^Location/)).toHaveValue("");
+  });
+
+  it("saves is_home, and null when no side was chosen", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await fillMatch(user);
+    await pick(1, "Kovács");
+    await user.click(away());
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    await waitFor(() => expect(mocks.createSavedLineup).toHaveBeenCalledOnce());
+    expect(mocks.createSavedLineup.mock.calls[0]![0]).toMatchObject({
+      is_home: false,
+      cap: "Kék",
+      match_name: "Csongrád - SZVTK",
+    });
+  });
+
+  it("sends is_home null when the side was never said", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    await fillMatch(user);
+    await pick(1, "Kovács");
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    await waitFor(() => expect(mocks.createSavedLineup).toHaveBeenCalledOnce());
+    expect(mocks.createSavedLineup.mock.calls[0]![0]).toMatchObject({ is_home: null });
   });
 });

@@ -23,7 +23,8 @@ const slotSchema = z.object({
  * the authority) with two differences: the team is the current team and not a field, and the
  * opponent is one text box (`opponent`) plus the directory id (`opponentId`, `""` for free text)
  * that the combobox sets when the typed name is a listed team. The match date is a
- * `YYYY-MM-DD` string and the optional start time `HH:MM` or blank, as the native inputs hold them.
+ * `YYYY-MM-DD` string and the optional start time `HH:MM` or blank, as the native inputs hold them. `isHome` is the Home / Away toggle
+ * (#296): `null` until chosen, and for an old lineup that never said.
  */
 export const creatorSchema = z.object({
   match_name: optionalCleanText(200, "fields.match"),
@@ -31,6 +32,7 @@ export const creatorSchema = z.object({
   opponentId: z.string(),
   division: cleanText(100, "fields.division"),
   cap: z.enum(CAP_COLOURS, { error: errorKey("validation.capColour") }),
+  isHome: z.boolean().nullable(),
   location: optionalCleanText(200, "fields.location"),
   match_date: matchDateSchema,
   match_time: matchTimeSchema,
