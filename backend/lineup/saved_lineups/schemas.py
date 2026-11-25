@@ -71,6 +71,10 @@ class SavedLineupFields(BaseModel):
 
     `location` is an optional venue (up to 200 characters, blank counts as not provided). It is
     only stored and shown in the history; it is never printed on the generated sheet.
+
+    `is_home` says whether the team played at home (`true`), away (`false`) or it is not known
+    (`null`, the default). It is only stored: the client derives the cap colour and match name
+    from it, and the server does not enforce any relation between `is_home` and `cap`.
     """
 
     source_team_id: uuid.UUID | None = None
@@ -84,6 +88,7 @@ class SavedLineupFields(BaseModel):
     match_date: dt.date | None = None
     match_time: dt.time | None = None
     location: OptionalCleanStr200 = None
+    is_home: bool | None = None
     coach: CleanStr200
     doctor: OptionalCleanStr200 = None
     assistant_coach: OptionalCleanStr200 = None
@@ -210,6 +215,7 @@ class SavedLineupResponse(BaseModel):
     match_date: dt.date | None
     match_time: dt.time | None
     location: str | None
+    is_home: bool | None
     coach: str
     doctor: str | None
     assistant_coach: str | None

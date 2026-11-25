@@ -349,6 +349,35 @@ class TestLocation:
         response = await self._save(async_client, location="x" * 201)
         assert response.status_code == 422
 
+    @pytest.mark.parametrize("value", [True, False])
+    async def test_is_home_is_stored_and_returned(
+        self, async_client: AsyncClient, value: bool
+    ):
+        created = (await self._save(async_client, is_home=value)).json()
+        assert created["is_home"] is value
+        fetched = (await async_client.get(f"/lineups/saved/{created['id']}")).json()
+        assert fetched["is_home"] is value
+        listed = (await async_client.get("/lineups/saved")).json()
+        assert [item["is_home"] for item in listed["items"]] == [value]
+
+    @pytest.mark.parametrize("extra", [{}, {"is_home": None}])
+    async def test_missing_is_home_is_null(
+        self, async_client: AsyncClient, extra: dict
+    ):
+        created = (await self._save(async_client, **extra)).json()
+        assert created["is_home"] is None
+
+    async def test_is_home_does_not_have_to_match_the_cap(
+        self, async_client: AsyncClient
+    ):
+        """A neutral venue: home but in Kék is accepted as sent."""
+        created = (await self._save(async_client, is_home=True, cap="Kék")).json()
+        assert (created["is_home"], created["cap"]) == (True, "Kék")
+
+    async def test_non_boolean_is_home_is_422(self, async_client: AsyncClient):
+        response = await self._save(async_client, is_home="maybe")
+        assert response.status_code == 422
+
     async def test_location_is_not_printed(self, async_client: AsyncClient):
         """The generated DOCX is byte-identical with and without a location."""
         team = await _create_team(async_client)
@@ -676,6 +705,7 @@ class TestSavedLineupRepositoryMembership:
             match_date=None,
             match_time=None,
             location=None,
+            is_home=None,
             coach="Coach",
             doctor=None,
             assistant_coach=None,
@@ -1068,6 +1098,18 @@ class TestUpdateSavedLineup:
         assert located["location"] == "Szeged, Tisza uszoda"
         cleared = (await self._put(async_client, located, location="  ")).json()
         assert cleared["location"] is None
+
+    async def test_is_home_is_set_changed_and_cleared_by_an_edit(
+        self, async_client: AsyncClient
+    ):
+        _, _, lineup = await self._setup(async_client)
+        assert lineup["is_home"] is None
+        home = (await self._put(async_client, lineup, is_home=True)).json()
+        assert home["is_home"] is True
+        away = (await self._put(async_client, home, is_home=False)).json()
+        assert away["is_home"] is False
+        unknown = (await self._put(async_client, away, is_home=None)).json()
+        assert unknown["is_home"] is None
 
     async def test_the_generated_document_shows_the_edit(
         self, async_client: AsyncClient
