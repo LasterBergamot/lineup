@@ -281,10 +281,6 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   error, and at least one row must be filled. A roster pick is saved as `source_player_id`, so the
   server freezes the current values. The row model, the skip-empty rule and the shared validation
   live in `src/features/lineup/cap-rows.ts`, used by both forms.
-- **Location.** An optional text box in the Match card, labelled "not printed" (#294, max 200
-  characters, blank is left out). It is sent only with the save (`location` in `SavedLineupCreate`),
-  never in the preview request, and it is not on the sheet. "Clone to new match" keeps it. The Quick
-  sheet has no location field: it saves nothing and `POST /lineups` takes no location.
 - **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
   directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
   opponents (`GET /teams/{id}/opponents/recent`). If the typed text equals a listed team's name the
@@ -335,7 +331,8 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   player's **current** name and NSSZ number; a player deleted since stays as typed-in text. Saving
   sends `PUT /lineups/saved/{id}` (`updateSavedLineup()`, body from `toSavedLineupUpdate()`: no
   `team_id`, the lineup's own source team, and `expected_updated_at`; every field is replaced, so
-  clearing the location or a staff role clears it in the lineup). That version is the
+  clearing the location or a staff role clears it in the lineup; the stored home/away side,
+  `is_home`, is sent back unchanged until the creator gets its toggle, #296). That version is the
   `updated_at` the form was loaded with, then the one each successful save returned, never one a
   background refetch brought in, so a concurrent change is never overwritten silently:
   - **409**, someone else saved the lineup after it was opened: nothing was changed, the typed
@@ -414,9 +411,24 @@ leaving the page asks first (see *Unsaved changes*).
 
 ### Saved lineups
 
-The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest first: match
-name, date, division, cap colour, opponent and, when one was entered, the location. Every member sees and manages the same list. Each row
-has:
+The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest match first: match
+name, date, division, cap colour, opponent and, when one was entered, the location. Every member
+sees and manages the same list. A **filter bar** above the list (#295) narrows it:
+
+- **Opponent** and **Location**: text boxes, a case-insensitive "contains" (typing "csongr" finds
+  "Csongrád VVSE"). They are sent once you stop typing for 300 ms.
+- **From date** and **To date**: native date pickers, both ends inclusive. Lineups saved with a
+  free-text date only (no structured date) do not show up while a date is set. The two pickers
+  limit each other, so the range cannot be reversed from the keyboard.
+- The filters are **combined**: only lineups matching all of them are listed. The server does the
+  searching, so the list is read a page at a time (20 lineups, then **Show more**), not all at once.
+  While a new search runs, the previous rows stay on screen. **Clear filters** appears as soon as a
+  filter is set and brings the whole list back; if nothing matches, the page says so. A filter for
+  home or away matches will follow with #296.
+- The search terms live in the page's state only: they are not put in the address bar or in
+  storage, and never logged.
+
+Each row has:
 
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
   a side panel on a desktop and a full-screen modal dialog on a phone. It loads only when the Preview

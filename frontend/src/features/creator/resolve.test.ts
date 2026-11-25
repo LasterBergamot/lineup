@@ -182,6 +182,7 @@ const saved = (patch: Partial<SavedLineup> = {}): SavedLineup => ({
   match_date: null,
   match_time: null,
   location: null,
+  is_home: null,
   coach: "Kovács",
   doctor: "Dr. Kis",
   assistant_coach: null,
@@ -281,7 +282,7 @@ describe("toSavedLineupUpdate", () => {
   it("is the save body without team_id, keeps the lineup's own team and sends the version", () => {
     const body = toSavedLineupUpdate(
       edited,
-      { source_team_id: "t-own", team_name: "SZVTK" },
+      { source_team_id: "t-own", team_name: "SZVTK", is_home: true },
       "2026-11-24T10:00:00.123456Z",
     );
     const created: Partial<ReturnType<typeof toSavedLineupRequest>> = toSavedLineupRequest(edited, {
@@ -291,6 +292,7 @@ describe("toSavedLineupUpdate", () => {
     expect(body).toEqual({
       ...created,
       source_team_id: "t-own",
+      is_home: true,
       expected_updated_at: "2026-11-24T10:00:00.123456Z",
     });
     expect(body).not.toHaveProperty("team_id");
@@ -300,7 +302,7 @@ describe("toSavedLineupUpdate", () => {
   it("sends the stored team name when the lineup has no source team, and clears a blank location", () => {
     const body = toSavedLineupUpdate(
       { ...edited, location: "" },
-      { source_team_id: null, team_name: "SZVTK" },
+      { source_team_id: null, team_name: "SZVTK", is_home: null },
       "2026-11-24T10:00:00+00:00",
     );
     expect(body).toMatchObject({ team_name: "SZVTK", location: undefined });
@@ -311,7 +313,7 @@ describe("toSavedLineupUpdate", () => {
   it("marks a version without a time zone as UTC, keeping its microseconds", () => {
     const body = toSavedLineupUpdate(
       edited,
-      { source_team_id: "t", team_name: "SZVTK" },
+      { source_team_id: "t", team_name: "SZVTK", is_home: false },
       "2026-11-24T10:00:00.123456",
     );
     expect(body.expected_updated_at).toBe("2026-11-24T10:00:00.123456Z");

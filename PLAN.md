@@ -272,9 +272,9 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [x] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
 - [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
 - [x] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L; backend PR #316, frontend PR #332)
-- [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M)
+- [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M; backend done in PR #330, frontend in Wave C)
 - [x] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
-- [ ] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M)
+- [x] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M; PR #331; the `home` filter waits for #296)
 - [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
 - Parked, not part of this phase: #291 waterpolo.hu fixtures spike (Opus 5.5 · high).
 
@@ -579,7 +579,9 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-24 | Phase 7 planned from the first round of dev-preview feedback. Issues #281–#296 filed and revised with the maintainer's decisions. Each one is self-contained and lists its wiki pages and the recommended model and effort. The waves, the serial migration order and the conflict hotspots are recorded above. #281 turned out not to be a bug (the official form has the same cropped logo): wiki note only. #291 (waterpolo.hu spike) parked. No implementation yet. | #20, #281–#296, PR #297 |
 | 2026-11-24 | Wave A merged: #282 (preview on the button only), #283 (Hungarian roster sort), #284 (duplicate NSSZ per team, migration `c8f3a1d6e472`), #293 (unsaved-changes guard on a data router). #302 filed from the #293 review: the mode switch drops typed input. The dev Supabase migration for #284 is pending a run. | #282, #283, #284, #293, #302, PRs #299, #300, #301, #303 |
 | 2026-11-24 | Wave B merged: #285 (15 fixed cap rows), #286 (searchable roster picker), #287 (today as the default date, optional time), #288 (team default division), #292 (team staff entity), #302 (the mode switch keeps typed input), and the backend of #294 (match location, not printed). Stray merge marker in the frontend rules removed. Still in Wave B: #289 (staff UI), #290 and #296 (backend). #294's frontend is Wave C. | #285, #286, #287, #288, #292, #294 (backend), #302; PRs #305–#314 |
+| 2026-11-25 | #296 backend: `saved_lineups.is_home` and `teams.home_venue` (migration `f4a9c2e7b165`), API, tests, OpenAPI and docs. The Home/Away toggle UI is Wave C. | #296; PR #330 |
 | 2026-11-25 | #294 frontend: optional location field in the creator (not printed, not in the Quick sheet), shown in the saved list, kept by Clone. | #294; PR #329 |
+| 2026-11-25 | #295: `GET /lineups/saved` takes optional AND-ed `opponent`, `location` (case-insensitive contains, `%`/`_` escaped), `date_from`, `date_to` (inclusive on `match_date`), and lists newest match first; the Saved page gets a debounced filter bar, Clear filters and server-side paging ("Show more"). The `home` filter is left for #296. | #295; PR #331 |
 | 2026-11-25 | #290 frontend: Edit on the Saved page opens the creator in edit mode (`editFromId`, ids only); "Save changes" sends `PUT` with `expected_updated_at`, a 409 keeps the input and offers "Load the latest version", a deleted lineup says so; the preview cache is keyed by `updated_at`; Clone unchanged. | #290; PR #332 |
 
 ---

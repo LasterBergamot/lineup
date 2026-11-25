@@ -110,11 +110,13 @@ function lineupFields(values: CreatorValues) {
  * without `team_id` (a lineup never moves to another team), plus `expected_updated_at`, the
  * version the form was loaded from (a 409 if someone saved since). The team name keeps coming from
  * the lineup's own source team (or its stored text), so an edit never swaps the team. Every field
- * is replaced, so a blank optional field (the location, a staff role) clears the stored value.
+ * is replaced, so a blank optional field (the location, a staff role) clears the stored value. The
+ * creator has no home/away toggle yet (#296), so the stored `is_home` is sent back unchanged
+ * instead of being cleared.
  */
 export function toSavedLineupUpdate(
   values: CreatorValues,
-  saved: Pick<SavedLineup, "source_team_id" | "team_name">,
+  saved: Pick<SavedLineup, "source_team_id" | "team_name" | "is_home">,
   expectedUpdatedAt: string,
 ): SavedLineupUpdate {
   return {
@@ -122,6 +124,7 @@ export function toSavedLineupUpdate(
     ...(saved.source_team_id
       ? { source_team_id: saved.source_team_id }
       : { team_name: saved.team_name }),
+    is_home: saved.is_home,
     expected_updated_at: withZone(expectedUpdatedAt),
   };
 }

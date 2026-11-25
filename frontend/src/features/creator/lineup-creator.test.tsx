@@ -695,6 +695,7 @@ const EDITED: SavedLineup = {
   match_date: "2026-10-01",
   match_time: "18:30:00",
   location: "Komjádi",
+  is_home: true,
   coach: "Kovács Béla",
   doctor: null,
   assistant_coach: null,
@@ -763,6 +764,7 @@ describe("LineupCreator edit mode", () => {
       match_date: "2026-10-01",
       match_time: "18:30",
       location: "Komjádi",
+      is_home: true,
       expected_updated_at: "2026-10-01T10:00:00.123456Z",
       players: [
         { source_player_id: "p-ann", cap_number: 1 },

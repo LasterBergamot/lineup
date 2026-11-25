@@ -9,6 +9,7 @@ Nothing here is a live reference afterwards. Create and edit share the resolutio
 from __future__ import annotations
 
 import uuid
+from datetime import date as date_type
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -112,6 +113,7 @@ def _build_response(lineup: SavedLineup) -> SavedLineupResponse:
         match_date=lineup.match_date,
         match_time=lineup.match_time,
         location=lineup.location,
+        is_home=lineup.is_home,
         coach=lineup.coach,
         doctor=lineup.doctor,
         assistant_coach=lineup.assistant_coach,
@@ -166,6 +168,7 @@ async def _resolve_content(
         "match_date": data.match_date,
         "match_time": data.match_time,
         "location": data.location,
+        "is_home": data.is_home,
         "coach": data.coach,
         "doctor": data.doctor,
         "assistant_coach": data.assistant_coach,
@@ -258,14 +261,25 @@ async def list_saved_lineups(
     team_id: uuid.UUID | None,
     limit: int,
     offset: int,
+    opponent: str | None = None,
+    location: str | None = None,
+    date_from: date_type | None = None,
+    date_to: date_type | None = None,
 ) -> tuple[list[SavedLineupResponse], int]:
     """One page of the lineups of the caller's teams (optionally for one workspace or one
-    source team) and the total count."""
+    source team, and narrowed by the search filters, see `repository.list_saved_lineups`) and
+    the total count. Search terms are trimmed and a blank one means "no filter"; they are never
+    logged.
+    """
     lineups, total = await repository.list_saved_lineups(
         session,
         user_id=user_id,
         source_team_id=source_team_id,
         team_id=team_id,
+        opponent=(opponent or "").strip() or None,
+        location=(location or "").strip() or None,
+        date_from=date_from,
+        date_to=date_to,
         limit=limit,
         offset=offset,
     )

@@ -106,9 +106,14 @@ export interface paths {
         };
         /**
          * List Saved Lineups
-         * @description List the saved lineups of all teams you belong to, oldest first, optionally only those
-         *     saved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:
-         *     `limit` is 1-200 (default 20), `offset` starts at 0.
+         * @description List the saved lineups of all teams you belong to, newest match first (by `match_date`,
+         *     undated ones last, then by save time), optionally only those saved in one team (`team_id`)
+         *     or made with one team as our team (`source_team_id`).
+         *
+         *     Every filter is optional and the ones you send are combined with AND: `opponent` and
+         *     `location` are case-insensitive "contains" matches, `date_from` / `date_to` are inclusive
+         *     bounds on the match day (`date_from` after `date_to` simply matches nothing). Paginated:
+         *     `limit` is 1-200 (default 20), `offset` starts at 0, `total` counts all matches.
          */
         get: operations["list_saved_lineups_lineups_saved_get"];
         put?: never;
@@ -266,7 +271,8 @@ export interface paths {
          * Create Team
          * @description Create a team; you become its owner. `is_public` (default true) lists its name in the
          *     opponent directory, which never reveals anything else about the team. `division` (optional)
-         *     is the team's usual division; the lineup creator pre-fills it.
+         *     is the team's usual division and `home_venue` (optional) its home venue; the lineup creator
+         *     pre-fills both.
          */
         post: operations["create_team_teams_post"];
         delete?: never;
@@ -312,7 +318,8 @@ export interface paths {
         /**
          * Update Team
          * @description Rename a team and/or list or unlist it in the opponent directory (`is_public`, left
-         *     unchanged when omitted) and/or set its default `division` (also unchanged when omitted).
+         *     unchanged when omitted) and/or set its default `division` and/or `home_venue` (both also unchanged when
+         *     omitted).
          *     Owners only: 403 for other members, 404 for non-members.
          */
         put: operations["update_team_teams__team_id__put"];
@@ -837,6 +844,8 @@ export interface components {
             division: string;
             /** Doctor */
             doctor?: string | null;
+            /** Is Home */
+            is_home?: boolean | null;
             /** Location */
             location?: string | null;
             /** Match Date */
@@ -932,6 +941,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Is Home */
+            is_home: boolean | null;
             /** Location */
             location: string | null;
             /** Match Date */
@@ -1001,6 +1012,8 @@ export interface components {
              * Format: date-time
              */
             expected_updated_at: string;
+            /** Is Home */
+            is_home?: boolean | null;
             /** Location */
             location?: string | null;
             /** Match Date */
@@ -1088,12 +1101,15 @@ export interface components {
         /**
          * TeamCreate
          * @description Body for creating a team. `division` is the team's usual division (optional, at most 100
-         *     characters), which the lineup creator pre-fills. The name is trimmed and must not be blank or contain control
-         *     characters.
+         *     characters), which the lineup creator pre-fills; `home_venue` is its home venue (optional, at
+         *     most 200 characters), which pre-fills the location of a home lineup. The name is trimmed and
+         *     must not be blank or contain control characters.
          */
         TeamCreate: {
             /** Division */
             division?: string | null;
+            /** Home Venue */
+            home_venue?: string | null;
             /**
              * Is Public
              * @default true
@@ -1138,6 +1154,8 @@ export interface components {
          *     `role` is the caller's role in the team (`owner` or `member`); `created_by` is who created
          *     it (audit only, it grants nothing). `is_public` means "listed in the opponent directory".
          *     `division` is the team's default division (`null` when unset), used to pre-fill new lineups.
+         *     `home_venue` is the team's home venue (`null` when unset), used to pre-fill the location of a
+         *     lineup played at home.
          */
         TeamResponse: {
             /**
@@ -1152,6 +1170,8 @@ export interface components {
             created_by: string;
             /** Division */
             division: string | null;
+            /** Home Venue */
+            home_venue: string | null;
             /**
              * Id
              * Format: uuid
@@ -1169,10 +1189,13 @@ export interface components {
          * @description Body for updating a team (owners only). `name` is always required; `is_public` lists or
          *     unlists the team in the opponent directory and `division` sets its default division; both are
          *     left unchanged when omitted (so a division cannot be cleared once set, only replaced).
+         *     `home_venue` sets the team's home venue and follows the same rule.
          */
         TeamUpdate: {
             /** Division */
             division?: string | null;
+            /** Home Venue */
+            home_venue?: string | null;
             /** Is Public */
             is_public?: boolean | null;
             /** Name */
@@ -1384,6 +1407,14 @@ export interface operations {
                 offset?: number;
                 team_id?: string | null;
                 source_team_id?: string | null;
+                /** @description Case-insensitive part of the opponent's name. `%` and `_` are ordinary characters. Blank means no filter. */
+                opponent?: string | null;
+                /** @description Only matches on or after this day (ISO date, inclusive). Lineups without a structured match date never match a date bound. */
+                date_from?: string | null;
+                /** @description Only matches on or before this day (ISO date, inclusive). Lineups without a structured match date never match a date bound. */
+                date_to?: string | null;
+                /** @description Case-insensitive part of the venue. `%` and `_` are ordinary characters. Blank means no filter. Lineups without a location never match. */
+                location?: string | null;
             };
             header?: never;
             path?: never;

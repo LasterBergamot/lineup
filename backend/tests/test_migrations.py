@@ -570,3 +570,26 @@ def test_the_updated_at_migration_can_be_undone(staff_database):
     alembic(staff_database, "downgrade", AFTER_STAFF)
     assert "updated_at" not in _saved_lineup_columns(staff_database)
     assert _count(staff_database, "SELECT count(*) FROM saved_lineups") == len(ids)
+
+
+# --- f4a9c2e7b165: home/away side and home venue (#296) ----------------------------------------
+
+AFTER_HOME_AWAY = "f4a9c2e7b165"
+
+
+def test_the_home_away_columns_are_added_empty_and_removed_again(staff_database):
+    ids = _seed_dated_lineups(staff_database)
+    alembic(staff_database, "upgrade", AFTER_UPDATED_AT)
+    assert "is_home" not in _saved_lineup_columns(staff_database)
+    assert "home_venue" not in _team_columns(staff_database)
+    alembic(staff_database, "upgrade", AFTER_HOME_AWAY)
+    assert "is_home" in _saved_lineup_columns(staff_database)
+    assert "home_venue" in _team_columns(staff_database)
+    with closing(sqlite3.connect(staff_database)) as db:
+        # existing lineups have an unknown side
+        sides = {r[0] for r in db.execute("SELECT is_home FROM saved_lineups")}
+        assert sides == {None}
+    alembic(staff_database, "downgrade", AFTER_UPDATED_AT)
+    assert "is_home" not in _saved_lineup_columns(staff_database)
+    assert "home_venue" not in _team_columns(staff_database)
+    assert _count(staff_database, "SELECT count(*) FROM saved_lineups") == len(ids)

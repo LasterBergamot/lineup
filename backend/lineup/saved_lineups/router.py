@@ -4,6 +4,7 @@ render them later."""
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -38,18 +39,57 @@ async def list_saved_lineups(
     offset: Annotated[int, Query(ge=0)] = 0,
     team_id: uuid.UUID | None = None,
     source_team_id: uuid.UUID | None = None,
+    opponent: Annotated[
+        str | None,
+        Query(
+            max_length=120,
+            description="Case-insensitive part of the opponent's name. `%` and `_` are "
+            "ordinary characters. Blank means no filter.",
+        ),
+    ] = None,
+    date_from: Annotated[
+        date | None,
+        Query(
+            description="Only matches on or after this day (ISO date, inclusive). "
+            "Lineups without a structured match date never match a date bound."
+        ),
+    ] = None,
+    date_to: Annotated[
+        date | None,
+        Query(
+            description="Only matches on or before this day (ISO date, inclusive). "
+            "Lineups without a structured match date never match a date bound."
+        ),
+    ] = None,
+    location: Annotated[
+        str | None,
+        Query(
+            max_length=200,
+            description="Case-insensitive part of the venue. `%` and `_` are ordinary "
+            "characters. Blank means no filter. Lineups without a location never match.",
+        ),
+    ] = None,
     session: AsyncSession = Depends(get_session),
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> PaginatedSavedLineups:
-    """List the saved lineups of all teams you belong to, oldest first, optionally only those
-    saved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:
-    `limit` is 1-200 (default 20), `offset` starts at 0.
+    """List the saved lineups of all teams you belong to, newest match first (by `match_date`,
+    undated ones last, then by save time), optionally only those saved in one team (`team_id`)
+    or made with one team as our team (`source_team_id`).
+
+    Every filter is optional and the ones you send are combined with AND: `opponent` and
+    `location` are case-insensitive "contains" matches, `date_from` / `date_to` are inclusive
+    bounds on the match day (`date_from` after `date_to` simply matches nothing). Paginated:
+    `limit` is 1-200 (default 20), `offset` starts at 0, `total` counts all matches.
     """
     items, total = await service.list_saved_lineups(
         session,
         user_id=user_id,
         source_team_id=source_team_id,
         team_id=team_id,
+        opponent=opponent,
+        location=location,
+        date_from=date_from,
+        date_to=date_to,
         limit=limit,
         offset=offset,
     )

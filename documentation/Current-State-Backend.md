@@ -128,7 +128,7 @@ so rendering, headers and error handling live in one place:
 | `GET`/`POST` | `/teams` | `GET`: paginated list of the teams **you belong to**, each with your `role`. `POST`: create a team, you become its `owner` |
 | `GET` | `/teams/pool?search=&limit=` | Shared opponent pool (sign-in required) — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
 | `GET` | `/teams/{id}/opponents/recent?limit=` | Distinct opponent names from this team's saved lineups, newest first (`limit` 1–50). Members only. Together with the pool and free text it feeds the opponent combobox |
-| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, `is_public` to list/unlist in the pool, and `division`, the team's default division that the creator pre-fills; omitted fields are kept) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
+| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, `is_public` to list/unlist in the pool, `division` (the team's default division) and `home_venue` (its home venue), which the creator pre-fills; omitted fields are kept) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
 
 ### Players
 
@@ -166,7 +166,7 @@ roster. There is no `doctor` role (the doctor stays a free-text field on each sa
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET`/`POST` | `/lineups/saved` | A saved lineup is a snapshot (team/opponent name, per-player name/NSSZ) copied when it is saved, and again when it is edited. It lives in a team's workspace: `POST` requires `team_id` (a team you belong to), `GET` lists the lineups of all your teams and can filter by `team_id` or `source_team_id` |
+| `GET`/`POST` | `/lineups/saved` | A saved lineup is a snapshot (team/opponent name, per-player name/NSSZ) copied when it is saved, and again when it is edited. It lives in a team's workspace: `POST` requires `team_id` (a team you belong to), `GET` lists the lineups of all your teams, newest match first, and can filter by `team_id`, `source_team_id` and the search filters below |
 | `GET`/`PUT`/`DELETE` | `/lineups/saved/{id}` | `PUT` edits the lineup in place (see *Editing a saved lineup* below): any member of its team, `409` on a stale `expected_updated_at` |
 | `POST` | `/lineups/saved/{id}/generate?format=pdf\|docx` | Renders the document from the snapshot (same rendering/headers/errors as `POST /lineups`, see above) |
 
@@ -180,6 +180,29 @@ never changes an already-saved lineup; only an edit does. The ids are looked up 
 one listed in the opponent pool (`is_public`). Anything else is the same `404` as an unknown id, so
 the API never confirms that someone else's row exists (otherwise anyone who knew a UUID could copy
 another user's team name or a player's name and NSSZ number into their own lineup).
+
+### Searching saved lineups
+
+`GET /lineups/saved` takes optional filters (#295). Every one is optional, the ones you send are
+**AND-ed**, and with none of them you get the plain list. New filters can be added later without
+breaking a client.
+
+| Query parameter | Matches |
+|---|---|
+| `opponent` (max 120 chars) | a **case-insensitive substring** of the opponent's name, as saved |
+| `location` (max 200 chars) | a case-insensitive substring of the venue; lineups without a location never match |
+| `date_from`, `date_to` (ISO dates) | the match day (`match_date`), **both ends inclusive**; a lineup without a structured date (legacy free text) never matches a date bound; `date_from` after `date_to` simply matches nothing |
+
+The matching rule is "contains", not "equals", so typing "Csongr" finds "Csongrád VVSE". The
+term is bound as a query parameter, never spliced into the SQL, and `%` and `_` are escaped
+(`icontains(..., autoescape=True)`), so typing `100%` finds only names containing `100%`. A blank
+`opponent` or `location` counts as no filter; leading and trailing spaces are trimmed. Case
+folding is exact for Postgres; SQLite (local development) folds ASCII letters only. A `home`
+filter will follow once the home/away flag (#296) exists. The filters only ever see the lineups
+of teams you belong to, the same membership rule as every other saved-lineup read; another team's
+rows are simply not in the result. Search terms are not logged and not stored. `total` counts
+the matches, so paging (`limit`, `offset`) works on a filtered list. There is no extra index:
+a team saves tens of lineups per season, and the membership filter already narrows by `team_id`.
 
 ### Editing a saved lineup
 
@@ -233,8 +256,9 @@ which are names and NSSZ numbers.
 ### Ordering
 
 Page boundaries only mean something if the order is deterministic, and Postgres doesn't promise a row
-order without `ORDER BY`. Teams (and the pool) are ordered by `(name, id)`, players and saved lineups by
-`(created_at, id)`. A saved lineup's players are always sorted by cap number, including on the response
+order without `ORDER BY`. Teams (and the pool) are ordered by `(name, id)` and players by `(created_at, id)`.
+Saved lineups come **newest match first**: `match_date` descending with undated lineups last, then
+`created_at` and `id` descending (#295). A saved lineup's players are always sorted by cap number, including on the response
 to `POST` (the ORM's identity map would otherwise hand back the request order).
 
 All paginated list endpoints (everything except `/teams/pool`) return the envelope
@@ -262,6 +286,18 @@ lineup and a clone all carry it. It is stored for the history and for search (#2
 never part of the data sent to document generation, so the PDF/DOCX is byte-identical with and
 without it (a test checks this). `POST /lineups` (the Quick sheet) does not save, so it has no
 such field. Existing lineups are `null`. The edit body (`PUT /lineups/saved/{id}`) takes it the same way.
+
+### Home or away
+
+`saved_lineups.is_home` (nullable BOOLEAN, migration `f4a9c2e7b165`, #296) records whether our team
+played at home (`true`), away (`false`) or it is unknown (`null`, every lineup saved before the
+column). It is accepted on `POST /lineups/saved` and `PUT /lineups/saved/{id}` and returned by
+`SavedLineupResponse`, so the list, a single lineup and a clone carry it. It is only stored: the
+client derives the cap (home Fehér, away Kék) and the match name from it, and the server enforces
+no relation between `is_home` and `cap` (neutral venues, tournaments). `teams.home_venue`
+(VARCHAR 200, nullable, same migration) is the team's home venue; the creator pre-fills the
+location with it for a home lineup. `POST`/`PUT /teams` take it (trimmed, over 200 characters is
+`422`); on `PUT` (owners only) an omitted `home_venue` is kept, like `division`.
 
 ### The match date
 
@@ -304,6 +340,7 @@ erDiagram
         uuid created_by "Supabase user id of the creator, audit only"
         boolean is_public "true for opponent pool"
         string division "nullable, default division pre-filled in the creator"
+        string home_venue "nullable, pre-fills the location of a home lineup"
     }
     TEAM_MEMBERS {
         uuid team_id PK_FK
@@ -348,6 +385,7 @@ erDiagram
         date match_date "nullable, structured date for search"
         time match_time "nullable, only with match_date"
         string location "nullable venue, never printed"
+        boolean is_home "nullable, true home, false away, null unknown"
         uuid team_id FK "the workspace, required, ondelete RESTRICT"
         uuid created_by "audit only"
         datetime created_at

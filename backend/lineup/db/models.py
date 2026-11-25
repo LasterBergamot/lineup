@@ -67,6 +67,9 @@ class Team(Base):
     # The division the team normally plays in (e.g. "OB II."); the lineup creator pre-fills it.
     # Optional, and each saved lineup keeps its own copy in `saved_lineups.division`.
     division: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # The team's home venue (e.g. a pool's name); the lineup creator pre-fills a lineup's location
+    # with it when the team plays at home. Optional; a lineup keeps its own `location`.
+    home_venue: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=_utcnow, server_default=func.now(), nullable=False
     )
@@ -318,6 +321,10 @@ class SavedLineup(Base):
     # Where the match was played. Free text, optional, shown in the history and never sent to
     # document generation: the official sheet has no venue.
     location: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # True when our team was the home side, False when away, NULL when unknown (every lineup
+    # saved before this column existed). Home plays in Fehér, away in Kék, but `cap` stays
+    # independent of it (neutral venues, tournaments).
+    is_home: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     coach: Mapped[str] = mapped_column(String(200), nullable=False)
     doctor: Mapped[str | None] = mapped_column(String(200), nullable=True)
     assistant_coach: Mapped[str | None] = mapped_column(String(200), nullable=True)

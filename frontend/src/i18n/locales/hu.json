@@ -315,7 +315,18 @@
     "previewBadge": "Előnézet",
     "edit": "Szerkesztés",
     "editOf": "Szerkesztés: {{match}}",
-    "edited": "Módosítva: {{date}}"
+    "edited": "Módosítva: {{date}}",
+    "filters": {
+      "label": "Mentett rajtlisták szűrése",
+      "opponent": "Ellenfél",
+      "from": "Dátumtól",
+      "to": "Dátumig",
+      "location": "Helyszín",
+      "clear": "Szűrők törlése",
+      "noMatch": "Egy mentett rajtlista sem felel meg a szűrőknek.",
+      "count": "{{shown}} / {{total}} rajtlista látható",
+      "more": "Továbbiak"
+    }
   },
   "toast": {
     "region": "Értesítések",

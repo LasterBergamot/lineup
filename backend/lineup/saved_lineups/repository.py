@@ -33,6 +33,7 @@ async def create_saved_lineup(
     match_date: date_type | None,
     match_time: time_type | None,
     location: str | None,
+    is_home: bool | None,
     coach: str,
     doctor: str | None,
     assistant_coach: str | None,
@@ -65,6 +66,7 @@ async def create_saved_lineup(
         match_date=match_date,
         match_time=match_time,
         location=location,
+        is_home=is_home,
         coach=coach,
         doctor=doctor,
         assistant_coach=assistant_coach,
@@ -167,23 +169,52 @@ async def list_saved_lineups(
     user_id: uuid.UUID,
     source_team_id: uuid.UUID | None = None,
     team_id: uuid.UUID | None = None,
+    opponent: str | None = None,
+    location: str | None = None,
+    date_from: date_type | None = None,
+    date_to: date_type | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> tuple[list[SavedLineup], int]:
-    """One page of the lineups of all teams `user_id` belongs to, optionally only those living
-    in `team_id` or made with `source_team_id` as our team, ordered by `(created_at, id)` so
-    paging is stable, plus the total count before paging.
+    """One page of the lineups of all teams `user_id` belongs to, newest match first, plus the
+    total count before paging.
+
+    The membership filter is always applied; every other filter is optional and they are
+    AND-ed together. `team_id` and `source_team_id` match exactly. `opponent` and `location` are
+    case-insensitive *contains* matches on the snapshot's `opponent_name` and `location`, and
+    `%` and `_` in them are escaped (`autoescape=True`) so they are literal characters, not
+    wildcards; the term only ever travels as a bound parameter. `date_from` and `date_to` are
+    inclusive bounds on `match_date`; a lineup without a structured date (legacy free text)
+    never matches a date bound. A caller passes `None` or a non-blank string, the router drops
+    blank terms.
+
+    Order: `match_date` descending with undated lineups last, then `created_at` and `id`
+    descending, so paging is stable and a team's latest match comes first.
     """
     query = select(SavedLineup).where(SavedLineup.team_id.in_(member_team_ids(user_id)))
     if team_id is not None:
         query = query.where(SavedLineup.team_id == team_id)
     if source_team_id is not None:
         query = query.where(SavedLineup.source_team_id == source_team_id)
+    if opponent is not None:
+        query = query.where(
+            SavedLineup.opponent_name.icontains(opponent, autoescape=True)
+        )
+    if location is not None:
+        query = query.where(SavedLineup.location.icontains(location, autoescape=True))
+    if date_from is not None:
+        query = query.where(SavedLineup.match_date >= date_from)
+    if date_to is not None:
+        query = query.where(SavedLineup.match_date <= date_to)
     total: int = (
         await session.scalar(select(func.count()).select_from(query.subquery())) or 0
     )
     query = (
-        query.order_by(SavedLineup.created_at, SavedLineup.id)
+        query.order_by(
+            SavedLineup.match_date.desc().nulls_last(),
+            SavedLineup.created_at.desc(),
+            SavedLineup.id.desc(),
+        )
         .limit(limit)
         .offset(offset)
     )

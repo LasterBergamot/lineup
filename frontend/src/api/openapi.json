@@ -627,6 +627,17 @@
             ],
             "title": "Doctor"
           },
+          "is_home": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Home"
+          },
           "location": {
             "anyOf": [
               {
@@ -924,6 +935,17 @@
             "title": "Id",
             "type": "string"
           },
+          "is_home": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Home"
+          },
           "location": {
             "anyOf": [
               {
@@ -1036,6 +1058,7 @@
           "match_date",
           "match_time",
           "location",
+          "is_home",
           "coach",
           "doctor",
           "assistant_coach",
@@ -1129,6 +1152,17 @@
             "format": "date-time",
             "title": "Expected Updated At",
             "type": "string"
+          },
+          "is_home": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Home"
           },
           "location": {
             "anyOf": [
@@ -1370,7 +1404,7 @@
         "type": "object"
       },
       "TeamCreate": {
-        "description": "Body for creating a team. `division` is the team's usual division (optional, at most 100\ncharacters), which the lineup creator pre-fills. The name is trimmed and must not be blank or contain control\ncharacters.",
+        "description": "Body for creating a team. `division` is the team's usual division (optional, at most 100\ncharacters), which the lineup creator pre-fills; `home_venue` is its home venue (optional, at\nmost 200 characters), which pre-fills the location of a home lineup. The name is trimmed and\nmust not be blank or contain control characters.",
         "properties": {
           "division": {
             "anyOf": [
@@ -1384,6 +1418,19 @@
               }
             ],
             "title": "Division"
+          },
+          "home_venue": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Venue"
           },
           "is_public": {
             "default": true,
@@ -1449,7 +1496,7 @@
         "type": "object"
       },
       "TeamResponse": {
-        "description": "A team as returned by the API, from the signed-in caller's point of view.\n\n`role` is the caller's role in the team (`owner` or `member`); `created_by` is who created\nit (audit only, it grants nothing). `is_public` means \"listed in the opponent directory\".\n`division` is the team's default division (`null` when unset), used to pre-fill new lineups.",
+        "description": "A team as returned by the API, from the signed-in caller's point of view.\n\n`role` is the caller's role in the team (`owner` or `member`); `created_by` is who created\nit (audit only, it grants nothing). `is_public` means \"listed in the opponent directory\".\n`division` is the team's default division (`null` when unset), used to pre-fill new lineups.\n`home_venue` is the team's home venue (`null` when unset), used to pre-fill the location of a\nlineup played at home.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -1471,6 +1518,17 @@
               }
             ],
             "title": "Division"
+          },
+          "home_venue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Venue"
           },
           "id": {
             "format": "uuid",
@@ -1496,6 +1554,7 @@
           "created_by",
           "is_public",
           "division",
+          "home_venue",
           "created_at",
           "role"
         ],
@@ -1503,7 +1562,7 @@
         "type": "object"
       },
       "TeamUpdate": {
-        "description": "Body for updating a team (owners only). `name` is always required; `is_public` lists or\nunlists the team in the opponent directory and `division` sets its default division; both are\nleft unchanged when omitted (so a division cannot be cleared once set, only replaced).",
+        "description": "Body for updating a team (owners only). `name` is always required; `is_public` lists or\nunlists the team in the opponent directory and `division` sets its default division; both are\nleft unchanged when omitted (so a division cannot be cleared once set, only replaced).\n`home_venue` sets the team's home venue and follows the same rule.",
         "properties": {
           "division": {
             "anyOf": [
@@ -1517,6 +1576,19 @@
               }
             ],
             "title": "Division"
+          },
+          "home_venue": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Venue"
           },
           "is_public": {
             "anyOf": [
@@ -1826,7 +1898,7 @@
     },
     "/lineups/saved": {
       "get": {
-        "description": "List the saved lineups of all teams you belong to, oldest first, optionally only those\nsaved in one team (`team_id`) or made with one team as our team (`source_team_id`). Paginated:\n`limit` is 1-200 (default 20), `offset` starts at 0.",
+        "description": "List the saved lineups of all teams you belong to, newest match first (by `match_date`,\nundated ones last, then by save time), optionally only those saved in one team (`team_id`)\nor made with one team as our team (`source_team_id`).\n\nEvery filter is optional and the ones you send are combined with AND: `opponent` and\n`location` are case-insensitive \"contains\" matches, `date_from` / `date_to` are inclusive\nbounds on the match day (`date_from` after `date_to` simply matches nothing). Paginated:\n`limit` is 1-200 (default 20), `offset` starts at 0, `total` counts all matches.",
         "operationId": "list_saved_lineups_lineups_saved_get",
         "parameters": [
           {
@@ -1886,6 +1958,82 @@
                 }
               ],
               "title": "Source Team Id"
+            }
+          },
+          {
+            "description": "Case-insensitive part of the opponent's name. `%` and `_` are ordinary characters. Blank means no filter.",
+            "in": "query",
+            "name": "opponent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 120,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive part of the opponent's name. `%` and `_` are ordinary characters. Blank means no filter.",
+              "title": "Opponent"
+            }
+          },
+          {
+            "description": "Only matches on or after this day (ISO date, inclusive). Lineups without a structured match date never match a date bound.",
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only matches on or after this day (ISO date, inclusive). Lineups without a structured match date never match a date bound.",
+              "title": "Date From"
+            }
+          },
+          {
+            "description": "Only matches on or before this day (ISO date, inclusive). Lineups without a structured match date never match a date bound.",
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only matches on or before this day (ISO date, inclusive). Lineups without a structured match date never match a date bound.",
+              "title": "Date To"
+            }
+          },
+          {
+            "description": "Case-insensitive part of the venue. `%` and `_` are ordinary characters. Blank means no filter. Lineups without a location never match.",
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Case-insensitive part of the venue. `%` and `_` are ordinary characters. Blank means no filter. Lineups without a location never match.",
+              "title": "Location"
             }
           }
         ],
@@ -2528,7 +2676,7 @@
         ]
       },
       "post": {
-        "description": "Create a team; you become its owner. `is_public` (default true) lists its name in the\nopponent directory, which never reveals anything else about the team. `division` (optional)\nis the team's usual division; the lineup creator pre-fills it.",
+        "description": "Create a team; you become its owner. `is_public` (default true) lists its name in the\nopponent directory, which never reveals anything else about the team. `division` (optional)\nis the team's usual division and `home_venue` (optional) its home venue; the lineup creator\npre-fills both.",
         "operationId": "create_team_teams_post",
         "requestBody": {
           "content": {
@@ -2743,7 +2891,7 @@
         ]
       },
       "put": {
-        "description": "Rename a team and/or list or unlist it in the opponent directory (`is_public`, left\nunchanged when omitted) and/or set its default `division` (also unchanged when omitted).\nOwners only: 403 for other members, 404 for non-members.",
+        "description": "Rename a team and/or list or unlist it in the opponent directory (`is_public`, left\nunchanged when omitted) and/or set its default `division` and/or `home_venue` (both also unchanged when\nomitted).\nOwners only: 403 for other members, 404 for non-members.",
         "operationId": "update_team_teams__team_id__put",
         "parameters": [
           {

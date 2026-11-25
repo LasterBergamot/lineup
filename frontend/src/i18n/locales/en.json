@@ -315,7 +315,18 @@
     "previewBadge": "Preview",
     "edit": "Edit",
     "editOf": "Edit {{match}}",
-    "edited": "Edited {{date}}"
+    "edited": "Edited {{date}}",
+    "filters": {
+      "label": "Filter saved lineups",
+      "opponent": "Opponent",
+      "from": "From date",
+      "to": "To date",
+      "location": "Location",
+      "clear": "Clear filters",
+      "noMatch": "No saved lineups match these filters.",
+      "count": "Showing {{shown}} of {{total}} lineups",
+      "more": "Show more"
+    }
   },
   "toast": {
     "region": "Notifications",
