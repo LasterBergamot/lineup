@@ -584,6 +584,9 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-25 | #295: `GET /lineups/saved` takes optional AND-ed `opponent`, `location` (case-insensitive contains, `%`/`_` escaped), `date_from`, `date_to` (inclusive on `match_date`), and lists newest match first; the Saved page gets a debounced filter bar, Clear filters and server-side paging ("Show more"). The `home` filter is left for #296. | #295; PR #331 |
 | 2026-11-25 | #290 frontend: Edit on the Saved page opens the creator in edit mode (`editFromId`, ids only); "Save changes" sends `PUT` with `expected_updated_at`, a 409 keeps the input and offers "Load the latest version", a deleted lineup says so; the preview cache is keyed by `updated_at`; Clone unchanged. | #290; PR #332 |
 | 2026-11-25 | #296 frontend: Home/Away toggle in the creator and Quick sheet (cap colour, suggested match name, home venue pre-fill), `is_home` saved and cloned, "–" for old lineups in the saved list, home venue in team settings. | #296; PR #333 |
+| 2026-11-25 | #289: the Roster page shows the team staff card (coach, assistant coach, team leader, ball thrower) and the lineup creator and Quick sheet get staff pickers. | #289; PR #317 |
+| 2026-11-25 | #281: the logo-crop limitation is documented in `Current-State-Backend.md` ("Document generation"); no template change. | #281; PR #334 |
+| 2026-11-25 | Supabase smoke test against dev passed (31 steps, incl. the cleanup) after the owner corrected the `lineup_app` password in the local env. The first attempt was blocked on that password. | #20 |
 
 ---
 
