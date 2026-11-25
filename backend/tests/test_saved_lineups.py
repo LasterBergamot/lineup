@@ -9,6 +9,7 @@ import io
 import uuid
 import zipfile
 from datetime import UTC, datetime, timedelta, timezone
+from typing import ClassVar
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -20,6 +21,7 @@ from lineup.db.models import LineupPlayerSnapshot, SavedLineup, TeamMember
 from lineup.saved_lineups import repository as saved_lineup_repo
 from lineup.saved_lineups import service as saved_lineup_service
 from lineup.teams import repository as team_repo
+from tests.conftest import CurrentUser
 from tests.helpers import create_player, ensure_team, join_team
 
 FAKE_PDF = b"%PDF-1.4 fake"
@@ -433,6 +435,163 @@ class TestListSavedLineups:
     ):
         response = await async_client.get("/lineups/saved?limit=200")
         assert response.status_code == 200
+
+
+class TestSearchSavedLineups:
+    """GET /lineups/saved filters (#295): opponent, date range and location, AND-ed together,
+    always inside the caller's own teams, newest match first."""
+
+    # (opponent, match day, venue); the ids of the saved lineups are kept by name.
+    SEEDS: ClassVar[dict[str, tuple[str, str | None, str | None]]] = {
+        "csongrad_oct": ("Csongrád VVSE", "2026-10-12", "Csongrád, Városi uszoda"),
+        "csongrad_nov": ("Csongrád VVSE", "2026-11-14", "Szeged, Tisza Volán uszoda"),
+        "ftc_oct": ("FTC", "2026-10-20", "Budapest, Komjádi uszoda"),
+        "legacy": ("Csongrád VVSE", None, None),
+        "wild": ("100% Club_x", "2026-09-01", None),
+    }
+
+    async def _seed(self, async_client: AsyncClient) -> dict[str, str]:
+        team = await _create_team(async_client)
+        player = await _create_player(async_client)
+        ids = {}
+        for key, (opponent, day, venue) in self.SEEDS.items():
+            payload = _lineup_payload(team["id"], player["id"])
+            payload["opponent_name"] = opponent
+            if day is not None:
+                payload.pop("date")
+                payload["match_date"] = day
+            if venue is not None:
+                payload["location"] = venue
+            response = await async_client.post("/lineups/saved", json=payload)
+            assert response.status_code == 201
+            ids[key] = response.json()["id"]
+        return ids
+
+    @staticmethod
+    async def _found(async_client: AsyncClient, query: str) -> list[str]:
+        response = await async_client.get(f"/lineups/saved?{query}")
+        assert response.status_code == 200
+        return [item["id"] for item in response.json()["items"]]
+
+    async def test_no_filter_lists_everything_newest_match_first(
+        self, async_client: AsyncClient
+    ):
+        ids = await self._seed(async_client)
+        response = await async_client.get("/lineups/saved")
+        assert response.json()["total"] == 5
+        assert [i["id"] for i in response.json()["items"]] == [
+            ids[k]
+            for k in ("csongrad_nov", "ftc_oct", "csongrad_oct", "wild", "legacy")
+        ]
+
+    async def test_opponent_is_a_case_insensitive_contains_match(
+        self, async_client: AsyncClient
+    ):
+        ids = await self._seed(async_client)
+        found = await self._found(async_client, "opponent=CSONGR")
+        assert found == [ids[k] for k in ("csongrad_nov", "csongrad_oct", "legacy")]
+
+    async def test_percent_and_underscore_are_literal(self, async_client: AsyncClient):
+        ids = await self._seed(async_client)
+        assert await self._found(async_client, "opponent=%25") == [ids["wild"]]
+        assert await self._found(async_client, "opponent=_x") == [ids["wild"]]
+        assert await self._found(async_client, "opponent=C_ongrád") == []
+
+    async def test_location_is_a_case_insensitive_contains_match(
+        self, async_client: AsyncClient
+    ):
+        ids = await self._seed(async_client)
+        assert await self._found(async_client, "location=USZODA") == [
+            ids[k] for k in ("csongrad_nov", "ftc_oct", "csongrad_oct")
+        ]
+        assert await self._found(async_client, "location=Szeged") == [
+            ids["csongrad_nov"]
+        ]
+
+    async def test_date_range_is_inclusive_and_skips_undated_lineups(
+        self, async_client: AsyncClient
+    ):
+        ids = await self._seed(async_client)
+        both = await self._found(
+            async_client, "date_from=2026-10-12&date_to=2026-10-20"
+        )
+        assert both == [ids["ftc_oct"], ids["csongrad_oct"]]
+        assert await self._found(async_client, "date_from=2026-10-21") == [
+            ids["csongrad_nov"]
+        ]
+        assert await self._found(async_client, "date_to=2026-09-01") == [ids["wild"]]
+
+    async def test_filters_are_combined_with_and(self, async_client: AsyncClient):
+        ids = await self._seed(async_client)
+        assert await self._found(
+            async_client, "opponent=csongr%C3%A1d&date_from=2026-11-01"
+        ) == [ids["csongrad_nov"]]
+        assert await self._found(
+            async_client, "opponent=csongr%C3%A1d&location=uszoda&date_to=2026-10-31"
+        ) == [ids["csongrad_oct"]]
+        assert await self._found(async_client, "opponent=FTC&location=Szeged") == []
+
+    async def test_a_blank_term_is_no_filter(self, async_client: AsyncClient):
+        await self._seed(async_client)
+        response = await async_client.get("/lineups/saved?opponent=%20&location=")
+        assert response.json()["total"] == 5
+
+    async def test_nothing_matches_gives_an_empty_page(self, async_client: AsyncClient):
+        await self._seed(async_client)
+        response = await async_client.get("/lineups/saved?opponent=Nobody")
+        assert response.json() == {"items": [], "total": 0, "limit": 20, "offset": 0}
+
+    async def test_reversed_range_matches_nothing(self, async_client: AsyncClient):
+        await self._seed(async_client)
+        found = await self._found(
+            async_client, "date_from=2026-11-01&date_to=2026-10-01"
+        )
+        assert found == []
+
+    async def test_paging_counts_the_matches_not_the_table(
+        self, async_client: AsyncClient
+    ):
+        ids = await self._seed(async_client)
+        response = await async_client.get("/lineups/saved?opponent=csongrád&limit=2")
+        data = response.json()
+        assert data["total"] == 3
+        assert [i["id"] for i in data["items"]] == [
+            ids["csongrad_nov"],
+            ids["csongrad_oct"],
+        ]
+        rest = await async_client.get("/lineups/saved?opponent=csongrád&offset=2")
+        assert [i["id"] for i in rest.json()["items"]] == [ids["legacy"]]
+
+    @pytest.mark.parametrize(
+        "query",
+        ["date_from=not-a-date", "date_to=2026-13-40", f"opponent={'x' * 121}"]
+        + [f"location={'y' * 201}"],
+    )
+    async def test_invalid_filters_are_422(self, async_client: AsyncClient, query: str):
+        assert (await async_client.get(f"/lineups/saved?{query}")).status_code == 422
+
+    async def test_a_non_member_finds_nothing(
+        self, async_client: AsyncClient, current_user: CurrentUser
+    ):
+        await self._seed(async_client)
+        current_user.id = uuid.uuid4()
+        response = await async_client.get(
+            "/lineups/saved?opponent=csongrád&location=uszoda&date_from=2026-01-01"
+        )
+        assert response.json()["total"] == 0 and response.json()["items"] == []
+
+    async def test_a_colleague_searches_the_shared_lineups(
+        self,
+        async_client: AsyncClient,
+        current_user: CurrentUser,
+        db_session: AsyncSession,
+    ):
+        ids = await self._seed(async_client)
+        team = await ensure_team(async_client)
+        colleague = uuid.uuid4()
+        await join_team(db_session, team["id"], colleague)
+        current_user.id = colleague
+        assert await self._found(async_client, "opponent=FTC") == [ids["ftc_oct"]]
 
 
 class TestGetSavedLineup:

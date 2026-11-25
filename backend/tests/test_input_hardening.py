@@ -426,7 +426,7 @@ class TestStableOrdering:
         ]
 
     @pytest.mark.usefixtures("_workspace")
-    async def test_saved_lineups_are_paged_in_creation_order(
+    async def test_saved_lineups_are_paged_newest_first(
         self, async_client: AsyncClient
     ):
         for i in range(5):
@@ -438,7 +438,7 @@ class TestStableOrdering:
         for offset in (0, 2, 4):
             response = await async_client.get(f"/lineups/saved?limit=2&offset={offset}")
             pages.append([x["match_name"] for x in response.json()["items"]])
-        assert pages == [["Match 0", "Match 1"], ["Match 2", "Match 3"], ["Match 4"]]
+        assert pages == [["Match 4", "Match 3"], ["Match 2", "Match 1"], ["Match 0"]]
 
     @pytest.mark.usefixtures("_workspace")
     async def test_create_returns_players_in_the_same_order_as_get(
