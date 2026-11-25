@@ -280,6 +280,10 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   error, and at least one row must be filled. A roster pick is saved as `source_player_id`, so the
   server freezes the current values. The row model, the skip-empty rule and the shared validation
   live in `src/features/lineup/cap-rows.ts`, used by both forms.
+- **Location.** An optional text box in the Match card, labelled "not printed" (#294, max 200
+  characters, blank is left out). It is sent only with the save (`location` in `SavedLineupCreate`),
+  never in the preview request, and it is not on the sheet. "Clone to new match" keeps it. The Quick
+  sheet has no location field: it saves nothing and `POST /lineups` takes no location.
 - **Opponent.** `OpponentCombobox` is a native `<input list>` + `<datalist>` over the listed
   directory (`GET /teams/pool`, 300 ms debounce, the own team left out) and the team's recent
   opponents (`GET /teams/{id}/opponents/recent`). If the typed text equals a listed team's name the
@@ -386,7 +390,7 @@ leaving the page asks first (see *Unsaved changes*).
 ### Saved lineups
 
 The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest first: match
-name, date, division, cap colour and opponent. Every member sees and manages the same list. Each row
+name, date, division, cap colour, opponent and, when one was entered, the location. Every member sees and manages the same list. Each row
 has:
 
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
