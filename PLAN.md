@@ -270,12 +270,12 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [x] #287 Today as the default date, optional time, `match_date`/`match_time` stored (Sonnet 5.5 · medium · M)
 - [x] #294 Optional match location, not printed (Sonnet 5.5 · medium · S; backend PR #310, frontend PR #329)
 - [x] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
-- [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
+- [x] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M; PR #317)
 - [x] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L; backend PR #316, frontend PR #332)
 - [x] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M; backend PR #330, frontend PR #333)
 - [x] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
 - [x] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M; PR #331; the `home` filter waits for #296)
-- [ ] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
+- [x] #281 Wiki note: the logo is cropped in the official form too, so we don't fix it (Haiku 5.5 · low · S)
 - Parked, not part of this phase: #291 waterpolo.hu fixtures spike (Opus 5.5 · high).
 
 **Decisions (2026-11-24)**

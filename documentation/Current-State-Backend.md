@@ -113,6 +113,11 @@ so rendering, headers and error handling live in one place:
   assistant coach / team leader / ball thrower renders as an empty line. `LineupRequest`
   (the one-off endpoint) takes the same optional staff as saved lineups: omitted or blank is fine
   (#203), so the lineup creator can preview a lineup that has no doctor or assistants.
+- **Known limitation: the federation logo is cropped.** The logo in the top-left corner of every
+  generated lineup (PDF and DOCX) is cut off: the end of "MAGYAR VÍZILABDA SZÖVETSÉG" is missing and
+  the image is slightly stretched. The official federation form has the same cropped logo, so the
+  template copies it faithfully. We know about it and will not change the template; it will be fixed
+  only if a complete logo becomes available or the federation updates its form. Tracked in #281.
 
 ### Health
 
