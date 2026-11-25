@@ -334,8 +334,8 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   roster player is picked again from the roster, so the box shows (and the save copies) the
   player's **current** name and NSSZ number; a player deleted since stays as typed-in text. Saving
   sends `PUT /lineups/saved/{id}` (`updateSavedLineup()`, body from `toSavedLineupUpdate()`: no
-  `team_id`, the lineup's own source team, its stored `location` sent back unchanged until the
-  creator gets a location field (#294), and `expected_updated_at`). That version is the
+  `team_id`, the lineup's own source team, and `expected_updated_at`; every field is replaced, so
+  clearing the location or a staff role clears it in the lineup). That version is the
   `updated_at` the form was loaded with, then the one each successful save returned, never one a
   background refetch brought in, so a concurrent change is never overwritten silently:
   - **409**, someone else saved the lineup after it was opened: nothing was changed, the typed

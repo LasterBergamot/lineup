@@ -109,13 +109,12 @@ function lineupFields(values: CreatorValues) {
  * The body for `PUT /lineups/saved/{id}` (#290): the same fields as {@link toSavedLineupRequest},
  * without `team_id` (a lineup never moves to another team), plus `expected_updated_at`, the
  * version the form was loaded from (a 409 if someone saved since). The team name keeps coming from
- * the lineup's own source team (or its stored text), so an edit never swaps the team. The creator
- * has no location field yet (#294), so the stored `location` is sent back unchanged instead of
- * being cleared by the replace-everything `PUT`.
+ * the lineup's own source team (or its stored text), so an edit never swaps the team. Every field
+ * is replaced, so a blank optional field (the location, a staff role) clears the stored value.
  */
 export function toSavedLineupUpdate(
   values: CreatorValues,
-  saved: Pick<SavedLineup, "source_team_id" | "team_name" | "location">,
+  saved: Pick<SavedLineup, "source_team_id" | "team_name">,
   expectedUpdatedAt: string,
 ): SavedLineupUpdate {
   return {
@@ -123,7 +122,6 @@ export function toSavedLineupUpdate(
     ...(saved.source_team_id
       ? { source_team_id: saved.source_team_id }
       : { team_name: saved.team_name }),
-    location: saved.location ?? undefined,
     expected_updated_at: withZone(expectedUpdatedAt),
   };
 }

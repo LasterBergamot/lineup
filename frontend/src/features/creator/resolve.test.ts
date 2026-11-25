@@ -276,12 +276,12 @@ describe("valuesForEdit", () => {
 });
 
 describe("toSavedLineupUpdate", () => {
-  const edited = values({ match_date: "2026-10-01", match_time: "18:30" });
+  const edited = values({ match_date: "2026-10-01", match_time: "18:30", location: "Komjádi" });
 
   it("is the save body without team_id, keeps the lineup's own team and sends the version", () => {
     const body = toSavedLineupUpdate(
       edited,
-      { source_team_id: "t-own", team_name: "SZVTK", location: "Komjádi" },
+      { source_team_id: "t-own", team_name: "SZVTK" },
       "2026-11-24T10:00:00.123456Z",
     );
     const created: Partial<ReturnType<typeof toSavedLineupRequest>> = toSavedLineupRequest(edited, {
@@ -291,16 +291,16 @@ describe("toSavedLineupUpdate", () => {
     expect(body).toEqual({
       ...created,
       source_team_id: "t-own",
-      location: "Komjádi",
       expected_updated_at: "2026-11-24T10:00:00.123456Z",
     });
     expect(body).not.toHaveProperty("team_id");
+    expect(body.location).toBe("Komjádi");
   });
 
-  it("sends the stored team name when the lineup has no source team, and no location when it has none", () => {
+  it("sends the stored team name when the lineup has no source team, and clears a blank location", () => {
     const body = toSavedLineupUpdate(
-      edited,
-      { source_team_id: null, team_name: "SZVTK", location: null },
+      { ...edited, location: "" },
+      { source_team_id: null, team_name: "SZVTK" },
       "2026-11-24T10:00:00+00:00",
     );
     expect(body).toMatchObject({ team_name: "SZVTK", location: undefined });
@@ -311,7 +311,7 @@ describe("toSavedLineupUpdate", () => {
   it("marks a version without a time zone as UTC, keeping its microseconds", () => {
     const body = toSavedLineupUpdate(
       edited,
-      { source_team_id: "t", team_name: "SZVTK", location: null },
+      { source_team_id: "t", team_name: "SZVTK" },
       "2026-11-24T10:00:00.123456",
     );
     expect(body.expected_updated_at).toBe("2026-11-24T10:00:00.123456Z");

@@ -738,6 +738,7 @@ describe("LineupCreator edit mode", () => {
     expect(screen.getByLabelText("Match name (optional)")).toHaveValue("");
     expect(screen.getByLabelText("Date")).toHaveValue("2026-10-01");
     expect(screen.getByLabelText("Start time (optional)")).toHaveValue("18:30");
+    expect(screen.getByLabelText("Location (optional, not printed)")).toHaveValue("Komjádi");
     expect(within(slot(2)).getByLabelText("Name")).toHaveValue("Kézi Kata");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Save lineup" })).not.toBeInTheDocument();
