@@ -274,6 +274,9 @@ export function LineupCreator({
             <Field label={t("fields.time")} error={errors.match_time?.message}>
               {(props) => <Input {...props} type="time" {...register("match_time")} />}
             </Field>
+            <Field label={t("creator.location")} error={errors.location?.message}>
+              {(props) => <Input {...props} {...register("location")} />}
+            </Field>
           </CardContent>
         </Card>
 

@@ -141,6 +141,8 @@ export function SavedLineups({ team }: { team: Team }) {
                       }),
                       opponent: lineup.opponent_name,
                     })}
+                    {lineup.location &&
+                      ` · ${t("savedLineups.location", { location: lineup.location })}`}
                   </p>
                   {lineup.updated_at !== lineup.created_at && (
                     <p className="text-sm text-muted-foreground">

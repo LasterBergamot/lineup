@@ -148,6 +148,18 @@ describe("toSavedLineupRequest", () => {
     );
   });
 
+  it("sends the location, and leaves a blank one out", () => {
+    const body = toSavedLineupRequest(values({ location: "Szeged, Alsóvárosi uszoda" }), {
+      id: "t",
+    });
+    expect(body.location).toBe("Szeged, Alsóvárosi uszoda");
+    expect(toSavedLineupRequest(values(), { id: "t" }).location).toBeUndefined();
+  });
+
+  it("does not put the location in the preview request", () => {
+    expect(toLineupRequest(values({ location: "Szeged" }), "SZVTK")).not.toHaveProperty("location");
+  });
+
   it("sends a free-text opponent by name", () => {
     const body = toSavedLineupRequest(values({ match_name: "Final" }), { id: "team-1" });
     expect(body).toMatchObject({ opponent_name: "Csongrád", match_name: "Final" });
@@ -208,6 +220,10 @@ describe("valuesFromSaved", () => {
     const clone = valuesFromSaved(saved({ match_date: "2026-10-01", match_time: "18:30" }), roster);
     vi.useRealTimers();
     expect(clone).toMatchObject({ match_date: "2026-11-24", match_time: "" });
+  });
+
+  it("keeps the location of the saved lineup", () => {
+    expect(valuesFromSaved(saved({ location: "Szeged" }), roster).location).toBe("Szeged");
   });
 
   it("falls back to white caps for a colour it does not know", () => {

@@ -35,6 +35,7 @@ export function emptyValues(
     cap: "Fehér",
     match_date: todayIso(),
     match_time: "",
+    location: "",
     coach: staff.coach ?? "",
     doctor: "",
     assistant_coach: staff.assistant_coach ?? "",
@@ -90,6 +91,7 @@ function lineupFields(values: CreatorValues) {
     cap: values.cap,
     match_date: values.match_date,
     match_time: optional(values.match_time),
+    location: optional(values.location),
     coach: values.coach,
     doctor: optional(values.doctor),
     assistant_coach: optional(values.assistant_coach),
@@ -158,7 +160,7 @@ export function valuesForEdit(saved: SavedLineup, roster: readonly Player[]): Cr
 
 /**
  * Starting values for "Clone to new match": the staff, division, cap colour and players of a
- * saved lineup, with the match and opponent left empty, the date reset to today and the time cleared (it is a
+ * saved lineup, with the match and opponent left empty (the location is kept, as a venue is often reused), the date reset to today and the time cleared (it is a
  * new match). Each player goes into the row of
  * their `cap_number`; the other rows stay empty. A player who is still on the roster is picked
  * from it (so name changes follow); one who was deleted since stays as typed-in text with the
@@ -171,6 +173,7 @@ export function valuesFromSaved(saved: SavedLineup, roster: readonly Player[]): 
     ...emptyValues(),
     division: saved.division,
     cap: saved.cap === "Kék" ? "Kék" : "Fehér",
+    location: saved.location ?? "",
     coach: saved.coach,
     doctor: saved.doctor ?? "",
     assistant_coach: saved.assistant_coach ?? "",

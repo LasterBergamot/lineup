@@ -71,6 +71,7 @@
     "division": "Division",
     "teamName": "Team name",
     "capColour": "Cap colour",
+    "location": "Location",
     "date": "Date",
     "time": "Start time (optional)",
     "coach": "Coach",
@@ -267,6 +268,7 @@
     "formLabel": "Lineup creator",
     "matchName": "Match name (optional)",
     "optional": "optional",
+    "location": "Location (optional, not printed)",
     "emptyRoster": "The roster is empty. Add players on the Roster page, or type players in by hand.",
     "rosterPlayer": "Player from the roster",
     "typedIn": "Type in by hand",
@@ -293,6 +295,7 @@
   "savedLineups": {
     "listLabel": "Saved lineups of {{team}}",
     "empty": "No saved lineups yet. Make a lineup on the Lineup page and save it; it shows up here.",
+    "location": "Location: {{location}}",
     "details": "{{date}} · {{division}} · {{cap}} caps · Opponent: {{opponent}}",
     "preview": "Preview",
     "previewOf": "Preview {{match}}",
