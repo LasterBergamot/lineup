@@ -63,8 +63,10 @@ there:
   modal dialog on a phone) through the stateless `POST /lineups`, and **Save** through `POST /lineups/saved`. The
   old one-off form stays as "Quick sheet".
 - **Roster management** — **built** (#197): players CRUD, team settings (owners), opponent directory search. The opponent combobox of the lineup creator reuses `GET /teams/pool`.
-- **Saved lineups list / "Clone to New Match"** — the list is **built** (#204): `/lineups/saved`
-  newest first, PDF preview (on the Preview button only, cached in memory), PDF/DOCX download, delete,
+- **Saved lineups list / Edit / "Clone to New Match"** — the list is **built** (#204): `/lineups/saved`
+  newest first, PDF preview (on the Preview button only, cached in memory per version), PDF/DOCX download, delete,
+  **Edit** (#290: the creator in edit mode saves the lineup in place through `PUT`, with a 409 when
+  another member saved it first, and "Load the latest version"; router state `editFromId`),
   and "Clone to new match", which opens the Lineup page with only the lineup id in the router state
   (`cloneFromId`); the Lineup page fetches the lineup. The creator side of the clone (#203) matches each player's `source_player_id`
   against the current roster: still-present players get pre-selected, deleted ones fall back to
@@ -75,10 +77,10 @@ there:
 ## Still open
 
 - The first round of feedback from the dev preview (`PLAN.md` Phase 7, #281–#296):
-  - **Lineup creator and Quick sheet:** 15 fixed cap rows, a searchable roster picker, today's date by default, staff pickers, a Home/Away toggle. (The unsaved-changes warning is built, #293, and switching between the two modes keeps what was typed, #302; the edit mode of a saved lineup, #290, adds it to its own form.)
+  - **Lineup creator and Quick sheet:** 15 fixed cap rows, a searchable roster picker, today's date by default, staff pickers, a Home/Away toggle. (The unsaved-changes warning is built, #293, and also guards the edit mode of a saved lineup, #290; switching between the two modes keeps what was typed, #302.)
   - **Roster:** players in alphabetical order, no duplicate players, a Staff card.
   - **Team settings:** a default division.
-  - **Saved lineups:** edit in place, an optional location, search by opponent and date, the preview only on the Preview button.
+  - **Saved lineups:** an optional location (editing in place is built, #290), search by opponent and date, the preview only on the Preview button.
 - The strict Content-Security-Policy for Cloudflare Pages (#97); the baseline headers are in `frontend/public/_headers` already.
 - Whether the production API gets a custom domain (and so a same-site frontend) or stays on the
   provider's hostname.

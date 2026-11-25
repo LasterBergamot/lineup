@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import { useAuth } from "@/auth/context";
@@ -7,18 +7,20 @@ import { QueryBoundary } from "@/components/query-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs } from "@/components/ui/tabs";
 import { LineupCreator } from "@/features/creator/lineup-creator";
-import { getSavedLineup } from "@/features/creator/api";
-import { valuesFromSaved } from "@/features/creator/resolve";
+import { getSavedLineup, type SavedLineup } from "@/features/creator/api";
+import { valuesForEdit, valuesFromSaved } from "@/features/creator/resolve";
 import { LineupForm } from "@/features/lineup/lineup-form";
-import { listPlayers, playersKey } from "@/features/players/api";
-import { listStaff, staffKey } from "@/features/staff/api";
+import { listPlayers, playersKey, type Player } from "@/features/players/api";
+import { listStaff, staffKey, type Staff } from "@/features/staff/api";
 import { useTeams } from "@/features/teams/context";
 
 /**
  * Make a lineup. The creator (default) builds it from the current team's roster, previews it and
  * saves it; "Quick sheet" is the one-off form for a lineup nobody needs to keep. When the Saved
  * page sends the id of a lineup to clone (`location.state.cloneFromId`), the page fetches it and the
- * creator starts from it. Both modes stay mounted and the inactive one is hidden, so switching
+ * creator starts from it. With `location.state.editFromId` (#290) the page edits that lineup in
+ * place instead: the heading names it, there is no Quick sheet, and the creator saves changes to
+ * it; after a 409 its "load the latest version" refetches the lineup and mounts a fresh creator. Both modes stay mounted and the inactive one is hidden, so switching
  * keeps what was typed in either (the values live in component state only, never in storage).
  * Only the id travels in the router state: the lineup itself holds players' names and NSSZ
  * numbers, which must not end up in the browser's history entries. Both forms wait for the team's
@@ -41,14 +43,68 @@ export function LineupPage() {
     queryFn: () => listStaff(current!.id),
     enabled: Boolean(current),
   });
-  const requested = (location.state as { cloneFromId?: unknown } | null)?.cloneFromId;
-  const cloneId = typeof requested === "string" ? requested : undefined;
-  const clone = useQuery({
-    queryKey: ["saved", userId, current?.id ?? "", "clone", cloneId ?? ""],
-    queryFn: () => getSavedLineup(cloneId!),
-    enabled: Boolean(current) && cloneId !== undefined,
+  const state = location.state as { cloneFromId?: unknown; editFromId?: unknown } | null;
+  const editId = typeof state?.editFromId === "string" ? state.editFromId : undefined;
+  const cloneId =
+    editId === undefined && typeof state?.cloneFromId === "string" ? state.cloneFromId : undefined;
+  const sourceId = editId ?? cloneId;
+  const source = useQuery({
+    queryKey: ["saved", userId, current?.id ?? "", editId ? "edit" : "clone", sourceId ?? ""],
+    queryFn: () => getSavedLineup(sourceId!),
+    enabled: Boolean(current) && sourceId !== undefined,
   });
+  // Bumped by "load the latest version": a new key mounts a fresh creator from the refetched data.
+  const [reloads, setReloads] = useState(0);
   if (!current) return null;
+
+  /** Roster, then staff, then (for a clone or an edit) the lineup, each with its own boundary. */
+  const withData = (
+    render: (players: Player[], entries: Staff[], saved: SavedLineup | undefined) => ReactNode,
+  ) => (
+    <QueryBoundary query={roster} skeleton={<CreatorSkeleton />}>
+      {(players) => (
+        <QueryBoundary query={staff} skeleton={<CreatorSkeleton />}>
+          {(entries) =>
+            sourceId === undefined ? (
+              render(players, entries, undefined)
+            ) : (
+              <QueryBoundary query={source} skeleton={<CreatorSkeleton />}>
+                {(saved) => render(players, entries, saved)}
+              </QueryBoundary>
+            )
+          }
+        </QueryBoundary>
+      )}
+    </QueryBoundary>
+  );
+
+  if (editId !== undefined) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {source.data
+              ? t("creator.editTitle", { match: source.data.match_name })
+              : t("creator.editTitleLoading")}
+          </h1>
+          <p className="text-muted-foreground">{t("creator.editDescription")}</p>
+        </div>
+        {withData((players, entries, saved) => (
+          <LineupCreator
+            key={`${saved!.id}:${reloads}`}
+            team={current}
+            roster={players}
+            staff={entries}
+            initialValues={valuesForEdit(saved!, players)}
+            edit={{
+              lineup: saved!,
+              onReload: () => void source.refetch().then(() => setReloads((n) => n + 1)),
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,29 +134,19 @@ export function LineupPage() {
             typed (#302) and both forms keep reporting their dirty flag to the unsaved-changes guard.
             The `hidden` goes on a wrapper without a display class: `flex` would override it. */}
         <div hidden={quick}>
-          <QueryBoundary query={roster} skeleton={<CreatorSkeleton />}>
-            {(players) => (
-              <QueryBoundary query={staff} skeleton={<CreatorSkeleton />}>
-                {(entries) =>
-                  cloneId === undefined ? (
-                    <LineupCreator key="new" team={current} roster={players} staff={entries} />
-                  ) : (
-                    <QueryBoundary query={clone} skeleton={<CreatorSkeleton />}>
-                      {(saved) => (
-                        <LineupCreator
-                          key={saved.id}
-                          team={current}
-                          roster={players}
-                          staff={entries}
-                          initialValues={valuesFromSaved(saved, players)}
-                        />
-                      )}
-                    </QueryBoundary>
-                  )
-                }
-              </QueryBoundary>
-            )}
-          </QueryBoundary>
+          {withData((players, entries, saved) =>
+            saved === undefined ? (
+              <LineupCreator key="new" team={current} roster={players} staff={entries} />
+            ) : (
+              <LineupCreator
+                key={saved.id}
+                team={current}
+                roster={players}
+                staff={entries}
+                initialValues={valuesFromSaved(saved, players)}
+              />
+            ),
+          )}
         </div>
         <div hidden={!quick}>
           <QueryBoundary query={staff} skeleton={<CreatorSkeleton />}>

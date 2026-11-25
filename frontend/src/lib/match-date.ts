@@ -28,6 +28,22 @@ export function composeMatchDate(date: string, time: string): string {
   return time ? `${printed} ${time}` : printed;
 }
 
+/** The printed text {@link composeMatchDate} makes: `YYYY. MM. DD.`, optionally ` HH:MM`. */
+const PRINTED = /^(\d{4})\. (\d{2})\. (\d{2})\.(?: ([01]\d|2[0-3]):([0-5]\d))?$/;
+
+/**
+ * Reads a printed match date back into the inputs' values: the reverse of
+ * {@link composeMatchDate}. Editing a saved lineup (#290) needs it for one stored before the
+ * structured `match_date` existed (#287), which has only the printed `date` text. Returns `null`
+ * for any other text (an old lineup may hold free text), so the form starts with an empty date
+ * and asks for one. The day is not checked here: {@link matchDateSchema} does that on save.
+ */
+export function parseMatchDate(printed: string): { date: string; time: string } | null {
+  const [, year, month, day, hour, minute] = PRINTED.exec(printed.trim()) ?? [];
+  if (!year) return null;
+  return { date: `${year}-${month}-${day}`, time: hour ? `${hour}:${minute}` : "" };
+}
+
 /**
  * The required match date from a date input. It must be a real calendar day; an empty value
  * (cleared or half-typed) is "required", like the other required fields.

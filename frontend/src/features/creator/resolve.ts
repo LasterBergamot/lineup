@@ -3,11 +3,12 @@ import type { CreatorValues } from "@/features/creator/schema";
 import type { Player } from "@/features/players/api";
 import type { StaffRole } from "@/features/staff/api";
 import type { Team } from "@/features/teams/api";
-import { composeMatchDate, todayIso } from "@/lib/match-date";
+import { composeMatchDate, parseMatchDate, todayIso } from "@/lib/match-date";
 import { capRows, filledRows, requestPlayers, rowPath } from "@/features/lineup/cap-rows";
 
 type LineupRequest = components["schemas"]["LineupRequest"];
 type SavedLineupCreate = components["schemas"]["SavedLineupCreate"];
+type SavedLineupUpdate = components["schemas"]["SavedLineupUpdate"];
 type SavedLineup = components["schemas"]["SavedLineupResponse"];
 
 /** The longest `match` the API accepts; "<team> - <opponent>" can exceed it, so it is cut. */
@@ -77,9 +78,12 @@ export function toSavedLineupRequest(
   values: CreatorValues,
   team: Pick<Team, "id">,
 ): SavedLineupCreate {
+  return { team_id: team.id, source_team_id: team.id, ...lineupFields(values) };
+}
+
+/** What a new lineup and an edit send alike: everything but the team. */
+function lineupFields(values: CreatorValues) {
   return {
-    team_id: team.id,
-    source_team_id: team.id,
     ...(values.opponentId
       ? { source_opponent_id: values.opponentId }
       : { opponent_name: values.opponent }),
@@ -100,6 +104,58 @@ export function toSavedLineupRequest(
         ? { source_player_id: p.playerId, cap_number: p.cap_number }
         : { name: p.name.trim(), nssz_number: p.nssz_number.trim(), cap_number: p.cap_number },
     ),
+  };
+}
+
+/**
+ * The body for `PUT /lineups/saved/{id}` (#290): the same fields as {@link toSavedLineupRequest},
+ * without `team_id` (a lineup never moves to another team), plus `expected_updated_at`, the
+ * version the form was loaded from (a 409 if someone saved since). The team name keeps coming from
+ * the lineup's own source team (or its stored text), so an edit never swaps the team. Every field
+ * is replaced, so a blank optional field (the location, a staff role) clears the stored value. The
+ * Home / Away toggle's value (`isHome`, #296) goes along with the other fields.
+ */
+export function toSavedLineupUpdate(
+  values: CreatorValues,
+  saved: Pick<SavedLineup, "source_team_id" | "team_name">,
+  expectedUpdatedAt: string,
+): SavedLineupUpdate {
+  return {
+    ...lineupFields(values),
+    ...(saved.source_team_id
+      ? { source_team_id: saved.source_team_id }
+      : { team_name: saved.team_name }),
+    expected_updated_at: withZone(expectedUpdatedAt),
+  };
+}
+
+/**
+ * The API wants `expected_updated_at` with a time zone. It returns one, but a bare value (SQLite
+ * can hand one back) is UTC, so "Z" is appended. The text is otherwise sent back as it came: going
+ * through `Date` would drop the microseconds and make every edit a 409.
+ */
+const withZone = (value: string) => (/(Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`);
+
+/**
+ * Starting values for "Edit" (#290): everything the saved lineup holds, so saving it unchanged
+ * keeps it as it is. The match name stays empty when it is the default "<team> - <opponent>" the
+ * API made, so it follows a changed opponent again. A lineup saved before the structured date
+ * (#287) has its printed `date` read back with `parseMatchDate()`; text that is not a printed date
+ * leaves the date empty, and the form asks for one. The players and staff are as for a clone: a
+ * roster player still on the roster is picked again (their current name is shown and saved), one
+ * deleted since stays as typed-in text.
+ */
+export function valuesForEdit(saved: SavedLineup, roster: readonly Player[]): CreatorValues {
+  const printed = saved.match_date ? null : parseMatchDate(saved.date);
+  return {
+    ...valuesFromSaved(saved, roster),
+    match_name:
+      saved.match_name === `${saved.team_name} - ${saved.opponent_name}` ? "" : saved.match_name,
+    opponent: saved.opponent_name,
+    opponentId: saved.source_opponent_id ?? "",
+    match_date: saved.match_date ?? printed?.date ?? "",
+    // The API sends `HH:MM:SS`; the time input holds `HH:MM`.
+    match_time: saved.match_time?.slice(0, 5) ?? printed?.time ?? "",
   };
 }
 

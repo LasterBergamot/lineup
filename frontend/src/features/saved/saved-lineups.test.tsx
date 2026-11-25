@@ -70,7 +70,7 @@ const pageOf = (items: SavedLineup[], total = items.length, offset = 0) => ({
 /** A file whose `label` the mocked viewer prints, so a test can tell previews apart. */
 const pdfFile = (label: string) => ({ blob: Object.assign(new Blob(["%PDF"]), { label }) });
 
-/** Shows where "Clone" navigated to, and the whole router state it handed the creator. */
+/** Shows where "Edit" or "Clone" navigated to, and the whole router state it handed the creator. */
 function LineupProbe() {
   return <p>{`creator with ${JSON.stringify(useLocation().state)}`}</p>;
 }
@@ -194,6 +194,36 @@ describe("SavedLineups", () => {
     expect(mocks.generateSavedLineup).toHaveBeenCalledTimes(2);
   });
 
+  it("generates the preview again for a new version of an edited lineup", async () => {
+    mocks.generateSavedLineup.mockImplementation(async (id: string) => pdfFile(id));
+    const { queryClient } = renderList();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Preview SZVTK - Opponent 2" }),
+    );
+    expect(await screen.findByText("pdf: l-2")).toBeInTheDocument();
+    // Another member edits it; the list comes back with a newer version.
+    mocks.generateSavedLineup.mockImplementation(async (id: string) => pdfFile(`${id} v2`));
+    mocks.listSavedLineups.mockResolvedValue(
+      pageOf([lineup(2, { updated_at: "2026-11-24T09:00:00" }), lineup(1)]),
+    );
+    await act(() =>
+      queryClient.refetchQueries({ predicate: (q) => !q.queryKey.includes("preview") }),
+    );
+    await screen.findByText(/^Edited /);
+    await userEvent.click(screen.getByRole("button", { name: "Preview SZVTK - Opponent 2" }));
+    expect(await screen.findByText("pdf: l-2 v2")).toBeInTheDocument();
+    expect(mocks.generateSavedLineup).toHaveBeenCalledTimes(2);
+  });
+
+  it("says when a lineup was edited, and nothing for one never edited", async () => {
+    mocks.listSavedLineups.mockResolvedValue(
+      pageOf([lineup(2, { updated_at: "2026-11-24T09:30:00Z" }), lineup(1)]),
+    );
+    renderList();
+    expect(await rowOf("SZVTK - Opponent 2")).toHaveTextContent(/Edited Nov 24, 2026/);
+    expect(await rowOf("SZVTK - Opponent 1")).not.toHaveTextContent(/Edited/);
+  });
+
   it("never starts a preview from hovering, however long the pointer rests on a row", async () => {
     mocks.generateSavedLineup.mockImplementation(async (id: string) => pdfFile(id));
     renderList();
@@ -291,6 +321,13 @@ describe("SavedLineups", () => {
       await screen.findByRole("button", { name: "Clone to new match: SZVTK - Opponent 2" }),
     );
     expect(screen.getByText('creator with {"cloneFromId":"l-2"}')).toBeInTheDocument();
+  });
+
+  it("opens the creator with only the id of the lineup to edit, no names", async () => {
+    await userEvent.click(
+      await (renderList(), screen.findByRole("button", { name: "Edit SZVTK - Opponent 2" })),
+    );
+    expect(screen.getByText('creator with {"editFromId":"l-2"}')).toBeInTheDocument();
   });
 
   it("deletes a lineup after a confirm and reloads the list", async () => {

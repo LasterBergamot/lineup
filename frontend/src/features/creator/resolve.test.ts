@@ -4,6 +4,8 @@ import {
   formPath,
   toLineupRequest,
   toSavedLineupRequest,
+  toSavedLineupUpdate,
+  valuesForEdit,
   valuesFromSaved,
 } from "@/features/creator/resolve";
 import type { CreatorValues } from "@/features/creator/schema";
@@ -239,6 +241,99 @@ describe("valuesFromSaved", () => {
 
   it("falls back to white caps for a colour it does not know", () => {
     expect(valuesFromSaved(saved({ cap: "?" }), roster).cap).toBe("Fehér");
+  });
+});
+
+describe("valuesForEdit", () => {
+  it("keeps everything the lineup holds, the match and opponent too", () => {
+    const edit = valuesForEdit(
+      saved({
+        match_name: "Kupadöntő",
+        source_opponent_id: "o-1",
+        match_date: "2026-10-01",
+        match_time: "18:30:00",
+      }),
+      roster,
+    );
+    expect(edit).toEqual({
+      ...valuesFromSaved(saved(), roster),
+      match_name: "Kupadöntő",
+      opponent: "Csongrád",
+      opponentId: "o-1",
+      match_date: "2026-10-01",
+      match_time: "18:30",
+    });
+  });
+
+  it("leaves the default match name empty, so it follows a changed opponent", () => {
+    expect(valuesForEdit(saved({ match_date: "2026-10-01" }), roster)).toMatchObject({
+      match_name: "",
+      opponentId: "",
+      match_time: "",
+    });
+  });
+
+  it("reads the printed date back for a lineup saved before the structured date", () => {
+    expect(valuesForEdit(saved({ date: "2026. 10. 01. 18:30" }), roster)).toMatchObject({
+      match_date: "2026-10-01",
+      match_time: "18:30",
+    });
+  });
+
+  it("leaves the date empty when the stored text is not a printed date", () => {
+    expect(valuesForEdit(saved({ date: "next Sunday" }), roster)).toMatchObject({
+      match_date: "",
+      match_time: "",
+    });
+  });
+});
+
+describe("toSavedLineupUpdate", () => {
+  const edited = values({
+    match_date: "2026-10-01",
+    match_time: "18:30",
+    location: "Komjádi",
+    isHome: true,
+  });
+
+  it("is the save body without team_id, keeps the lineup's own team and sends the version", () => {
+    const body = toSavedLineupUpdate(
+      edited,
+      { source_team_id: "t-own", team_name: "SZVTK" },
+      "2026-11-24T10:00:00.123456Z",
+    );
+    const created: Partial<ReturnType<typeof toSavedLineupRequest>> = toSavedLineupRequest(edited, {
+      id: "t-current",
+    });
+    delete created.team_id;
+    expect(body).toEqual({
+      ...created,
+      source_team_id: "t-own",
+      is_home: true,
+      expected_updated_at: "2026-11-24T10:00:00.123456Z",
+    });
+    expect(body).not.toHaveProperty("team_id");
+    expect(body.location).toBe("Komjádi");
+  });
+
+  it("sends the stored team name when the lineup has no source team, and clears a blank location", () => {
+    const body = toSavedLineupUpdate(
+      { ...edited, location: "" },
+      { source_team_id: null, team_name: "SZVTK" },
+      "2026-11-24T10:00:00+00:00",
+    );
+    expect(body).toMatchObject({ team_name: "SZVTK", location: undefined });
+    expect(body).not.toHaveProperty("source_team_id");
+    expect(body.expected_updated_at).toBe("2026-11-24T10:00:00+00:00");
+  });
+
+  it("marks a version without a time zone as UTC, keeping its microseconds", () => {
+    const body = toSavedLineupUpdate(
+      edited,
+      { source_team_id: "t", team_name: "SZVTK" },
+      "2026-11-24T10:00:00.123456",
+    );
+    expect(body.expected_updated_at).toBe("2026-11-24T10:00:00.123456Z");
   });
 });
 
