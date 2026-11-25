@@ -586,7 +586,7 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-25 | #296 frontend: Home/Away toggle in the creator and Quick sheet (cap colour, suggested match name, home venue pre-fill), `is_home` saved and cloned, "–" for old lineups in the saved list, home venue in team settings. | #296; PR #333 |
 | 2026-11-25 | #289: the Roster page shows the team staff card (coach, assistant coach, team leader, ball thrower) and the lineup creator and Quick sheet get staff pickers. | #289; PR #317 |
 | 2026-11-25 | #281: the logo-crop limitation is documented in `Current-State-Backend.md` ("Document generation"); no template change. | #281; PR #334 |
-| 2026-11-25 | Supabase smoke test against dev: blocked at the first write. The API gets `password authentication failed for user "lineup_app"`, so the password in `backend/.env` does not match the dev role. Not rotated (it would break the Fly and keepalive secrets). Needs the owner to check the role password, then re-run. | #20 |
+| 2026-11-25 | Supabase smoke test against dev passed (31 steps, incl. the cleanup) after the owner corrected the `lineup_app` password in the local env. The first attempt was blocked on that password. | #20 |
 
 ---
 
