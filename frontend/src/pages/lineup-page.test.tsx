@@ -39,10 +39,12 @@ vi.mock("@/features/creator/lineup-creator", async () => {
       roster,
       staff,
       initialValues,
+      edit,
     }: {
       roster: Player[];
       staff: Staff[];
-      initialValues?: { division: string; players: { name: string }[] };
+      initialValues?: { division: string; opponent: string; players: { name: string }[] };
+      edit?: { lineup: { id: string; updated_at: string }; onReload: () => void };
     }) => {
       const [typed, setTyped] = useState("");
       useUnsavedChangesGuard(typed !== "");
@@ -53,6 +55,13 @@ vi.mock("@/features/creator/lineup-creator", async () => {
             {initialValues?.division ?? "none"},{" "}
             {initialValues?.players.map((p) => p.name).join("+")}
           </p>
+          {edit && (
+            <p>
+              editing {edit.lineup.id} at {edit.lineup.updated_at}, opponent{" "}
+              {initialValues?.opponent}
+            </p>
+          )}
+          {edit && <button onClick={edit.onReload}>reload</button>}
           <input
             aria-label="creator field"
             value={typed}
@@ -94,6 +103,14 @@ const ANN: Player = {
 };
 const SAVED = {
   id: "s-1",
+  team_name: "SZVTK",
+  opponent_name: "Csongrád",
+  match_name: "Kupadöntő",
+  date: "2026. 10. 01.",
+  match_date: "2026-10-01",
+  match_time: null,
+  source_opponent_id: null,
+  updated_at: "v1",
   division: "OB I.",
   cap: "Kék",
   coach: "Edző",
@@ -263,6 +280,51 @@ describe("LineupPage", () => {
   it("hands the staff to a cloned lineup's creator too", async () => {
     renderPage({ cloneFromId: "s-1" });
     expect(await screen.findByText(/1 staff, division OB I\./)).toBeInTheDocument();
+  });
+
+  it("edits a lineup by its id: names it, has no Quick sheet and hands the creator the lineup", async () => {
+    renderPage({ editFromId: "s-1" });
+    expect(screen.getByRole("heading", { name: "Editing a saved lineup" })).toBeInTheDocument();
+    expect(await screen.findByText(/editing s-1 at v1, opponent Csongrád/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Editing Kupadöntő" })).toBeInTheDocument();
+    expect(screen.getByText(/division OB I\., Kovács Anna/)).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.queryByText(/quick sheet form/)).not.toBeInTheDocument();
+    expect(mocks.getSavedLineup).toHaveBeenCalledWith("s-1");
+  });
+
+  it("edits rather than clones when both ids are given", async () => {
+    renderPage({ editFromId: "s-1", cloneFromId: "s-2" });
+    expect(await screen.findByText(/editing s-1/)).toBeInTheDocument();
+    expect(mocks.getSavedLineup).toHaveBeenCalledTimes(1);
+    expect(mocks.getSavedLineup).toHaveBeenCalledWith("s-1");
+  });
+
+  it("loads the latest version and starts a fresh creator from it on reload", async () => {
+    const user = userEvent.setup();
+    renderPage({ editFromId: "s-1" });
+    await screen.findByText(/editing s-1 at v1/);
+    await user.type(screen.getByLabelText("creator field"), "mine");
+    mocks.getSavedLineup.mockResolvedValueOnce({ ...SAVED, updated_at: "v2" });
+    await user.click(screen.getByRole("button", { name: "reload" }));
+    expect(await screen.findByText(/editing s-1 at v2/)).toBeInTheDocument();
+    expect(screen.getByLabelText("creator field")).toHaveValue("");
+    expect(mocks.getSavedLineup).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows a retry when the lineup to edit cannot be loaded", async () => {
+    mocks.getSavedLineup.mockRejectedValueOnce(new ApiError(404));
+    renderPage({ editFromId: "s-1" });
+    expect(await screen.findByText(/no longer exists/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText(/editing s-1/)).toBeInTheDocument();
+  });
+
+  it("ignores an edit id that is not a string", async () => {
+    renderPage({ editFromId: 7 });
+    expect(await screen.findByText(/division none/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Lineup" })).toBeInTheDocument();
+    expect(mocks.getSavedLineup).not.toHaveBeenCalled();
   });
 
   it("renders nothing without a current team (TeamGate normally prevents it)", () => {

@@ -277,7 +277,16 @@
     "preview": "Előnézet",
     "saved": "Elmentve. Most le is töltheti.",
     "seeSaved": "Mentett rajtlisták megnyitása",
-    "savedToast": "Rajtlista mentve"
+    "savedToast": "Rajtlista mentve",
+    "saveChanges": "Módosítások mentése",
+    "changesSavedToast": "Módosítások mentve",
+    "cancelEdit": "Mégse",
+    "editTitle": "Szerkesztés: {{match}}",
+    "editTitleLoading": "Mentett rajtlista szerkesztése",
+    "editDescription": "Módosítsa a mentett rajtlistát, és mentse el a helyén. Ha ezt változatlanul megtartaná, és újat készítene belőle, használja inkább a Mentett oldalon a „Másolás új mérkőzéshez” gombot.",
+    "editConflict": "Valaki más módosította ezt a rajtlistát, miután megnyitotta, ezért az Ön módosításai nem mentődtek el. Töltse be a legfrissebb változatot, és módosítsa újra.",
+    "reloadLatest": "Legfrissebb változat betöltése (az Ön módosításai elvesznek)",
+    "editGone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A módosítások nem mentődtek el."
   },
   "opponent": {
     "directory": "Listázott csapat",
@@ -304,6 +313,9 @@
     "deleteOf": "Törlés: {{match}}",
     "gone": "Ez a rajtlista már nem létezik; lehet, hogy egy másik tag törölte. A lista frissült.",
     "previewBadge": "Előnézet",
+    "edit": "Szerkesztés",
+    "editOf": "Szerkesztés: {{match}}",
+    "edited": "Módosítva: {{date}}",
     "filters": {
       "label": "Mentett rajtlisták szűrése",
       "opponent": "Ellenfél",

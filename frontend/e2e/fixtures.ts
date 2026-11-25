@@ -48,6 +48,7 @@ interface Saved {
   match_date: string | null;
   match_time: string | null;
   location: string | null;
+  is_home: boolean | null;
   coach: string;
   doctor: string | null;
   assistant_coach: string | null;
@@ -55,8 +56,38 @@ interface Saved {
   ball_thrower: string | null;
   source_team_id: string | null;
   source_opponent_id: string | null;
-  players: { cap_number: number; name: string; nssz_number: string }[];
+  players: {
+    id: string;
+    cap_number: number;
+    name: string;
+    nssz_number: string;
+    source_player_id: string | null;
+  }[];
   created_at: string;
+  /** The version: an edit (`PUT`) must send it back as `expected_updated_at`, or it gets a 409. */
+  updated_at: string;
+}
+
+/** The body of `PUT /lineups/saved/{id}`, as far as the fake backend reads it. */
+interface SavedUpdate {
+  expected_updated_at: string;
+  source_team_id?: string;
+  team_name?: string;
+  opponent_name?: string;
+  source_opponent_id?: string;
+  match_name?: string;
+  division: string;
+  cap: string;
+  match_date: string;
+  match_time?: string;
+  location?: string;
+  is_home?: boolean | null;
+  coach: string;
+  doctor?: string;
+  assistant_coach?: string;
+  team_leader?: string;
+  ball_thrower?: string;
+  players: { cap_number: number; source_player_id?: string; name?: string; nssz_number?: string }[];
 }
 
 /** What the fake backend holds; tests read it to check what the app sent. */
@@ -163,6 +194,7 @@ export const makeSaved = (t: Team, i: number): Saved => ({
   match_date: `2026-10-${10 + i}`,
   match_time: null,
   location: i === 2 ? "Szeged, Tisza Volán uszoda" : null,
+  is_home: null,
   coach: "Coach",
   doctor: null,
   assistant_coach: null,
@@ -170,9 +202,66 @@ export const makeSaved = (t: Team, i: number): Saved => ({
   ball_thrower: null,
   source_team_id: null,
   source_opponent_id: null,
-  players: [{ cap_number: 1, name: "Player 01", nssz_number: "NSSZ-1000" }],
+  players: [
+    {
+      id: `s-${i}-1`,
+      cap_number: 1,
+      name: "Player 01",
+      nssz_number: "NSSZ-1000",
+      source_player_id: "p-1",
+    },
+  ],
   created_at: NOW,
+  updated_at: NOW,
 });
+
+/**
+ * Applies an edit the way the API does: everything is replaced, roster players are copied with
+ * their current values, the printed date is composed again and `updated_at` moves on. Returns the
+ * HTTP status: 404 for an unknown id, 409 for a stale `expected_updated_at`.
+ */
+function editSaved(api: FakeApi, id: string, body: SavedUpdate): [number, Saved | undefined] {
+  const index = api.saved.findIndex((s) => s.id === id);
+  const old = api.saved[index];
+  if (!old) return [404, undefined];
+  if (body.expected_updated_at !== old.updated_at) return [409, undefined];
+  const opponent = body.opponent_name ?? old.opponent_name;
+  const teamName = body.team_name ?? old.team_name;
+  const [y, m, d] = body.match_date.split("-");
+  const edited: Saved = {
+    ...old,
+    team_name: teamName,
+    opponent_name: opponent,
+    source_opponent_id: body.source_opponent_id ?? null,
+    match_name: body.match_name ?? `${teamName} - ${opponent}`,
+    division: body.division,
+    cap: body.cap,
+    match_date: body.match_date,
+    match_time: body.match_time ? `${body.match_time}:00` : null,
+    date: `${y}. ${m}. ${d}.${body.match_time ? ` ${body.match_time}` : ""}`,
+    location: body.location ?? null,
+    is_home: body.is_home ?? null,
+    coach: body.coach,
+    doctor: body.doctor ?? null,
+    assistant_coach: body.assistant_coach ?? null,
+    team_leader: body.team_leader ?? null,
+    ball_thrower: body.ball_thrower ?? null,
+    players: body.players.map((p, n) => {
+      const player = api.players.find((r) => r.id === p.source_player_id);
+      return {
+        id: `${id}-edit-${n}`,
+        cap_number: p.cap_number,
+        name: player?.name ?? p.name!,
+        nssz_number: player?.nssz_number ?? p.nssz_number!,
+        source_player_id: player?.id ?? null,
+      };
+    }),
+    // A later time than any version before it.
+    updated_at: new Date(Date.parse(old.updated_at) + 60_000).toISOString(),
+  };
+  api.saved[index] = edited;
+  return [200, edited];
+}
 
 /**
  * Signs the page in (a session in localStorage that supabase-js accepts without a network call)
@@ -312,6 +401,19 @@ async function install(page: Page, api: FakeApi, signedIn: boolean) {
         ]);
       }
       if (method === "GET" && /^\/teams\/[^/]+\/invitations$/.test(path)) return json(route, []);
+      const savedOne = /^\/lineups\/saved\/([^/]+)$/.exec(path);
+      if (savedOne && method === "GET") {
+        const found = api.saved.find((s) => s.id === savedOne[1]);
+        return found ? json(route, found) : json(route, { detail: "not found" }, 404);
+      }
+      if (savedOne && method === "PUT") {
+        const [status, edited] = editSaved(
+          api,
+          savedOne[1]!,
+          request.postDataJSON() as SavedUpdate,
+        );
+        return json(route, edited ?? { detail: "fixed text" }, status);
+      }
       if (method === "POST" && path === "/lineups/saved") {
         const created = makeSaved(api.teams[0]!, api.saved.length + 1);
         api.saved.push(created);

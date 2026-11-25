@@ -44,6 +44,7 @@ beforeEach(() => {
         source_opponent_id: null,
         players: [],
         created_at: "2026-10-31T10:00:00",
+        updated_at: "2026-10-31T10:00:00",
       },
     ],
   });

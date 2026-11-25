@@ -62,8 +62,9 @@ values), after Discard (the page and its forms unmount), or when a form closes. 
 held: the sign-in redirect unmounts the shell, and the guard with it, first.
 
 Guarded today: the lineup creator for a new lineup (also when it starts from a clone; an untouched
-clone is not dirty), the Quick sheet, the add and edit player and staff forms and the team settings. The
-**edit mode** of a saved lineup (#290) is not built yet; it gets the same guard when it lands. The
+clone is not dirty) and in the **edit mode** of a saved lineup (#290; an untouched edit is not
+dirty either, and its Cancel button is a navigation, so it asks too), the Quick sheet, the add and
+edit player and staff forms and the team settings. The
 switch between the creator and the Quick sheet on the Lineup page is not a navigation, so the guard
 does not hold it, and it does not need to: both modes stay mounted and the inactive one is `hidden`,
 so nothing typed is dropped (#302) and both forms keep reporting their dirty flag (a nav link or a
@@ -303,7 +304,7 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
   the n-th filled row, so it is mapped back to that row's cap.
 - **Unsaved changes.** From the first edit until the lineup is saved, leaving the page asks first
   and a reload or tab close triggers the browser's prompt (see *Unsaved changes* above). A failed
-  save keeps the guard on. Editing a saved lineup (#290) will get the same guard.
+  save keeps the guard on. Editing a saved lineup (#290) has the same guard.
 - **Default division.** A fresh lineup starts with the team's default division in the Division box
   (`emptyValues(team.division)`); the box stays editable per lineup and changing it never changes the
   team. A clone keeps the saved lineup's own division.
@@ -316,6 +317,31 @@ the team's roster first (`QueryBoundary` + skeleton). A lineup is built like thi
 - **Clone.** The Saved page navigates here with `state: { cloneFromId }`; the page fetches the
   lineup and `valuesFromSaved()` starts the creator from it (staff, division, players, each in the
   row of their cap number; not the match or opponent; the date is reset to today and the time cleared, as it is a new match). Only the id travels in the history state, never the lineup itself.
+  The clone is a **new** lineup: the one it came from stays as it is.
+- **Edit vs Clone (#290).** **Edit** changes a saved lineup **in place** (same id, so the list,
+  preview and downloads show the new values); **Clone** makes a new lineup and leaves the old one
+  alone. The Saved page navigates here with `state: { editFromId }` (an id only, like Clone); the
+  page fetches the lineup and `valuesForEdit()` fills in **everything** it holds, the match name,
+  opponent, date and time too (a match name that is just the API's default "<team> - <opponent>"
+  is left empty, so it follows a changed opponent again; a lineup saved before #287 has its printed
+  date read back by `parseMatchDate()`, and text that is not a printed date leaves the date empty
+  for the user to pick). The heading reads "Editing <match>", the Quick-sheet toggle is hidden, Save
+  becomes **Save changes** and there is a **Cancel** button that goes back to the Saved page. A
+  roster player is picked again from the roster, so the box shows (and the save copies) the
+  player's **current** name and NSSZ number; a player deleted since stays as typed-in text. Saving
+  sends `PUT /lineups/saved/{id}` (`updateSavedLineup()`, body from `toSavedLineupUpdate()`: no
+  `team_id`, the lineup's own source team, and `expected_updated_at`; every field is replaced, so
+  clearing the location or a staff role clears it in the lineup; the stored home/away side,
+  `is_home`, is sent back unchanged until the creator gets its toggle, #296). That version is the
+  `updated_at` the form was loaded with, then the one each successful save returned, never one a
+  background refetch brought in, so a concurrent change is never overwritten silently:
+  - **409**, someone else saved the lineup after it was opened: nothing was changed, the typed
+    input stays, and the form says so with a **Load the latest version** button, which refetches
+    the lineup and starts a fresh form from it (dropping the typed changes, as the label says).
+  - **404**: the form asks `GET /lineups/saved/{id}` once more; if the lineup is gone (another
+    member deleted it) it says so and links to the Saved page; otherwise the 404 was a roster
+    player or opponent picked in it, and the usual generic text shows.
+  A "Changes saved" toast confirms a save, and the saved queries are refreshed.
 - **Staff (#289).** The coach, assistant coach, team leader and ball thrower are the `Combobox` in
   free-text mode (`StaffCombobox`, `src/features/staff/`): the box holds the printed name, and the
   team's staff entries of that role are suggestions, the default first and the rest alphabetical.
@@ -407,12 +433,15 @@ Each row has:
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
   a side panel on a desktop and a full-screen modal dialog on a phone. It loads only when the Preview
   button is pressed; resting the mouse on a row does nothing (each PDF runs LibreOffice and counts
-  against the generate rate limit). A saved lineup is a
-  frozen snapshot that never changes, so each preview is kept in the in-memory query cache while the
-  page is open and opening it again costs nothing. The file is never given a URL or stored. After 5 s
+  against the generate rate limit). Each preview is kept in the in-memory query cache **per version**
+  while the page is open (the key holds the lineup's `updated_at`), so opening it again costs
+  nothing, and after an edit the new version gets a new key and a fresh PDF instead of the old one. The file is never given a URL or stored. After 5 s
   the usual "the first PDF after a break takes longer" note appears. Once it is shown, an **Enlarge**
   button opens the full-size view with zoom (see *Enlarge* under the lineup creator).
 - **PDF / DOCX**: downloads the file again.
+- **Edit**: opens the Lineup page in edit mode with only the lineup's id in the router's state
+  (`editFromId`); saving changes the lineup in place (see *Edit vs Clone* under the lineup
+  creator). A lineup that was edited shows "Edited <date and time>" under its details.
 - **Clone to new match**: opens the Lineup page with only the lineup's id in the router's state
   (`cloneFromId`); the page fetches the saved lineup itself and pre-fills a new one from it. The
   browser keeps router state in the tab's history, so only an id travels there, never names or

@@ -35,6 +35,7 @@ import {
   type SavedLineup,
 } from "@/features/saved/api";
 import type { Team } from "@/features/teams/api";
+import { formatDateTime } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { useAfterDelay } from "@/lib/use-after-delay";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
@@ -56,19 +57,20 @@ const isGone = (error: unknown) => error instanceof ApiError && error.status ===
  * and to date, location; all combined, evaluated by the server). Typing is debounced, and while a
  * new search runs the previous rows stay on screen. The filters live in component state and the
  * in-memory query key only: never in the URL, storage or a log. The list is read a page at a time
- * ("Show more"). Each row has Preview, PDF/DOCX download, "Clone to
- * new match" and Delete. Previews are the PDF of the frozen snapshot and load only when the Preview
- * button is pressed. Hovering a row never starts one: each PDF counts against the generate rate
- * limit, and a preview with names should not pop up while the user is just browsing. A preview is
- * cached in memory per lineup for as long as the page is open (`staleTime: Infinity`: snapshots
- * never change) and never stored or given a URL. Clone opens the Lineup page with only the
- * lineup's id in the router state (`cloneFromId`); the page fetches the lineup itself and pre-fills
- * a new one from it. Router state is kept in the browser's tab history, so it must never carry names
- * or NSSZ numbers. A 404 means another member deleted the lineup meanwhile: the list reloads and
- * says so.
+ * ("Show more"). Each row has Preview, PDF/DOCX download, Edit, "Clone to new match" and Delete;
+ * a lineup that was edited says when. Previews are the PDF of the stored copy and load only when
+ * the Preview button is pressed. Hovering a row never starts one: each PDF counts against the
+ * generate rate limit, and a preview with names should not pop up while the user is just browsing.
+ * A preview is cached in memory per lineup **version** for as long as the page is open
+ * (`staleTime: Infinity`, and the key holds `updated_at`, so an edit gives a new key instead of
+ * showing the old file) and never stored or given a URL. Edit and Clone open the Lineup page with
+ * only the lineup's id in the router state (`editFromId` edits it in place, `cloneFromId`
+ * pre-fills a new one); the page fetches the lineup itself. Router state is kept in the browser's
+ * tab history, so it must never carry names or NSSZ numbers. A 404 means another member deleted the
+ * lineup meanwhile: the list reloads and says so.
  */
 export function SavedLineups({ team }: { team: Team }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { userId } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -97,7 +99,7 @@ export function SavedLineups({ team }: { team: Team }) {
     setInput((current) => ({ ...current, [name]: event.target.value }));
 
   const preview = useQuery({
-    queryKey: savedPreviewKey(userId, team.id, selected?.id ?? ""),
+    queryKey: savedPreviewKey(userId, team.id, selected?.id ?? "", selected?.updated_at ?? ""),
     queryFn: async () => (await generateSavedLineup(selected!.id, "pdf")).blob,
     enabled: selected !== null,
     staleTime: Infinity,
@@ -184,6 +186,13 @@ export function SavedLineups({ team }: { team: Team }) {
                       {lineup.location &&
                         ` · ${t("savedLineups.location", { location: lineup.location })}`}
                     </p>
+                    {lineup.updated_at !== lineup.created_at && (
+                      <p className="text-sm text-muted-foreground">
+                        {t("savedLineups.edited", {
+                          date: formatDateTime(lineup.updated_at, i18n.language),
+                        })}
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -208,6 +217,14 @@ export function SavedLineups({ team }: { team: Team }) {
                         {t(`savedLineups.download.${format}`)}
                       </Button>
                     ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-label={t("savedLineups.editOf", { match: lineup.match_name })}
+                      onClick={() => void navigate("/", { state: { editFromId: lineup.id } })}
+                    >
+                      {t("savedLineups.edit")}
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"

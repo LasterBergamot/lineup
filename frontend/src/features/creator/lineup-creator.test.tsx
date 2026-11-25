@@ -1,13 +1,14 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { ApiError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { SavedLineupGoneError, type SavedLineup } from "@/features/creator/api";
 import { LineupCreator } from "@/features/creator/lineup-creator";
-import { emptyValues } from "@/features/creator/resolve";
+import { emptyValues, valuesForEdit } from "@/features/creator/resolve";
 import { SLOW_PDF_NOTICE_MS } from "@/features/lineup/lineup-form";
 import type { Player } from "@/features/players/api";
 import type { Staff } from "@/features/staff/api";
@@ -17,11 +18,16 @@ import { unsavedProbe } from "@/test/unsaved";
 
 const mocks = vi.hoisted(() => ({
   createSavedLineup: vi.fn(),
+  updateSavedLineup: vi.fn(),
   generateLineup: vi.fn(),
   generateSavedLineup: vi.fn(),
   saveFile: vi.fn(),
 }));
-vi.mock("@/features/creator/api", () => ({ createSavedLineup: mocks.createSavedLineup }));
+vi.mock("@/features/creator/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/features/creator/api")>()),
+  createSavedLineup: mocks.createSavedLineup,
+  updateSavedLineup: mocks.updateSavedLineup,
+}));
 vi.mock("@/features/lineup/generate", () => ({
   generateLineup: mocks.generateLineup,
   generateSavedLineup: mocks.generateSavedLineup,
@@ -69,6 +75,11 @@ const BEN: Player = { ...ANN, id: "p-ben", name: "Nagy Bence", nssz_number: "MVL
 const SAVED = { id: "s-1" };
 const PDF = { blob: new Blob(["%PDF"]), filename: "sheet.pdf" };
 
+/** Shows where the creator navigated to. */
+function Where() {
+  return <p data-testid="where">{useLocation().pathname}</p>;
+}
+
 function SignedIn(props: Parameters<typeof LineupCreator>[0]) {
   return useAuth().status === "signed-in" ? <LineupCreator {...props} /> : null;
 }
@@ -79,6 +90,7 @@ function renderCreator(
     staff?: Staff[];
     initialValues?: ReturnType<typeof emptyValues>;
     division?: string | null;
+    edit?: Parameters<typeof LineupCreator>[0]["edit"];
   } = {},
 ) {
   const team = {
@@ -100,7 +112,9 @@ function renderCreator(
                 roster={props.roster ?? [ANN, BEN]}
                 staff={props.staff}
                 initialValues={props.initialValues}
+                edit={props.edit}
               />
+              <Where />
             </unsaved.Wrapper>
           </MemoryRouter>
         </ToastProvider>
@@ -665,5 +679,186 @@ describe("LineupCreator preview", () => {
     await user.click(screen.getByRole("button", { name: "Preview" }));
     const panel = await screen.findByRole("complementary", { name: "Preview" });
     expect(await within(panel).findByRole("alert")).toHaveTextContent(/busy or starting up/i);
+  });
+});
+
+/** A saved lineup to edit: Anna from the roster in cap 1, a typed-in player in cap 2. */
+const EDITED: SavedLineup = {
+  id: "s-1",
+  team_id: TEAM_ID,
+  team_name: "SZVTK",
+  opponent_name: "Csongrád",
+  match_name: "SZVTK - Csongrád",
+  division: "OB I.",
+  cap: "Kék",
+  date: "2026. 10. 01. 18:30",
+  match_date: "2026-10-01",
+  match_time: "18:30:00",
+  location: "Komjádi",
+  is_home: true,
+  coach: "Kovács Béla",
+  doctor: null,
+  assistant_coach: null,
+  team_leader: null,
+  ball_thrower: null,
+  source_team_id: TEAM_ID,
+  source_opponent_id: null,
+  created_at: "2026-10-01T10:00:00Z",
+  updated_at: "2026-10-01T10:00:00.123456Z",
+  players: [
+    {
+      id: "x1",
+      cap_number: 1,
+      name: "Kovács Anna",
+      nssz_number: "MVLSZ1",
+      source_player_id: "p-ann",
+    },
+    { id: "x2", cap_number: 2, name: "Kézi Kata", nssz_number: "K2", source_player_id: null },
+  ],
+};
+
+function renderEdit(lineup: SavedLineup = EDITED, onReload = vi.fn()) {
+  const rendered = renderCreator({
+    initialValues: valuesForEdit(lineup, [ANN, BEN]),
+    edit: { lineup, onReload },
+  });
+  return { ...rendered, onReload };
+}
+
+describe("LineupCreator edit mode", () => {
+  beforeEach(() => {
+    mocks.updateSavedLineup.mockResolvedValue({
+      ...EDITED,
+      updated_at: "2026-11-24T09:00:00.000001Z",
+    });
+  });
+
+  it("starts from the lineup, not dirty, with Save changes and Cancel", async () => {
+    const { isDirty } = renderEdit();
+    expect(await screen.findByLabelText("Opponent")).toHaveValue("Csongrád");
+    expect(screen.getByLabelText("Match name (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-10-01");
+    expect(screen.getByLabelText("Start time (optional)")).toHaveValue("18:30");
+    expect(screen.getByLabelText("Location (optional, not printed)")).toHaveValue("Komjádi");
+    expect(within(slot(2)).getByLabelText("Name")).toHaveValue("Kézi Kata");
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Save lineup" })).not.toBeInTheDocument();
+    expect(isDirty()).toBe(false);
+  });
+
+  it("saves the changes in place with the loaded version, then with the saved one", async () => {
+    const user = userEvent.setup();
+    const { invalidate, isDirty } = renderEdit();
+    await user.type(await screen.findByLabelText("Match name (optional)"), "Kupadöntő");
+    expect(isDirty()).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(await screen.findByText("Changes saved")).toBeInTheDocument();
+    expect(mocks.createSavedLineup).not.toHaveBeenCalled();
+    const [id, body] = mocks.updateSavedLineup.mock.calls[0]!;
+    expect(id).toBe("s-1");
+    expect(body).toMatchObject({
+      source_team_id: TEAM_ID,
+      match_name: "Kupadöntő",
+      opponent_name: "Csongrád",
+      match_date: "2026-10-01",
+      match_time: "18:30",
+      location: "Komjádi",
+      is_home: true,
+      expected_updated_at: "2026-10-01T10:00:00.123456Z",
+      players: [
+        { source_player_id: "p-ann", cap_number: 1 },
+        { name: "Kézi Kata", nssz_number: "K2", cap_number: 2 },
+      ],
+    });
+    expect(body).not.toHaveProperty("team_id");
+    expect(isDirty()).toBe(false);
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["saved"] });
+    expect(screen.getByRole("status")).toHaveTextContent(/Saved/);
+
+    // A second edit is based on the version the first save returned.
+    await user.type(screen.getByLabelText("Division"), " A");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(mocks.updateSavedLineup).toHaveBeenCalledTimes(2));
+    expect(mocks.updateSavedLineup.mock.calls[1]![1]).toMatchObject({
+      division: "OB I. A",
+      expected_updated_at: "2026-11-24T09:00:00.000001Z",
+    });
+  });
+
+  it("says someone else changed it on a 409, keeps the input and offers the latest version", async () => {
+    const user = userEvent.setup();
+    mocks.updateSavedLineup.mockRejectedValue(new ApiError(409, { detail: "changed" }));
+    const { onReload, isDirty } = renderEdit();
+    await user.type(await screen.findByLabelText("Division"), " A");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/Someone else changed this lineup/);
+    expect(alert).not.toHaveTextContent("changed\n");
+    expect(screen.getByLabelText("Division")).toHaveValue("OB I. A");
+    expect(isDirty()).toBe(true);
+    expect(onReload).not.toHaveBeenCalled();
+    await user.click(within(alert).getByRole("button", { name: /Load the latest version/ }));
+    expect(onReload).toHaveBeenCalledTimes(1);
+  });
+
+  it("says the lineup is gone when another member deleted it", async () => {
+    const user = userEvent.setup();
+    mocks.updateSavedLineup.mockRejectedValue(new SavedLineupGoneError());
+    renderEdit();
+    await user.click(await screen.findByRole("button", { name: "Save changes" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/no longer exists; another member may have deleted it/);
+    expect(within(alert).getByRole("link", { name: "See saved lineups" })).toHaveAttribute(
+      "href",
+      "/saved",
+    );
+    expect(within(alert).queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("keeps the generic text for a 404 of a player or opponent", async () => {
+    const user = userEvent.setup();
+    mocks.updateSavedLineup.mockRejectedValue(new ApiError(404));
+    renderEdit();
+    await user.click(await screen.findByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/That no longer exists/);
+  });
+
+  it("goes back to the Saved page on Cancel", async () => {
+    const user = userEvent.setup();
+    renderEdit();
+    expect(screen.getByTestId("where")).toHaveTextContent("/");
+    await user.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("where")).toHaveTextContent("/saved");
+  });
+
+  it("previews with the lineup's own team when it is not the current team", async () => {
+    const user = userEvent.setup();
+    renderEdit({ ...EDITED, source_team_id: "other", team_name: "Másik SC" });
+    await user.click(await screen.findByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(mocks.generateLineup).toHaveBeenCalled());
+    expect(mocks.generateLineup.mock.calls[0]![0]).toMatchObject({ team_name: "Másik SC" });
+  });
+
+  it("previews with the current team's name when the lineup is the current team's", async () => {
+    const user = userEvent.setup();
+    renderEdit();
+    await user.click(await screen.findByRole("button", { name: "Preview" }));
+    await waitFor(() => expect(mocks.generateLineup).toHaveBeenCalled());
+    expect(mocks.generateLineup.mock.calls[0]![0]).toMatchObject({ team_name: "SZVTK" });
+  });
+});
+
+describe("LineupCreator new lineup", () => {
+  it("has no Cancel and says Lineup saved", async () => {
+    const user = userEvent.setup();
+    renderCreator();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    await fillMatch(user);
+    await pick(1, "Kovács Anna");
+    await user.click(screen.getByRole("button", { name: "Save lineup" }));
+    expect(await screen.findByText("Lineup saved")).toBeInTheDocument();
+    expect(mocks.updateSavedLineup).not.toHaveBeenCalled();
   });
 });
