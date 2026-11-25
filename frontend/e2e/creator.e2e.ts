@@ -43,6 +43,13 @@ for (const lang of ["en", "hu"] as const) {
   });
 }
 
+test("the creator has an optional location field that says it is not printed", async ({ app }) => {
+  await app.goto("/");
+  const location = app.getByLabel("Location (optional, not printed)").filter({ visible: true });
+  await location.fill("Szeged");
+  await expect(location).toHaveValue("Szeged");
+});
+
 for (const lang of ["en", "hu"] as const) {
   test(`the roster picker opens, filters by typing and passes axe with the list open (${lang})`, async ({
     app,

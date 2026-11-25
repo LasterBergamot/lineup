@@ -420,6 +420,7 @@ describe("LineupCreator save", () => {
     await user.type(within(slot(6)).getByLabelText("Name"), "Kiss Ádám");
     await user.type(within(slot(6)).getByLabelText("NSSZ number"), "MVLSZ9");
     await user.type(screen.getByLabelText("Doctor (optional)"), "Dr. Kis");
+    await user.type(screen.getByLabelText("Location (optional, not printed)"), "Szeged");
     await user.click(screen.getByRole("radio", { name: "Blue" }));
     expect(screen.getByRole("radio", { name: "Blue" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "White" })).not.toBeChecked();
@@ -439,6 +440,7 @@ describe("LineupCreator save", () => {
       cap: "Kék",
       coach: "Kovács Béla",
       doctor: "Dr. Kis",
+      location: "Szeged",
       players: [
         { source_player_id: "p-ann", cap_number: 1 },
         { name: "Kiss Ádám", nssz_number: "MVLSZ9", cap_number: 6 },

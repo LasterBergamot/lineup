@@ -71,6 +71,7 @@
     "division": "Osztály",
     "teamName": "Csapat neve",
     "capColour": "Sapka színe",
+    "location": "Helyszín",
     "date": "Dátum",
     "time": "Kezdés ideje (nem kötelező)",
     "coach": "Edző",
@@ -267,6 +268,7 @@
     "formLabel": "Rajtlista-készítő",
     "matchName": "Mérkőzés neve (nem kötelező)",
     "optional": "nem kötelező",
+    "location": "Helyszín (nem kötelező, nem kerül nyomtatásra)",
     "emptyRoster": "A keret üres. Vegyen fel játékosokat a Keret oldalon, vagy írja be őket kézzel.",
     "rosterPlayer": "Játékos a keretből",
     "typedIn": "Kézzel beírom",
@@ -284,6 +286,7 @@
   "savedLineups": {
     "listLabel": "A(z) {{team}} mentett rajtlistái",
     "empty": "Még nincs mentett rajtlista. Készítsen egyet a Rajtlista oldalon, és mentse el; itt fog megjelenni.",
+    "location": "Helyszín: {{location}}",
     "details": "{{date}} · {{division}} · {{cap}} sapka · Ellenfél: {{opponent}}",
     "preview": "Előnézet",
     "previewOf": "Előnézet: {{match}}",
