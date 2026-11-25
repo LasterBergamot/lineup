@@ -128,7 +128,7 @@ so rendering, headers and error handling live in one place:
 | `GET`/`POST` | `/teams` | `GET`: paginated list of the teams **you belong to**, each with your `role`. `POST`: create a team, you become its `owner` |
 | `GET` | `/teams/pool?search=&limit=` | Shared opponent pool (sign-in required) — public teams only, plain list (not the paginated envelope), `limit` 1–100. Registered *before* `/teams/{id}` so `"pool"` isn't swallowed as a path param |
 | `GET` | `/teams/{id}/opponents/recent?limit=` | Distinct opponent names from this team's saved lineups, newest first (`limit` 1–50). Members only. Together with the pool and free text it feeds the opponent combobox |
-| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, `is_public` to list/unlist in the pool, and `division`, the team's default division that the creator pre-fills; omitted fields are kept) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
+| `GET`/`PUT`/`DELETE` | `/teams/{id}` | `404` unless you are a member. `PUT` (rename, `is_public` to list/unlist in the pool, `division` (the team's default division) and `home_venue` (its home venue), which the creator pre-fills; omitted fields are kept) and `DELETE` are **owner-only** (`403` for plain members). `DELETE` returns **409** while the team has roster players or saved lineups (app-level check, not DB-level) |
 
 ### Players
 
@@ -263,6 +263,18 @@ never part of the data sent to document generation, so the PDF/DOCX is byte-iden
 without it (a test checks this). `POST /lineups` (the Quick sheet) does not save, so it has no
 such field. Existing lineups are `null`. The edit body (`PUT /lineups/saved/{id}`) takes it the same way.
 
+### Home or away
+
+`saved_lineups.is_home` (nullable BOOLEAN, migration `f4a9c2e7b165`, #296) records whether our team
+played at home (`true`), away (`false`) or it is unknown (`null`, every lineup saved before the
+column). It is accepted on `POST /lineups/saved` and `PUT /lineups/saved/{id}` and returned by
+`SavedLineupResponse`, so the list, a single lineup and a clone carry it. It is only stored: the
+client derives the cap (home Fehér, away Kék) and the match name from it, and the server enforces
+no relation between `is_home` and `cap` (neutral venues, tournaments). `teams.home_venue`
+(VARCHAR 200, nullable, same migration) is the team's home venue; the creator pre-fills the
+location with it for a home lineup. `POST`/`PUT /teams` take it (trimmed, over 200 characters is
+`422`); on `PUT` (owners only) an omitted `home_venue` is kept, like `division`.
+
 ### The match date
 
 A saved lineup holds its date twice. `date` is the text printed on the sheet and is always
@@ -304,6 +316,7 @@ erDiagram
         uuid created_by "Supabase user id of the creator, audit only"
         boolean is_public "true for opponent pool"
         string division "nullable, default division pre-filled in the creator"
+        string home_venue "nullable, pre-fills the location of a home lineup"
     }
     TEAM_MEMBERS {
         uuid team_id PK_FK
@@ -348,6 +361,7 @@ erDiagram
         date match_date "nullable, structured date for search"
         time match_time "nullable, only with match_date"
         string location "nullable venue, never printed"
+        boolean is_home "nullable, true home, false away, null unknown"
         uuid team_id FK "the workspace, required, ondelete RESTRICT"
         uuid created_by "audit only"
         datetime created_at

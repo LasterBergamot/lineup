@@ -72,7 +72,8 @@ async def create_team(
 ) -> TeamResponse:
     """Create a team; you become its owner. `is_public` (default true) lists its name in the
     opponent directory, which never reveals anything else about the team. `division` (optional)
-    is the team's usual division; the lineup creator pre-fills it."""
+    is the team's usual division and `home_venue` (optional) its home venue; the lineup creator
+    pre-fills both."""
     team, role = await service.create_team(
         session,
         name=body.name,
@@ -80,6 +81,7 @@ async def create_team(
         is_public=body.is_public,
         display_name=display_name,
         division=body.division,
+        home_venue=body.home_venue,
     )
     return TeamResponse.from_team(team, role)
 
@@ -183,7 +185,8 @@ async def update_team(
     user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> TeamResponse:
     """Rename a team and/or list or unlist it in the opponent directory (`is_public`, left
-    unchanged when omitted) and/or set its default `division` (also unchanged when omitted).
+    unchanged when omitted) and/or set its default `division` and/or `home_venue` (both also unchanged when
+    omitted).
     Owners only: 403 for other members, 404 for non-members."""
     team, role = await service.update_team(
         session,
@@ -192,6 +195,7 @@ async def update_team(
         is_public=body.is_public,
         user_id=user_id,
         division=body.division,
+        home_venue=body.home_venue,
     )
     return TeamResponse.from_team(team, role)
 

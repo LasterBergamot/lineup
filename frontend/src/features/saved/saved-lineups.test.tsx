@@ -45,6 +45,7 @@ function lineup(n: number, overrides: Partial<SavedLineup> = {}): SavedLineup {
     match_date: null,
     match_time: null,
     location: null,
+    is_home: null,
     coach: "Coach",
     doctor: null,
     assistant_coach: null,
