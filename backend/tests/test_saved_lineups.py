@@ -349,14 +349,16 @@ class TestLocation:
         response = await self._save(async_client, location="x" * 201)
         assert response.status_code == 422
 
-    async def test_is_home_is_stored_and_returned(self, async_client: AsyncClient):
-        for value in (True, False):
-            created = (await self._save(async_client, is_home=value)).json()
-            assert created["is_home"] is value
-            fetched = (await async_client.get(f"/lineups/saved/{created['id']}")).json()
-            assert fetched["is_home"] is value
+    @pytest.mark.parametrize("value", [True, False])
+    async def test_is_home_is_stored_and_returned(
+        self, async_client: AsyncClient, value: bool
+    ):
+        created = (await self._save(async_client, is_home=value)).json()
+        assert created["is_home"] is value
+        fetched = (await async_client.get(f"/lineups/saved/{created['id']}")).json()
+        assert fetched["is_home"] is value
         listed = (await async_client.get("/lineups/saved")).json()
-        assert {item["is_home"] for item in listed["items"]} == {True, False}
+        assert [item["is_home"] for item in listed["items"]] == [value]
 
     @pytest.mark.parametrize("extra", [{}, {"is_home": None}])
     async def test_missing_is_home_is_null(
