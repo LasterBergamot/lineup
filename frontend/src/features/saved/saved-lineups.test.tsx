@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { ApiError } from "@/api/errors";
 import { useAuth } from "@/auth/context";
 import { AuthProvider } from "@/auth/provider";
-import type { SavedLineup } from "@/features/saved/api";
+import { NO_FILTERS, type SavedLineup } from "@/features/saved/api";
 import { SavedLineups } from "@/features/saved/saved-lineups";
 import type { Team } from "@/features/teams/api";
 import { fakeAuthClient, fakeSession, teamsPage, testQueryClient } from "@/test/auth";
@@ -59,6 +59,13 @@ function lineup(n: number, overrides: Partial<SavedLineup> = {}): SavedLineup {
   };
 }
 
+/** One page as `listSavedLineups` returns it; `total` defaults to "this is everything". */
+const pageOf = (items: SavedLineup[], total = items.length, offset = 0) => ({
+  items,
+  total,
+  offset,
+});
+
 /** A file whose `label` the mocked viewer prints, so a test can tell previews apart. */
 const pdfFile = (label: string) => ({ blob: Object.assign(new Blob(["%PDF"]), { label }) });
 
@@ -98,7 +105,7 @@ const rowOf = async (match: string) => {
 
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset();
-  mocks.listSavedLineups.mockResolvedValue([lineup(2), lineup(1, { cap: "Fehér" })]);
+  mocks.listSavedLineups.mockResolvedValue(pageOf([lineup(2), lineup(1, { cap: "Fehér" })]));
   mocks.useAfterDelay.mockReturnValue(false);
 });
 
@@ -111,11 +118,11 @@ describe("SavedLineups", () => {
     expect(items[0]).toHaveTextContent("SZVTK - Opponent 2");
     expect(items[0]).toHaveTextContent("2026. 10. 2. · OB II. · Blue caps · Opponent: Opponent 2");
     expect(items[1]).toHaveTextContent("White caps");
-    expect(mocks.listSavedLineups).toHaveBeenCalledWith(TEAM);
+    expect(mocks.listSavedLineups).toHaveBeenCalledWith(TEAM, NO_FILTERS, 0);
   });
 
   it("explains where lineups come from when there are none", async () => {
-    mocks.listSavedLineups.mockResolvedValue([]);
+    mocks.listSavedLineups.mockResolvedValue(pageOf([]));
     renderList();
     expect(await screen.findByText(/No saved lineups yet/)).toBeInTheDocument();
   });
@@ -268,7 +275,7 @@ describe("SavedLineups", () => {
     mocks.deleteSavedLineup.mockResolvedValue(undefined);
     renderList();
     await userEvent.click(await screen.findByRole("button", { name: "Delete SZVTK - Opponent 1" }));
-    mocks.listSavedLineups.mockResolvedValue([lineup(2)]);
+    mocks.listSavedLineups.mockResolvedValue(pageOf([lineup(2)]));
     await userEvent.click(screen.getByRole("button", { name: "Delete lineup" }));
     expect(mocks.deleteSavedLineup).toHaveBeenCalledWith("l-1");
     await waitFor(() => expect(screen.queryByText("SZVTK - Opponent 1")).not.toBeInTheDocument());
@@ -282,7 +289,7 @@ describe("SavedLineups", () => {
       await screen.findByRole("button", { name: "Preview SZVTK - Opponent 2" }),
     );
     await userEvent.click(screen.getByRole("button", { name: "Delete SZVTK - Opponent 1" }));
-    mocks.listSavedLineups.mockResolvedValue([lineup(2)]);
+    mocks.listSavedLineups.mockResolvedValue(pageOf([lineup(2)]));
     await userEvent.click(screen.getByRole("button", { name: "Delete lineup" }));
     await waitFor(() => expect(screen.queryByText("SZVTK - Opponent 1")).not.toBeInTheDocument());
     expect(screen.getByRole("complementary")).toBeInTheDocument();
@@ -315,5 +322,108 @@ describe("SavedLineups", () => {
     mocks.listSavedLineups.mockRejectedValue(new ApiError(0));
     renderList();
     expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+});
+
+describe("SavedLineups filters", () => {
+  const lastCall = () => mocks.listSavedLineups.mock.calls.at(-1)!;
+
+  it("narrows the list as the user types, after a short pause, and keeps the other filters", async () => {
+    renderList();
+    await screen.findByRole("list", { name: "Saved lineups of SZVTK" });
+    await userEvent.type(screen.getByRole("searchbox", { name: "Opponent" }), "ftc");
+    // Nothing is sent per keystroke: the term goes out once typing stops.
+    expect(mocks.listSavedLineups).toHaveBeenCalledOnce();
+    await waitFor(() => expect(lastCall()[1]).toEqual({ ...NO_FILTERS, opponent: "ftc" }));
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Location" }), "Szeged");
+    fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-10-31" } });
+    await waitFor(() =>
+      expect(lastCall()).toEqual([
+        TEAM,
+        { opponent: "ftc", location: "Szeged", dateFrom: "2026-10-01", dateTo: "2026-10-31" },
+        0,
+      ]),
+    );
+  });
+
+  it("keeps the date pickers consistent with each other", async () => {
+    renderList();
+    await screen.findByRole("list", { name: "Saved lineups of SZVTK" });
+    fireEvent.change(screen.getByLabelText("From date"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("To date"), { target: { value: "2026-10-31" } });
+    expect(screen.getByLabelText("From date")).toHaveAttribute("max", "2026-10-31");
+    expect(screen.getByLabelText("To date")).toHaveAttribute("min", "2026-10-01");
+  });
+
+  it("says so when nothing matches, and Clear filters brings the list back", async () => {
+    mocks.listSavedLineups.mockImplementation(async (_team: string, filters) =>
+      filters.opponent ? pageOf([]) : pageOf([lineup(2)]),
+    );
+    renderList();
+    await screen.findByText("SZVTK - Opponent 2");
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Opponent" }), "zzz");
+    expect(await screen.findByText("No saved lineups match these filters.")).toBeInTheDocument();
+    expect(screen.queryByText(/No saved lineups yet/)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("searchbox", { name: "Opponent" })).toHaveValue("");
+    expect(await screen.findByText("SZVTK - Opponent 2")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the previous rows while a new search runs", async () => {
+    mocks.listSavedLineups.mockImplementation(async (_team: string, filters) =>
+      filters.opponent ? new Promise(() => {}) : pageOf([lineup(2)]),
+    );
+    renderList();
+    await screen.findByText("SZVTK - Opponent 2");
+    await userEvent.type(screen.getByRole("searchbox", { name: "Opponent" }), "f");
+    await waitFor(() => expect(mocks.listSavedLineups).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("SZVTK - Opponent 2")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Saved lineups of SZVTK" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+  });
+
+  it("reads the next page on Show more and stops when everything is shown", async () => {
+    mocks.listSavedLineups.mockImplementation(async (_team: string, _f, offset: number) =>
+      offset === 0 ? pageOf([lineup(2)], 2) : pageOf([lineup(1)], 2, offset),
+    );
+    renderList();
+    await screen.findByText("SZVTK - Opponent 2");
+    expect(screen.getByText("Showing 1 of 2 lineups")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Show more" }));
+    expect(await screen.findByText("SZVTK - Opponent 1")).toBeInTheDocument();
+    expect(mocks.listSavedLineups).toHaveBeenLastCalledWith(TEAM, NO_FILTERS, 1);
+    expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument();
+  });
+
+  it("stops paging at an empty page when lineups were deleted meanwhile", async () => {
+    mocks.listSavedLineups.mockImplementation(async (_team: string, _f, offset: number) =>
+      offset === 0 ? pageOf([lineup(2)], 5) : pageOf([], 5, offset),
+    );
+    renderList();
+    await screen.findByText("SZVTK - Opponent 2");
+    await userEvent.click(screen.getByRole("button", { name: "Show more" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Show more" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("never puts the search terms in the address bar or in storage", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    renderList();
+    await screen.findByRole("list", { name: "Saved lineups of SZVTK" });
+    setItem.mockClear();
+    await userEvent.type(screen.getByRole("searchbox", { name: "Opponent" }), "secret");
+    await waitFor(() => expect(lastCall()[1].opponent).toBe("secret"));
+    expect(window.location.search).toBe("");
+    expect(setItem.mock.calls.flat().join(" ")).not.toContain("secret");
+    setItem.mockRestore();
   });
 });

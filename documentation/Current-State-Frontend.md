@@ -385,9 +385,24 @@ leaving the page asks first (see *Unsaved changes*).
 
 ### Saved lineups
 
-The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest first: match
-name, date, division, cap colour and opponent. Every member sees and manages the same list. Each row
-has:
+The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest match first: match
+name, date, division, cap colour and opponent. Every member sees and manages the same list. A
+**filter bar** above the list (#295) narrows it:
+
+- **Opponent** and **Location**: text boxes, a case-insensitive "contains" (typing "csongr" finds
+  "Csongrád VVSE"). They are sent once you stop typing for 300 ms.
+- **From date** and **To date**: native date pickers, both ends inclusive. Lineups saved with a
+  free-text date only (no structured date) do not show up while a date is set. The two pickers
+  limit each other, so the range cannot be reversed from the keyboard.
+- The filters are **combined**: only lineups matching all of them are listed. The server does the
+  searching, so the list is read a page at a time (20 lineups, then **Show more**), not all at once.
+  While a new search runs, the previous rows stay on screen. **Clear filters** appears as soon as a
+  filter is set and brings the whole list back; if nothing matches, the page says so. A filter for
+  home or away matches will follow with #296.
+- The search terms live in the page's state only: they are not put in the address bar or in
+  storage, and never logged.
+
+Each row has:
 
 - **Preview**: the lineup's PDF (`POST /lineups/saved/{id}/generate?format=pdf`), drawn by pdf.js in
   a side panel on a desktop and a full-screen modal dialog on a phone. It loads only when the Preview

@@ -300,7 +300,18 @@
     "deleteConfirm": "Delete lineup",
     "deleteOf": "Delete {{match}}",
     "gone": "This lineup no longer exists; another member may have deleted it. The list has been refreshed.",
-    "previewBadge": "Preview"
+    "previewBadge": "Preview",
+    "filters": {
+      "label": "Filter saved lineups",
+      "opponent": "Opponent",
+      "from": "From date",
+      "to": "To date",
+      "location": "Location",
+      "clear": "Clear filters",
+      "noMatch": "No saved lineups match these filters.",
+      "count": "Showing {{shown}} of {{total}} lineups",
+      "more": "Show more"
+    }
   },
   "toast": {
     "region": "Notifications",
