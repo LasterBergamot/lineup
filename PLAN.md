@@ -271,7 +271,7 @@ the whole issue before starting. The GitHub "blocked by" links match the order b
 - [x] #294 Optional match location, not printed (Sonnet 5.5 · medium · S; backend PR #310, frontend PR #329)
 - [x] #292 Team staff entity: API and DB (Sonnet 5.5 · high · M)
 - [ ] #289 Staff card on the Roster page, staff pickers in the creator and Quick sheet (Opus 5.5 · medium · M)
-- [ ] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L)
+- [x] #290 Edit a saved lineup in place: `PUT`, `updated_at`, 409 on a concurrent edit (Opus 5.5 · high · L; backend PR #316, frontend PR #332)
 - [ ] #296 Home/Away toggle: cap colour, match name, home venue (Sonnet 5.5 · medium · M)
 - [x] #302 Mode switch keeps typed input: the creator and Quick sheet stay mounted (Sonnet 5.5 · medium · S)
 - [ ] #295 Search saved lineups by opponent + date range + location (Sonnet 5.5 · high · M)
@@ -580,6 +580,7 @@ _History: the Polaris theme below was replaced by the Lineup design system (D14,
 | 2026-11-24 | Wave A merged: #282 (preview on the button only), #283 (Hungarian roster sort), #284 (duplicate NSSZ per team, migration `c8f3a1d6e472`), #293 (unsaved-changes guard on a data router). #302 filed from the #293 review: the mode switch drops typed input. The dev Supabase migration for #284 is pending a run. | #282, #283, #284, #293, #302, PRs #299, #300, #301, #303 |
 | 2026-11-24 | Wave B merged: #285 (15 fixed cap rows), #286 (searchable roster picker), #287 (today as the default date, optional time), #288 (team default division), #292 (team staff entity), #302 (the mode switch keeps typed input), and the backend of #294 (match location, not printed). Stray merge marker in the frontend rules removed. Still in Wave B: #289 (staff UI), #290 and #296 (backend). #294's frontend is Wave C. | #285, #286, #287, #288, #292, #294 (backend), #302; PRs #305–#314 |
 | 2026-11-25 | #294 frontend: optional location field in the creator (not printed, not in the Quick sheet), shown in the saved list, kept by Clone. | #294; PR #329 |
+| 2026-11-25 | #290 frontend: Edit on the Saved page opens the creator in edit mode (`editFromId`, ids only); "Save changes" sends `PUT` with `expected_updated_at`, a 409 keeps the input and offers "Load the latest version", a deleted lineup says so; the preview cache is keyed by `updated_at`; Clone unchanged. | #290; PR #332 |
 
 ---
 
