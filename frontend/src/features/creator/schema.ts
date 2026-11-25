@@ -31,6 +31,7 @@ export const creatorSchema = z.object({
   opponentId: z.string(),
   division: cleanText(100, "fields.division"),
   cap: z.enum(CAP_COLOURS, { error: errorKey("validation.capColour") }),
+  location: optionalCleanText(200, "fields.location"),
   match_date: matchDateSchema,
   match_time: matchTimeSchema,
   coach: cleanText(200, "fields.coach"),

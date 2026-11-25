@@ -181,6 +181,8 @@ export function SavedLineups({ team }: { team: Team }) {
                         }),
                         opponent: lineup.opponent_name,
                       })}
+                      {lineup.location &&
+                        ` · ${t("savedLineups.location", { location: lineup.location })}`}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

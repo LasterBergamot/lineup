@@ -386,8 +386,8 @@ leaving the page asks first (see *Unsaved changes*).
 ### Saved lineups
 
 The **Saved** page (`/saved`, #204) lists the current team's saved lineups, newest match first: match
-name, date, division, cap colour and opponent. Every member sees and manages the same list. A
-**filter bar** above the list (#295) narrows it:
+name, date, division, cap colour, opponent and, when one was entered, the location. Every member
+sees and manages the same list. A **filter bar** above the list (#295) narrows it:
 
 - **Opponent** and **Location**: text boxes, a case-insensitive "contains" (typing "csongr" finds
   "Csongrád VVSE"). They are sent once you stop typing for 300 ms.

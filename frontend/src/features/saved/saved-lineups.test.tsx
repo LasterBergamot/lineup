@@ -121,6 +121,16 @@ describe("SavedLineups", () => {
     expect(mocks.listSavedLineups).toHaveBeenCalledWith(TEAM, NO_FILTERS, 0);
   });
 
+  it("shows the location after the details when the lineup has one", async () => {
+    mocks.listSavedLineups.mockResolvedValue(
+      pageOf([lineup(2, { location: "Szeged" }), lineup(1)]),
+    );
+    renderList();
+    const items = within(await screen.findByRole("list")).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("Opponent: Opponent 2 · Location: Szeged");
+    expect(items[1]).not.toHaveTextContent("Location");
+  });
+
   it("explains where lineups come from when there are none", async () => {
     mocks.listSavedLineups.mockResolvedValue(pageOf([]));
     renderList();
